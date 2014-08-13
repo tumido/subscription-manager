@@ -23,6 +23,7 @@ import getpass
 import gettext
 import logging
 from optparse import OptionValueError
+import operator
 import os
 import re
 import socket
@@ -2000,6 +2001,24 @@ class ReposCommand(CliCommand):
         # specifically, yum repos, for now.
         rl = RepoActionInvoker()
         repos = rl.get_repos()
+
+        def repo_sort_keys(repo):
+            name_len = len(repo['name'])
+            id_len = len(repo.id)
+            name = repo['name']
+            parts = len(repo.id.split('-'))
+            #ui_repoid_vars = repo['ui_repoid_vars']
+            #return id_len
+            #return ui_repoid_vars
+            return parts
+#            return (name_len, name, parts)
+
+        # sort repos to something more friendly
+        #repos = sorted(repos, key=operator.attrgetter('id'))
+#        repos = sorted(repos, key=operator.attrgetter('id'))
+        #repos = sorted(repos, key=operator.itemgetter('tags'))
+        repos = sorted(repos, key=repo_sort_keys)
+        repos = sorted(repos, key=operator.itemgetter('enabled'), reverse=True)
 
         if hasattr(self.options, 'repo_actions'):
             rc = self._set_repo_status(repos, rl, self.options.repo_actions)
