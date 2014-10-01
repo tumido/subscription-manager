@@ -24,3 +24,5 @@ src/rct/version.py
 bin/rhsmcertd
 bin/rhsm-icon
 .idea
+build/
+dist/
