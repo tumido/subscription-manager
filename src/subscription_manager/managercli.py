@@ -1432,9 +1432,9 @@ class AttachCommand(CliCommand):
         self.substoken = None
         self.auto_attach = True
         self.parser.add_option("--pool", dest="pool", action='append',
-                               help=_("The ID of the pool to attach (can be specified more than once)"))
-        self.parser.add_option("--quantity", dest="quantity",
-            help=_("Number of subscriptions to attach. May not be used with an auto-attach."))
+                               help=_("the ID of the pool to attach (can be specified more than once)"))
+        self.parser.add_option("--quantity", dest="quantity", type="int",
+            help=_("number of subscriptions to attach"))
         self.parser.add_option("--auto", action='store_true',
             help=_("Automatically attach compatible subscriptions to this system. This is the default action."))
         self.parser.add_option("--servicelevel", dest="service_level",
@@ -1471,15 +1471,8 @@ class AttachCommand(CliCommand):
                 system_exit(os.EX_USAGE, _("Error: The --servicelevel option cannot be used when specifying pools."))
 
         # Quantity must be a positive integer
-        # TODO: simplify with a optparse type="int"
-        quantity = self.options.quantity
-        if self.options.quantity:
-            if not valid_quantity(quantity):
-                system_exit(os.EX_USAGE, _("Error: Quantity must be a positive integer."))
-            elif self.options.auto or not (self.options.pool or self.options.file):
-                system_exit(os.EX_USAGE, _("Error: --quantity may not be used with an auto-attach"))
-            else:
-                self.options.quantity = int(self.options.quantity)
+        if self.options.quantity is not None and not valid_quantity(self.options.quantity):
+            system_exit(os.EX_DATAERR, _("Error: Quantity must be a positive integer."))
 
         # If a pools file was specified, process its contents and append it to options.pool
         if self.options.file:

@@ -880,7 +880,7 @@ def clean_all_data(backup=True):
 
 
 def valid_quantity(quantity):
-    if not quantity:
+    if quantity is None:
         return False
 
     try:

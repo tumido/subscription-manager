@@ -1037,7 +1037,8 @@ class TestAttachCommand(TestCliProxyCommand):
             self.cc.main(["--quantity", "3"])
             self.cc._validate_options()
         except SystemExit, e:
-            self.assertEquals(e.code, os.EX_USAGE)
+            self.assertTrue(e.code in [2, os.EX_DATAERR])
+            #self.assertEquals(e.code, os.EX_DATAERR)
         else:
             self.fail("No Exception Raised")
 
@@ -1141,8 +1142,9 @@ class TestAttachCommand(TestCliProxyCommand):
             self.fail("No Exception Raised")
 
 
-# Test Attach and Subscribe are the same
-class TestSubscribeCommand(TestAttachCommand):
+# AttachCommand and SubscribeCommand are the same, only need
+# to test it works as an alias, so just basic tests.
+class TestSubscribeCommand(TestCliProxyCommand):
     command_class = managercli.SubscribeCommand
 
 
@@ -1179,7 +1181,7 @@ class TestRemoveCommand(TestCliProxyCommand):
             self.assertEquals(e.code, 69)
 
 
-class TestUnSubscribeCommand(TestRemoveCommand):
+class TestUnSubscribeCommand(TestCliProxyCommand):
     command_class = managercli.UnSubscribeCommand
 
 
