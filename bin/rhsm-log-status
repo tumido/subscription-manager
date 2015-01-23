@@ -1,0 +1,83 @@
+#!/usr/bin/python -S
+#
+# Log current Red Hat subscription management status.
+#
+# Copyright (c) 2015 Red Hat, Inc.
+#
+# This software is licensed to you under the GNU General Public License,
+# version 2 (GPLv2). There is NO WARRANTY for this software, express or
+# implied, including the implied warranties of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. You should have received a copy of GPLv2
+# along with this software; if not, see
+# http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
+#
+# Red Hat trademarks are not licensed under GPLv2. No permission is
+# granted to use or replicate Red Hat trademarks that are incorporated
+# in this software or its documentation.
+#
+
+import sys
+
+enable_debug = True
+
+
+def excepthook_base(exc_type, exc_value, exc_traceback):
+    # something failed before we even got logging setup
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+    if enable_debug:
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+
+    # something fundamental failed... how quiet should we be?
+    sys.exit(0)
+
+sys.excepthook = excepthook_base
+
+import gettext
+import logging
+import syslog
+import traceback
+
+_ = gettext.gettext
+
+sys.path.append("/usr/share/rhsm")
+
+log = logging.getLogger("rhsm-app.rhsmd")
+
+from subscription_manager import logutil
+logutil.init_logger()
+
+
+# If we get here, we should be okay to use define excepthook that
+# uses our logging. Set this up before we do injection init, since
+# that has a lot of potential failures.
+def excepthook_logging(exc_type, exc_value, exc_traceback):
+    framelist = traceback.format_exception(exc_type, exc_value, exc_traceback)
+    log.error("Unhandled rhsmd exception caught by the logging excepthook: %s",
+              "".join(framelist))
+
+    return excepthook_base(exc_type, exc_value, exc_traceback)
+
+sys.excepthook = excepthook_logging
+
+from subscription_manager import i18n_optparse
+
+
+def main():
+    parser = i18n_optparse.OptionParser(usage=i18n_optparse.USAGE
+                                        formatter=i18n_optparse.WrappedIndentedHelpFormatter())
+
+    pass
+
+
+if __name__ == '__main__':
+    try:
+        sys.exit(abs(main() or 0))
+    except SystemExit, e:
+        raise e
+    except KeyboardInterrupt:
+        system_exit(0, "\nUser interrupted process.")
+    except Exception, e:
+        handle_exception("exception caught in rhsm-log-status", e)
