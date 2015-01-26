@@ -80,6 +80,8 @@ from subscription_manager.cert_sorter import RHSM_VALID, \
         RHN_CLASSIC, RHSM_REGISTRATION_REQUIRED
 from subscription_manager.utils import print_error
 
+from rhsm_facts.software import rhn
+
 import rhsm.config
 CFG = rhsm.config.initConfig()
 
@@ -105,7 +107,7 @@ def pre_check_status(force_signal):
         debug("forcing status signal from cli arg")
         return force_signal
 
-    if ClassicCheck().is_registered_with_classic():
+    if rhn.RhnClassicCheck().is_registered_with_classic():
         debug("System is already registered to another entitlement system")
         return RHN_CLASSIC
 
