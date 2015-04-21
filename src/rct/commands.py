@@ -27,6 +27,9 @@ class RCTCliCommand(AbstractCLICommand):
 
         (self.options, self.args) = self.parser.parse_args(args)
 
+        print "self.options", self.options
+        print "self.args", self.args
+        print "get_file", self._get_file_from_args()
         self._validate_options()
 
         return_code = self._do_command()

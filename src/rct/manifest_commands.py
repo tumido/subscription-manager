@@ -142,6 +142,54 @@ class ZipExtractAll(ZipFile):
             self._write_file(new_location, path_name)
 
 
+class EntitlementFile(object):
+    def __init__(self):
+        self.data = None
+        self.filename = None
+
+    @classmethod
+    def from_manifest_json(cls, json_blob):
+        ent_file = cls()
+        data = json.loads(json_blob)
+
+        ent_file.filename = os.path.join("export", "entitlements", "%s.json" % data["id"])
+        ent_file.data = data
+        return ent_file
+
+    def __str__(self):
+        return "EntitlementFile(filename=%s)" % self.filename
+
+
+class ManifestArchive(object):
+    INNER_FILE = "consumer_export.zip"
+
+    def __init__(self, filename=None):
+        self.filename = filename
+        self.outer_zip = ZipExtractAll(self.filename, 'r')
+        self.inner_zip = self.extract_inner_zip(self.outer_zip,
+                                                self.INNER_FILE)
+
+    def extract_inner_zip(self, outer_zip, inner_file):
+        output = StringIO(outer_zip.read(inner_file))
+        inner_zip = ZipExtractAll(output, 'r')
+        return inner_zip
+
+    def entitlement_filenames(self):
+        # TODO: change to generator
+        entitlement_filenames = []
+        for filename in self.inner_zip.namelist():
+            (read_path, read_file) = os.path.split(filename)
+            if (read_path == os.path.join("export", "entitlements")) and (len(read_file) > 0):
+                entitlement_filenames.append(filename)
+        return entitlement_filenames
+
+    def entitlements(self):
+        for ent_filename in self.entitlement_filenames():
+            ent_json = self.inner_zip._read_file(ent_filename)
+            ent_file = EntitlementFile.from_manifest_json(ent_json)
+            yield ent_file
+
+
 class RCTManifestCommand(RCTCliCommand):
 
     INNER_FILE = "consumer_export.zip"
@@ -271,7 +319,10 @@ class CatManifestCommand(RCTManifestCommand):
         if not os.path.isfile(filename):
             raise ManifestFilenameNotFoundError(filename)
 
-        temp = ZipExtractAll(filename, 'r')
+        //temp = ZipExtractAll(filename, 'r')
+        manifest_filename = filename
+        temp = ZipExtractAll(manifest_filename, 'r')
+        manifest_archive = ManifestArchive(manifest_filename)
         # Print out the header
         print("\n+-------------------------------------------+")
         print(_("\tManifest"))
@@ -280,6 +331,11 @@ class CatManifestCommand(RCTManifestCommand):
         self._print_general(temp)
         self._print_consumer(temp)
         self._print_products(temp)
+
+        # get a generator, and iterate
+        for ent_file in manifest_archive.entitlements():
+            print type(ent_file)
+            print ent_file
 
 
 class DumpManifestCommand(RCTManifestCommand):
