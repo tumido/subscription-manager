@@ -33,7 +33,6 @@ class RCTCertCommand(RCTCliCommand):
 
     def __init__(self):
         super(RCTCertCommand, self).__init__()
-
     # TODO: make class attr
     def _get_usage(self):
         return _("%%prog %s [OPTIONS] CERT_FILE") % self.name
