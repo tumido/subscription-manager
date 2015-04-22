@@ -288,18 +288,15 @@ class CliCommand(AbstractCLICommand):
 
         self.server_url = None
 
-        # TODO
         self.server_hostname = None
         self.server_port = None
         self.server_prefix = None
         self.proxy_user = None
         self.proxy_password = None
-        #
+
         self.proxy_url = None
         self.proxy_hostname = None
         self.proxy_port = None
-
-        self.identity = inj.require(inj.IDENTITY)
 
     @property
     def entitlement_dir(self):
@@ -312,6 +309,10 @@ class CliCommand(AbstractCLICommand):
     @property
     def plugin_manager(self):
         return inj.require(inj.PLUGIN_MANAGER)
+
+    @property
+    def identity(self):
+        return inj.require(inj.IDENTITY)
 
     def _get_logger(self):
         return logging.getLogger('rhsm-app.%s.%s' % (self.__module__, self.__class__.__name__))
@@ -349,7 +350,7 @@ class CliCommand(AbstractCLICommand):
             system_exit(ERR_NOT_REGISTERED_CODE, ERR_NOT_REGISTERED_MSG)
 
     def is_registered(self):
-        self.identity = inj.require(inj.IDENTITY)
+        #self.identity = inj.require(inj.IDENTITY)
         log.info('%s', self.identity)
         return self.identity.is_valid()
 
@@ -693,6 +694,7 @@ class IdentityCommand(UserPassCommand):
                     # get an UEP with basic auth
                     self.cp_provider.set_user_pass(self.username, self.password)
                     self.cp = self.cp_provider.get_basic_auth_cp()
+
                 consumer = self.cp.regenIdCertificate(consumerid)
                 managerlib.persist_consumer_cert(consumer)
 
