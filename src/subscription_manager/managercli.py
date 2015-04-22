@@ -304,14 +304,6 @@ class CliCommand(AbstractCLICommand):
         self.entitlement_dir = inj.require(inj.ENT_DIR)
         self.product_dir = inj.require(inj.PROD_DIR)
 
-
-        # We log these
-        self.client_versions = {"subscription-manager": _("Unknown"),
-                                 "python-rhsm": _("Unknown")}
-
-        self.server_versions = {"candlepin": _("Unknown"),
-                                 "server-type": _("Unknown")}
-
         # also could be property or required where needed
         self.plugin_manager = inj.require(inj.PLUGIN_MANAGER)
 
@@ -369,10 +361,6 @@ class CliCommand(AbstractCLICommand):
     # TODO: should be property
     def require_connection(self):
         return True
-
-    def log_client_version(self):
-        self.client_versions = get_client_versions()
-        log.info("Client Versions: %s" % self.client_versions)
 
     def log_server_version(self):
         # can't check the server version without a connection
@@ -488,8 +476,6 @@ class CliCommand(AbstractCLICommand):
 
         self.cp_provider = inj.require(inj.CP_PROVIDER)
         self.cp_provider.set_connection_info(**connection_info)
-
-        self.log_client_version()
 
         if self.require_connection():
             # make sure we pass in the new server info, otherwise we
@@ -1051,9 +1037,6 @@ class RegisterCommand(UserPassCommand):
         """
         Executes the command.
         """
-
-        # FIXME: redundant
-        self.log_client_version()
 
         # Always warn the user if registered to old RHN/Spacewalk
         if ClassicCheck().is_registered_with_classic():
@@ -2688,6 +2671,17 @@ class StatusCommand(CliCommand):
 
 
 class ManagerCLI(CLI):
+    """subscription-manager's main top level cli class.
+
+    This is init'ed from /usr/sbin/subscription-manager and it's main()
+    called with args from sys.argv.
+
+    It's primary job is to figure out which subcommand to invoke
+    (via CLI._find_best_match()) and invoke the CliCommand subclasses
+    main().
+
+    This should only be called once per cli invocation.
+    """
 
     def __init__(self):
         commands = [RegisterCommand, UnRegisterCommand, ConfigCommand, ListCommand,
@@ -2697,12 +2691,17 @@ class ManagerCLI(CLI):
                     EnvironmentsCommand, ImportCertCommand, ServiceLevelCommand,
                     VersionCommand, RemoveCommand, AttachCommand, PluginsCommand,
                     AutohealCommand, OverrideCommand]
-        #CLI.__init__(self, command_classes=commands)
+
         super(ManagerCLI, self).__init__(command_classes=commands)
+
+        self.server_versions = {"candlepin": _("Unknown"),
+                                "server-type": _("Unknown")}
 
     def main(self, args=None):
         args = args or []
+
         managerlib.check_identity_cert_perms()
+
         return super(ManagerCLI, self).main(args)
 
 
