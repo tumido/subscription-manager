@@ -53,7 +53,7 @@ from subscription_manager.repolib import RepoActionInvoker, RepoFile, manage_rep
 from subscription_manager.utils import parse_server_info, \
         parse_baseurl_info, format_baseurl, is_valid_server_info, \
         MissingCaCertException, get_client_versions, get_server_versions, \
-        restart_virt_who, get_terminal_width, print_error, unique_list_items, \
+        restart_virt_who, get_terminal_width, \
         ProductCertificateFilter, EntitlementCertificateFilter
 from subscription_manager.overrides import Overrides, Override
 from subscription_manager.exceptions import ExceptionMapper
@@ -2619,8 +2619,10 @@ class VersionCommand(CliCommand):
         print (_("server type: %s") % self.server_versions["server-type"])
         print (_("subscription management server: %s") % self.server_versions["candlepin"])
         print (_("subscription management rules: %s") % self.server_versions["rules-version"])
-        print ("subscription-manager: %s" % self.client_versions["subscription-manager"])
-        print ("python-rhsm: %s" % self.client_versions["python-rhsm"])
+
+        client_versions = get_client_versions()
+        print ("subscription-manager: %s" % client_versions["subscription-manager"])
+        print ("python-rhsm: %s" % client_versions["python-rhsm"])
 
 
 class StatusCommand(CliCommand):
