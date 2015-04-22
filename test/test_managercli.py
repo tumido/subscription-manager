@@ -1284,7 +1284,6 @@ class TestVersionCommand(TestCliCommand):
     command_class = managercli.VersionCommand
 
 
-
 class TestPluginsCommand(TestCliCommand):
     command_class = managercli.PluginsCommand
 
