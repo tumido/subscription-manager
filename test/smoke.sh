@@ -221,6 +221,16 @@ run_virtwho () {
     run_tool "${VIRT_WHO}" "$@"
 }
 
+run_rct () {
+    echo "===================="
+    echo "running: ${RCT} ${GLOBAL_ARGS} $*"
+    echo
+    sudo ${WRAPPER} ${RCT} ${GLOBAL_ARGS} $*
+    RETURN_CODE=$?
+    echo "return code: ${RETURN_CODE}"
+    echo "===================="
+}
+
 # basics
 # first arg is valid exit codes
 run_sm "0" register --username "${USERNAME}" --password "${PASSWORD}" --org "${ORG}" --force
