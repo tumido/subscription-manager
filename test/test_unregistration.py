@@ -34,7 +34,7 @@ class CliUnRegistrationTests(SubManFixture):
 
         CacheManager.delete_cache = classmethod(lambda cls: None)
 
-        cmd.main(['unregister'])
+        cmd.main([])
         self.assertEquals(mock_injected_identity.uuid, cmd.cp.called_unregister_uuid)
 
     @patch('subscription_manager.managerlib.clean_all_data')
