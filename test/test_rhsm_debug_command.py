@@ -45,8 +45,7 @@ class TestRhsmDebugCLI(fixture.SubManFixture):
         cli_obj = cli.RhsmDebugCLI()
         # we populated cli_commands
         self.assertTrue(cli_obj.cli_commands)
-        # no aliases
-        self.assertFalse(cli_obj.cli_aliases)
+        self.assertTrue(cli_obj.cmd_name_to_cmd)
 
 
 class TestCompileCommand(TestCliCommand):
@@ -160,6 +159,7 @@ class TestCompileCommand(TestCliCommand):
         try:
             self.cc.main(["--destination", self.path, "--no-archive"])
         except SystemExit:
+            raise
             self.fail("Exception Raised")
 
         self._assert_expected_paths_exists()
