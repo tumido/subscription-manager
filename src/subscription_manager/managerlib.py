@@ -786,9 +786,9 @@ def format_date(dt):
 
 
 def format_date_range(date_range):
-    """Return a tuple of formatted date strings for beging and end of date_range.
+    """Return a tuple of formatted date strings for begining and end of a rhsm.certificate.DateRange.
 
-    Returns empty strings if date_range or beging or end date are Falsey
+    Returns empty strings if date_range or beging or end date are Falsey.
     """
     if not date_range:
         return "", ""
