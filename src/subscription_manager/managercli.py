@@ -1110,6 +1110,11 @@ class RegisterCommand(UserPassCommand):
         except Exception, e:
             handle_exception(_("Error during registration: %s") % e, e)
 
+        # FIXME: += doesn't work.
+        #        A set might make more sense, or a dict of
+        #        errors['some_identifier'] = error code (Or Exception)
+        post_register_return_code = 0
+
         consumer_info = self._persist_identity_cert(consumer)
 
         # We have new credentials, restart virt-who
@@ -1126,50 +1131,148 @@ class RegisterCommand(UserPassCommand):
         # log the version of the server we registered to
         self.log_server_version()
 
-        # FIXME: can these cases be replaced with invoking
-        # FactsLib (or a FactsManager?)
-        # Must update facts to clear out the old ones:
-        if self.options.consumerid:
-            log.info("Updating facts")
-            facts.update_check(self.cp, consumer['uuid'], force=True)
+        # Note: Anything that could raise an exception, but shouldn't
+        #       neccasarily cause register to stop, should handle it's
+        #       exceptions and add to post_register_return_codes
 
-        profile_mgr = inj.require(inj.PROFILE_MANAGER)
-        # 767265: always force an upload of the packages when registering
-        profile_mgr.update_check(self.cp, consumer['uuid'], True)
+        # It wouldn't be that strange to make post_register_return_code a
+        # bitmask...
+        post_register_return_code += self._force_fact_update(self.cp, self.options.consumerid,
+                                                             consumer_uuid=consumer_info["uuid"])
 
+        post_register_return_code += self._profile_update(self.cp,
+                                                          consumer_uuid=consumer_info['uuid'])
+
+        post_register_return_code += self._installed_mgr_update(self.cp,
+                                                                consumer_uuid=consumer_info['uuid'])
         # Facts and installed products went out with the registration request,
         # manually write caches to disk:
         facts.write_cache()
-        self.installed_mgr.update_check(self.cp, consumer['uuid'])
 
-        if self.options.release:
-            # TODO: grab the list of valid options, and check
-            self.cp.updateConsumer(consumer['uuid'], release=self.options.release)
+        post_register_return_code += self._update_release(self.cp,
+                                                          consumer_uuid=consumer_info['uuid'],
+                                                          release_option=self.options.release)
 
+        # TODO: this could be a return code as well, if we decide
+        #       that not supporting service level is not "fatal"
         if self.autoattach:
             if 'serviceLevel' not in consumer and self.options.service_level:
                 system_exit(os.EX_UNAVAILABLE, _("Error: The --servicelevel option is not supported "
                                  "by the server. Did not complete your request."))
-            try:
-                autosubscribe(self.cp, consumer['uuid'], service_level=self.options.service_level)
-            except connection.RestlibException, re:
-                print_error(re.msg)
 
+        post_register_return_code += self._auto_attach(self.cp,
+                                                       consumer_uuid=consumer_info['uuid'],
+                                                       service_level=self.options.service_level)
+
+        # entcertlib update can raise errors as well
         if (self.options.consumerid or self.options.activation_keys or self.autoattach):
             log.info("System registered, updating entitlements if needed")
             # update certs, repos, and caches.
-            # FIXME: aside from the overhead, should this be cert_action_client.update?
-            self.entcertlib.update()
+            post_register_return_code += self._update_certs_and_repos()
 
-        subscribed = 0
         if (self.options.activation_keys or self.autoattach):
-            # update with latest cert info
-            self.sorter = inj.require(inj.CERT_SORTER)
-            self.sorter.force_cert_check()
-            subscribed = show_autosubscribe_output(self.cp)
+            post_register_return_code += self._show_subscription_status(self.cp)
 
+        # TODO:
+        # make this async
         self._request_validity_check()
+
+        return post_register_return_code
+
+    def _show_subscription_status(self, cp):
+        sorter = inj.require(inj.CERT_SORTER)
+        sorter.force_cert_check()
+        subscribed = 0
+
+        # We can't return useful subscription status code
+        # and useful registration status codes, yet...
+        try:
+            subscribed = show_autosubscribe_output(cp)
+        except connection.RestlibException, re:
+            log.exception(re)
+            return 1
+
+        # subscribed = 1 means we still need subs
+        # FIXME: TODO: should missing subs mean non
+        #  0 exit code for 'register --auto-attach'?
+        # For now, that counts as a fail.
         return subscribed
+
+    def _force_fact_update(self, cp,
+                           consumerid_option=None,
+                           consumer_uuid=None):
+
+        if None in [consumerid_option, consumer_uuid]:
+            return 0
+
+        # Must update facts to clear out the old ones:
+        log.info("Updating facts for existing consumer uuid=%s", consumer_uuid)
+        facts = inj.require(inj.FACTS)
+        try:
+            facts.update_check(cp, consumer_uuid, force=True)
+        except connection.RestlibException, re:
+            log.exception(re)
+            # TODO: replace with RegisterCommandStatus enum, raise
+            #       CliException with the enum, handle with global handler
+            return 1
+
+        # We could also return a bool, or None/SomeException, etc
+        return 0
+
+    def _profile_update(self, cp, consumer_uuid=None):
+        if not consumer_uuid:
+            return 0
+
+        profile_mgr = inj.require(inj.PROFILE_MANAGER)
+        # 767265: always force an upload of the packages when registering
+        try:
+            profile_mgr.update_check(cp, consumer_uuid, True)
+        except connection.RestlibException, re:
+            log.exception(re)
+            return 1
+        return 0
+
+    def _installed_mgr_update(self, cp, consumer_uuid):
+        try:
+            self.installed_mgr.update_check(cp, consumer_uuid)
+        except connection.RestlibException, re:
+            log.exception(re)
+            return 1
+        return 0
+
+    def _update_release(self, cp, consumer_uuid, release_option):
+        if not release_option:
+            return 0
+
+        try:
+            cp.updateConsumer(consumer_uuid, release=release_option)
+        except connection.RestlibException, re:
+            log.exception(re)
+            return 1
+        return 0
+
+    def _auto_attach(self, cp, consumer_uuid, service_level=None):
+        if not service_level:
+            return 0
+        return_code = 0
+        try:
+            return_code = autosubscribe(cp, consumer_uuid, service_level)
+        except connection.RestlibException, re:
+            log.exception(re)
+            return 1
+
+        # TODO: we may need to translate the 'autosubscribe' return code
+        #       to something
+        return return_code
+
+    def _update_certs_and_repos(self):
+        try:
+            # FIXME: could use injected version, or via self properties...
+            self.entcertlib.update()
+        except connection.RestlibException, re:
+            log.exception(re)
+            return 1
+        return 0
 
     def _persist_identity_cert(self, consumer):
         """
