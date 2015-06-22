@@ -424,8 +424,10 @@ rm -rf %{buildroot}
 %dir %{_datadir}/rhsm/rhsm_facts/software
 %dir %{_datadir}/rhsm/rhsm_facts/custom
 %dir %{_datadir}/rhsm/rhsm_facts/software/rhn
-%dir %{_datadir}/rhsm/rhsm_facts/software/__init__.py*
-%dir %{_datadir}/rhsm/rhsm_facts/software/rhn.py*
+%{_datadir}/rhsm/rhsm_facts/custom/*.py*
+%{_datadir}/rhsm/rhsm_facts/software/*.py*
+%{_datadir}/rhsm/rhsm_facts/software/rhn/*.py*
+%{_datadir}/rhsm/rhsm_facts/hardwareware/*.py*
 
 
 # subscription-manager plugins
@@ -438,7 +440,6 @@ rm -rf %{buildroot}
 %{_prefix}/lib/yum-plugins/subscription-manager.py*
 %{_prefix}/lib/yum-plugins/product-id.py*
 %{_prefix}/lib/yum-plugins/search-disabled-repos.py*
-
 
 # Incude rt CLI tool
 %dir %{_datadir}/rhsm/rct
