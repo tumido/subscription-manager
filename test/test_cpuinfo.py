@@ -18,6 +18,7 @@ class BaseCpuInfo(fixture.SubManFixture):
     cpuinfo_class = None
 
     def _test(self, name):
+        #x86_64-dell_e4310
         cpud = self._load_cpuinfo(name)
         exp = self.expected[name]
 
