@@ -49,6 +49,10 @@ def posttrans_hook(conduit):
         return
 
     logutil.init_logger_for_yum()
+
+    yb = conduit._base
+
+
     # If a tool (it's, e.g., Anaconda and Mock) manages a chroot via
     # 'yum --installroot', we must update certificates in that directory.
     chroot(conduit.getConf().installroot)
@@ -58,6 +62,24 @@ def posttrans_hook(conduit):
         conduit.info(3, 'Installed products updated.')
     except Exception, e:
         conduit.error(3, str(e))
+        return
+
+    ts_info = conduit.getTsInfo()
+    for tx_member in ts_info:
+        if tx_member.output_state in TS_INSTALL_STATES:
+            log.debug(tx_member)
+            log.debug(tx_member.pkgtup)
+            pos = yb.rpmdb.searchPkgTuple(tx_member.pkgtup)
+            po = pos[0]
+            po.yumdb_info.rhsm_installed = "1"
+
+            from_repo = po.yumdb_info.from_repo
+            pids = pm.db.search_by_repo(from_repo)
+            log.debug("pids=%s", pids)
+            for pid in pids:
+                po.yumdb_info.product_id = pid
+                log.debug("yumdb.product_id=%s", pid)
+
 
 
 class YumProductManager(ProductManager):
