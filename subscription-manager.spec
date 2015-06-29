@@ -19,6 +19,8 @@
 %global use_initial_setup 0
 %global use_firstboot 1
 %endif
+%global use_dnf (0%{?fedora} && 0%{?fedora} >= 22)
+
 
 %global use_dnf (0%{?fedora} && 0%{?fedora} >= 22)
 
