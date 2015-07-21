@@ -173,6 +173,12 @@ class ProductSorter(object):
     def __init__(self):
         pass
 
+    # ideas
+    # Do we ever have values for product version populated? remove?
+    # sort applicable arch first
+    # regular versions before EUS
+    # GA before Beta
+    # Branded products before non-branded
     def sorted(self, products):
         def sort_key(product):
             return int(product.id)
@@ -202,8 +208,26 @@ class ContentSorter(object):
     def __init__(self):
         pass
 
+    # ideas
+    #   show enabled repos first (or last)
+    #   group by required tags
+    #      with content that matches installed product tags first
+    #   bin rpm repos first
+    #      - then source rpms
+    #      - then ostree
+    #      - then containers
+    #      - then isos
+    #      - then files
+    #      - then debuginfo rpms
+    #
+    #    sort newer versions first
+    #    sort GA versions higher than beta
+    #    group by matching name sub string?
     def sorted(self, contents):
-        sorted_content = sorted(contents, key=lambda content: content.label)
+        def sort_key(content):
+            return content.label
+
+        sorted_content = sorted(contents, key=sort_key)
         return sorted_content
 
 
