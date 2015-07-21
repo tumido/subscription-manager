@@ -40,6 +40,18 @@ class Content(object):
         self.enabled = enabled
         self.metadata_expire = metadata_expire
 
+    def __repr__(self):
+        a = """<model.Content
+             label=%s
+             name=%s
+             url=%s
+             enabled=%s
+             tags=%s
+             gpg=%s
+             cert=%s""" % (self.label, self.name, self.url, self.enabled,
+                           self.tags, self.gpg, self.cert)
+        return a
+
 
 class Entitlement(object):
     """Represent an entitlement.

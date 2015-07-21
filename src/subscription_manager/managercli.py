@@ -59,6 +59,7 @@ from subscription_manager.overrides import Overrides, Override
 from subscription_manager.exceptions import ExceptionMapper
 from subscription_manager.printing_utils import columnize, format_name, \
         none_wrap_columnize_callback, echo_columnize_callback, highlight_by_filter_string_columnize_callback
+from subscription_manager import poolsorter
 
 _ = gettext.gettext
 
@@ -2005,6 +2006,8 @@ class ReposCommand(CliCommand):
             rc = self._set_repo_status(repos, rl, self.options.repo_actions)
 
         if self.options.list:
+            import pprint
+            pprint.pprint(repos)
             if len(repos):
                 # TODO: Perhaps this should be abstracted out as well...?
                 def filter_repos(repo):
@@ -2300,6 +2303,11 @@ class ListCommand(CliCommand):
                     print("+-------------------------------------------+")
                     print("    " + _("Available Subscriptions"))
                     print("+-------------------------------------------+")
+
+                    import pprint
+                    pprint.pprint(epools)
+                    pool_sorter = poolsorter.PoolSorter()
+                    epools = pool_sorter.sorted(epools)
 
                     for data in epools:
                         if PoolWrapper(data).is_virt_only():

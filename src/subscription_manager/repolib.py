@@ -29,6 +29,7 @@ from subscription_manager.cache import OverrideStatusCache, WrittenOverrideCache
 from subscription_manager import utils
 from subscription_manager import model
 from subscription_manager.model import ent_cert
+from subscription_manager import contentsort
 
 from rhsm.config import initConfig
 
@@ -84,6 +85,8 @@ class RepoActionInvoker(BaseActionInvoker):
                                   apply_overrides=apply_overrides)
         repos = action.get_unique_content()
 
+        import pprint
+        pprint.pprint(repos)
         current = set()
         # Add the current repo data
         repo_file = RepoFile()
@@ -333,12 +336,18 @@ class RepoUpdateActionCommand(object):
         if not matching_content:
             return content_list
 
+        content_sort = contentsort.ContentSort(matching_content)
+        sorted_content = content_sort.sorted(matching_content)
+        import pprint
+        pprint.pprint(matching_content)
+        print "sorted...."
+        pprint.pprint(sorted_content)
         # wait until we know we have content before fetching
         # release. We could make YumReleaseverSource understand
         # cache_only as well.
         release_source = YumReleaseverSource()
 
-        for content in matching_content:
+        for content in sorted_content:
             repo = Repo.from_ent_cert_content(content, baseurl, ca_cert,
                                               release_source)
 
