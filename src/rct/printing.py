@@ -175,11 +175,10 @@ class ProductSorter(object):
 
     def sorted(self, products):
         def sort_key(product):
-            #print int(product.id)
             return int(product.id)
 
-        return sorted(products, key=lambda product: int(product.id))
-        #return sorted(products, key=sort_key)
+        #return sorted(products, key=lambda product: int(product.id))
+        return sorted(products, key=sort_key)
 
 
 class ProductCertificatePrinter(CertificatePrinter):
