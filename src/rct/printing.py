@@ -169,6 +169,19 @@ class IdentityCertPrinter(CertificatePrinter):
         str_parts_list.append("\t%s: %s" % (_("Alt Name"), cert.alt_name))
 
 
+class ProductSorter(object):
+    def __init__(self):
+        pass
+
+    def sorted(self, products):
+        def sort_key(product):
+            #print int(product.id)
+            return int(product.id)
+
+        return sorted(products, key=lambda product: int(product.id))
+        #return sorted(products, key=sort_key)
+
+
 class ProductCertificatePrinter(CertificatePrinter):
     def __init__(self, skip_products=False, **kwargs):
         CertificatePrinter.__init__(self)
@@ -176,19 +189,23 @@ class ProductCertificatePrinter(CertificatePrinter):
 
     def cert_to_str(self, cert):
         product_printer = ProductPrinter()
+        product_sorter = ProductSorter()
+
         s = []
         if not self.skip_products:
-            for product in sorted(cert.products, key=self.product_id_int):
+            for product in product_sorter.sorted(cert.products):
                 s.append(product_printer.as_str(product))
 
         return "%s\n%s" % (CertificatePrinter.cert_to_str(self, cert), "\n".join(s))
 
-    @staticmethod
-    def product_id_int(product):
-        try:
-            return int(product.id)
-        except ValueError:
-            return product.id
+
+class ContentSorter(object):
+    def __init__(self):
+        pass
+
+    def sorted(self, contents):
+        sorted_content = sorted(contents, key=lambda content: content.label)
+        return sorted_content
 
 
 class EntitlementCertificatePrinter(ProductCertificatePrinter):
@@ -200,10 +217,13 @@ class EntitlementCertificatePrinter(ProductCertificatePrinter):
         order_printer = OrderPrinter()
         content_printer = ContentPrinter()
 
+        content_sorter = ContentSorter()
+
         s = []
         if not self.skip_content and cert.content:
             # sort content by label - makes content easier to read/locate
-            sorted_content = sorted(cert.content, key=lambda content: content.label)
+            #sorted_content = sorted(cert.content, key=lambda content: content.label)
+            sorted_content = content_sorter.sorted(cert.content)
             for c in sorted_content:
                 s.append("\n%s" % content_printer.as_str(c))
 
