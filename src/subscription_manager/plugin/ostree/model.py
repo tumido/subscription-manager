@@ -90,6 +90,11 @@ class OstreeRemote(object):
     def __iter__(self):
         return iter(self.data)
 
+    def __hash__(self):
+        return hash((self.name, self.url, self.gpg_verify,
+                     self.tls_client_cert_path,
+                     self.tls_client_key_path))
+
     @property
     def url(self):
         return self.data.get('url')
@@ -272,6 +277,9 @@ class OstreeRemotes(object):
 
     def __getitem__(self, key):
         return self.data[key]
+
+    def __hash__(self):
+        return hash(self.data)
 
     @classmethod
     def from_config(cls, repo_config):
@@ -593,6 +601,17 @@ class OstreeRepoConfig(OstreeConfig):
     default_repo_file_path = OSTREE_REPO_CONFIG_PATH
 
 
+class OstreeRemotesDelta(object):
+    """The difference between two OstreeConfigUpdates objects"""
+    def __init__(self, orig, new):
+        self.orig_set = set(orig)
+        self.new_set = set(new)
+
+        self.deleted = self.orig_set.difference(self.new_set)
+        self.added = self.new_set.difference(self.orig_set)
+        self.updates = self.orig_set.intersection(self.new_set)
+
+
 class OstreeConfigUpdates(object):
     """The info a ostree update action needs to update OstreeConfig.
 
@@ -604,8 +623,10 @@ class OstreeConfigUpdates(object):
         self.orig = orig
         self.new = new
         self.content_to_remote = {}
+        self.delta = None
 
     def apply(self):
+        self.delta = OstreeRemotesDelta(self.orig.remotes, self.new.remotes)
         self.orig = self.new
 
     def save(self):

@@ -93,24 +93,14 @@ class OstreeContentUpdateActionCommand(object):
     def update_config(self, ostree_config, contents):
         """Update the remotes configured in a OstreeConfig."""
 
-        report = OstreeContentUpdateActionReport()
-
         updates_builder = \
             model.OstreeConfigUpdatesBuilder(ostree_config,
                                              contents=contents)
         updates = updates_builder.build()
-
-        for remote in updates.orig.remotes:
-            if remote in updates.new.remotes:
-                report.remote_updates.append(remote)
-            else:
-                report.remote_deleted.append(remote)
-
-        for remote in updates.new.remotes:
-            if remote not in updates.orig.remotes:
-                report.remote_added.append(remote)
-
         updates.apply()
+
+        report = OstreeContentUpdateActionReport.from_ostree_remotes_delta(updates.delta)
+
         updates.save()
 
         return report
@@ -138,6 +128,16 @@ class OstreeContentUpdateActionReport(certlib.ActionReport):
         self.remote_added = []
         self.remote_deleted = []
         self.content_to_remote = {}
+
+    @classmethod
+    def from_ostree_remotes_delta(cls, config_delta):
+        report = cls()
+        report.orig_remotes = config_delta.orig_set
+        report.remote_updates = config_delta.updates
+        report.remote_added = config_delta.added
+        report.remote_deleted = config_delta.deleted
+
+        return report
 
     def updates(self):
         """Number of updates. Approximately."""

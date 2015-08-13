@@ -1173,6 +1173,46 @@ class TestContentUpdateActionReport(fixture.SubManFixture):
         # FIXME: validate format
         self.assertTrue(text != "")
 
+    def test_from_ostree_config_delta(self):
+        orig_remotes = model.OstreeRemotes()
+        remote = model.OstreeRemote()
+        remote.url = "http://example.com"
+        remote.name = "only-orig-remote"
+        remote.gpg_verify = "true"
+
+        update_remote = model.OstreeRemote()
+        update_remote.url = "http://example.com"
+        update_remote.name = "updated-orig-remote"
+        update_remote.gpg_verify = "true"
+
+        orig_remotes.add(remote)
+        orig_remotes.add(update_remote)
+
+        new_remotes = model.OstreeRemotes()
+
+        added_remote = model.OstreeRemote()
+        added_remote.url = "http://example.com"
+        added_remote.name = "added-new-remote"
+        added_remote.gpg_verify = "true"
+
+        # same info as in original, but different instance
+        new_update_remote = model.OstreeRemote()
+        new_update_remote.url = "http://example.com"
+        new_update_remote.name = "updated-orig-remote"
+        new_update_remote.gpg_verify = "true"
+
+        new_remotes.add(update_remote)
+        new_remotes.add(new_update_remote)
+        new_remotes.add(added_remote)
+
+        delta = model.OstreeRemotesDelta(orig_remotes, new_remotes)
+
+        report = action_invoker.OstreeContentUpdateActionReport.from_ostree_remotes_delta(delta)
+        print report
+        print report.updates()
+        print report.remote_deleted
+        print '%s' % report
+
 
 class TestOstreeContentUpdateActionCommand(fixture.SubManFixture):
     repo_cfg = """
