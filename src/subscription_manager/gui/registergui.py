@@ -122,17 +122,17 @@ def reset_resolver():
 
 
 class RegisterInfo(ga_GObject.GObject):
-
+    # auth info
     username = ga_GObject.property(type=str, default='')
     password = ga_GObject.property(type=str, default='')
 
+    # server info
     hostname = ga_GObject.property(type=str, default='')
     port = ga_GObject.property(type=str, default='')
     prefix = ga_GObject.property(type=str, default='')
 
+    # rhsm model info
     environment = ga_GObject.property(type=str, default='')
-
-    skip_auto_bind = ga_GObject.property(type=bool, default=False)
     consumername = ga_GObject.property(type=str, default='')
     owner_key = ga_GObject.property(type=ga_GObject.TYPE_PYOBJECT, default=None)
     activation_keys = ga_GObject.property(type=ga_GObject.TYPE_PYOBJECT, default=None)
@@ -140,6 +140,10 @@ class RegisterInfo(ga_GObject.GObject):
     # split into AttachInfo or FindSlaInfo?
     current_sla = ga_GObject.property(type=ga_GObject.TYPE_PYOBJECT, default=None)
     dry_run_result = ga_GObject.property(type=ga_GObject.TYPE_PYOBJECT, default=None)
+
+    # registergui states
+    skip_auto_bind = ga_GObject.property(type=bool, default=False)
+    details_label_txt = ga_GObject.property(type=str, default='')
 
     @property
     def identity(self):
@@ -184,8 +188,6 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         #widget
         self.backend = backend
         self.identity = require(IDENTITY)
-
-        self.facts = facts
 
         self.async = AsyncBackend(self.backend)
 
@@ -235,7 +237,13 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
         # TODO: current_screen as a gobject property
         for idx, screen_class in enumerate(screen_classes):
-            screen = screen_class(parent=self)
+            screen = screen_class(reg_info=self.info,
+                                  async_backend=self.async,
+                                  facts=facts,
+                                  parent_window=self.parent_window)
+
+            # add the index of the screen in self._screens to the class itself
+            screen.screens_index = idx
 
             # connect handlers to various screen signals. The screens are
             # Gobjects not gtk widgets, so they can't propagate normally.
@@ -246,9 +254,6 @@ class RegisterWidget(widgets.SubmanBaseWidget):
                            self._on_screen_register_finished)
             screen.connect('attach-finished',
                            self._on_screen_attach_finished)
-
-            # add the index of the screen in self._screens to the class itself
-            screen.screens_index = idx
 
             self._screens.append(screen)
 
@@ -611,7 +616,7 @@ class Screen(widgets.SubmanBaseWidget):
                     'move-to-screen': (ga_GObject.SignalFlags.RUN_FIRST,
                                      None, (int,))}
 
-    def __init__(self, parent):
+    def __init__(self, reg_info, async_backend, facts, parent_window):
         super(Screen, self).__init__()
     #    log.debug("Screen %s init parent=%s", self.__class__.__name__, parent)
 
@@ -619,8 +624,12 @@ class Screen(widgets.SubmanBaseWidget):
         self.button_label = _("Register")
         self.needs_gui = True
         self.index = -1
-        self._parent = parent
-        self._error_screen = self.index
+        # REMOVE self._error_screen = self.index
+
+        self.parent_window = parent_window
+        self.info = reg_info
+        self.async = async_backend
+        self.facts = facts
 
     def stay(self):
         self.emit('stay-on-screen')
@@ -660,13 +669,17 @@ class NoGuiScreen(ga_GObject.GObject):
                     'certs-updated': (ga_GObject.SignalFlags.RUN_FIRST,
                                       None, [])}
 
-    def __init__(self, parent):
+    def __init__(self, reg_info, async_backend, facts, parent_window):
         ga_GObject.GObject.__init__(self)
 
-        self._parent = parent
+        self.parent_window = parent_window
+        self.info = reg_info
+        self.async = async_backend
+        self.facts = facts
+
         self.button_label = None
         self.needs_gui = False
-        self._error_screen = None
+        # REMOVE self._error_screen = None
         self.pre_message = "Default Pre Message"
 
     # FIXME: a do_register_error could be used for logging?
@@ -692,9 +705,9 @@ class ProgressScreen(NoGuiScreen):
 class PerformRegisterScreen(NoGuiScreen):
     screen_enum = PERFORM_REGISTER_PAGE
 
-    def __init__(self, parent):
-        super(PerformRegisterScreen, self).__init__(parent)
-        self._error_screen = CREDENTIALS_PAGE
+    def __init__(self, reg_info, async_backend, facts, parent_window):
+        super(PerformRegisterScreen, self).__init__(reg_info, async_backend, facts, parent_window)
+        # REMOVE self._error_screen = CREDENTIALS_PAGE
 
     def _on_registration_finished_cb(self, new_account, error=None):
         if error is not None:
@@ -704,7 +717,6 @@ class PerformRegisterScreen(NoGuiScreen):
                       REGISTER_ERROR,
                       error)
             # TODO: register state
-            #self._parent.register_error()
             return
 
         # Done with the registration stuff, now on to attach
@@ -716,10 +728,10 @@ class PerformRegisterScreen(NoGuiScreen):
             # trigger a id cert reload
             self.emit('identity-updated')
 
-            if self._parent.info.get_property('activation-keys'):
+            if self.info.get_property('activation-keys'):
                 self.emit('move-to-screen', REFRESH_SUBSCRIPTIONS_PAGE)
                 return
-            elif self._parent.info.get_property('skip-auto-bind'):
+            elif self.info.get_property('skip-auto-bind'):
                 return
             else:
                 self.emit('move-to-screen', SELECT_SLA_PAGE)
@@ -730,15 +742,15 @@ class PerformRegisterScreen(NoGuiScreen):
 
     def pre(self):
         log.info("Registering to owner: %s environment: %s" %
-                 (self._parent.info.get_property('owner-key'),
-                  self._parent.info.get_property('environment')))
+                 (self.info.get_property('owner-key'),
+                  self.info.get_property('environment')))
 
-        self._parent.async.register_consumer(self._parent.info.get_property('consumername'),
-                                             self._parent.facts,
-                                             self._parent.info.get_property('owner-key'),
-                                             self._parent.info.get_property('environment'),
-                                             self._parent.info.get_property('activation-keys'),
-                                             self._on_registration_finished_cb)
+        self.async.register_consumer(self.info.get_property('consumername'),
+                                     self.facts,
+                                     self.info.get_property('owner-key'),
+                                     self.info.get_property('environment'),
+                                     self.info.get_property('activation-keys'),
+                                     self._on_registration_finished_cb)
 
         return True
 
@@ -746,8 +758,8 @@ class PerformRegisterScreen(NoGuiScreen):
 class PerformSubscribeScreen(NoGuiScreen):
     screen_enum = PERFORM_SUBSCRIBE_PAGE
 
-    def __init__(self, parent):
-        super(PerformSubscribeScreen, self).__init__(parent)
+    def __init__(self, reg_info, async_backend, facts, parent_window):
+        super(PerformSubscribeScreen, self).__init__(reg_info, async_backend, facts, parent_window)
         self.pre_message = _("Attaching subscriptions")
 
     def _on_subscribing_finished_cb(self, unused, error=None):
@@ -761,10 +773,10 @@ class PerformSubscribeScreen(NoGuiScreen):
         self.emit('attach-finished')
 
     def pre(self):
-        self._parent.set_property('details-label-txt', self.pre_message)
-        self._parent.async.subscribe(self._parent.identity.uuid,
-                                     self._parent.info.get_property('current-sla'),
-                                     self._parent.info.get_property('dry-run-result'),
+        self.info.set_property('details-label-txt', self.pre_message)
+        self.async.subscribe(self._parent.identity.uuid,
+                                     self.info.get_property('current-sla'),
+                                     self.info.get_property('dry-run-result'),
                                      self._on_subscribing_finished_cb)
 
         return True
@@ -778,9 +790,8 @@ class ConfirmSubscriptionsScreen(Screen):
 
     gui_file = "confirmsubs"
 
-    def __init__(self, parent):
-
-        super(ConfirmSubscriptionsScreen, self).__init__(parent)
+    def __init__(self, reg_info, async_backend, facts, parent_window):
+        super(ConfirmSubscriptionsScreen, self).__init__(reg_info, async_backend, facts, parent_window)
         self.button_label = _("Attach")
 
         self.store = ga_Gtk.ListStore(str, bool, str)
@@ -808,7 +819,7 @@ class ConfirmSubscriptionsScreen(Screen):
         self.emit('move-to-screen', PERFORM_SUBSCRIBE_PAGE)
 
     def set_model(self):
-        dry_run_result = self._parent.info.get_property('dry-run-result')
+        dry_run_result = self.info.get_property('dry-run-result')
 
         # Make sure that the store is cleared each time
         # the data is loaded into the screen.
@@ -841,8 +852,8 @@ class SelectSLAScreen(Screen):
                                           'owner_treeview']
     gui_file = "selectsla"
 
-    def __init__(self, parent):
-        super(SelectSLAScreen, self).__init__(parent)
+    def __init__(self, reg_info, async_backend, facts, parent_window):
+        super(SelectSLAScreen, self).__init__(reg_info, async_backend, facts, parent_window)
 
         self.pre_message = _("Finding suitable service levels")
         self.button_label = _("Next")
@@ -881,7 +892,7 @@ class SelectSLAScreen(Screen):
         sla, sla_data_map = data
 
         if button.get_active():
-            self._parent.info.set_property('dry-run-result',
+            self.info.set_property('dry-run-result',
                                            sla_data_map[sla])
 
     def _format_prods(self, prod_certs):
@@ -941,7 +952,7 @@ class SelectSLAScreen(Screen):
 
         (current_sla, unentitled_products, sla_data_map) = result
 
-        self._parent.info.set_property('current-sla', current_sla)
+        self.info.set_property('current-sla', current_sla)
 
         if len(sla_data_map) == 1:
             # If system already had a service level, we can hit this point
@@ -958,7 +969,7 @@ class SelectSLAScreen(Screen):
                 self.emit('attach-finished')
                 return
 
-            self._parent.info.set_property('dry-run-result',
+            self.info.set_property('dry-run-result',
                                            sla_data_map.values()[0])
             self.emit('move-to-screen', CONFIRM_SUBS_PAGE)
             return
@@ -985,7 +996,7 @@ class SelectSLAScreen(Screen):
                   self._parent.identity,
                   self._parent.identity.uuid,
                   self._parent.facts)
-        self._parent.async.find_service_levels(self._parent.identity.uuid,
+        self.async.find_service_levels(self._parent.identity.uuid,
                                                self._parent.facts,
                                                self._on_get_service_levels_cb)
         return True
@@ -1005,8 +1016,8 @@ class EnvironmentScreen(Screen):
     widget_names = Screen.widget_names + ['environment_treeview']
     gui_file = "environment"
 
-    def __init__(self, parent):
-        super(EnvironmentScreen, self).__init__(parent)
+    def __init__(self, reg_info, async_backend, facts, parent_window):
+        super(EnvironmentScreen, self).__init__(reg_info, async_backend, facts, parent_window)
 
         self.pre_message = _("Fetching list of possible environments")
         renderer = ga_Gtk.CellRendererText()
@@ -1039,7 +1050,7 @@ class EnvironmentScreen(Screen):
 
     def pre(self):
         self._parent.set_property('details-label-txt', self.pre_message)
-        self._parent.async.get_environment_list(self._parent.info.get_property('owner-key'),
+        self.async.get_environment_list(self.info.get_property('owner-key'),
                                                 self._on_get_environment_list_cb)
         return True
 
@@ -1049,7 +1060,7 @@ class EnvironmentScreen(Screen):
         self.emit('move-to-screen', PERFORM_REGISTER_PAGE)
 
     def set_environment(self, environment):
-        self._parent.info.set_property('environment', environment)
+        self.info.set_property('environment', environment)
 
     def set_model(self, envs):
         environment_model = ga_Gtk.ListStore(str, str)
@@ -1066,8 +1077,8 @@ class OrganizationScreen(Screen):
     widget_names = Screen.widget_names + ['owner_treeview']
     gui_file = "organization"
 
-    def __init__(self, parent):
-        super(OrganizationScreen, self).__init__(parent)
+    def __init__(self, reg_info, async_backend, facts, parent_window):
+        super(OrganizationScreen, self).__init__(reg_info, async_backend, facts, parent_window)
 
         self.pre_message = _("Fetching list of possible organizations")
 
@@ -1087,13 +1098,13 @@ class OrganizationScreen(Screen):
 
         if len(owners) == 0:
             msg = _("<b>User %s is not able to register with any orgs.</b>") % \
-                    self._parent.info.get_property('username')
+                    self.info.get_property('username')
             self.emit('register-error', msg, None)
             return
 
         if len(owners) == 1:
             owner_key = owners[0][0]
-            self._parent.info.set_property('owner-key', owner_key)
+            self.info.set_property('owner-key', owner_key)
             # only one org, use it and skip the org selection screen
             self.emit('move-to-screen', ENVIRONMENT_SELECT_PAGE)
             return
@@ -1105,7 +1116,7 @@ class OrganizationScreen(Screen):
 
     def pre(self):
         self._parent.set_property('details-label-txt', self.pre_message)
-        self._parent.async.get_owner_list(self._parent.info.get_property('username'),
+        self.async.get_owner_list(self.info.get_property('username'),
                                           self._on_get_owner_list_cb)
         return True
 
@@ -1113,7 +1124,7 @@ class OrganizationScreen(Screen):
         # check for selection exists
         model, tree_iter = self.owner_treeview.get_selection().get_selected()
         owner_key = model.get_value(tree_iter, 0)
-        self._parent.info.set_property('owner-key', owner_key)
+        self.info.set_property('owner-key', owner_key)
         self.emit('move-to-screen', ENVIRONMENT_SELECT_PAGE)
 
     def set_model(self, owners):
@@ -1135,8 +1146,8 @@ class CredentialsScreen(Screen):
 
     gui_file = "credentials"
 
-    def __init__(self, parent):
-        super(CredentialsScreen, self).__init__(parent)
+    def __init__(self, reg_info, async_backend, facts, parent_window):
+        super(CredentialsScreen, self).__init__(reg_info, async_backend, facts, parent_window)
 
         self._initialize_consumer_name()
         self.registration_tip_label.set_label("<small>%s</small>" %
@@ -1197,10 +1208,10 @@ class CredentialsScreen(Screen):
         if not self._validate_account():
             return
 
-        self._parent.info.set_property('username', username)
-        self._parent.info.set_property('password', password)
-        self._parent.info.set_property('skip-auto-bind', skip_auto_bind)
-        self._parent.info.set_property('consumername', consumername)
+        self.info.set_property('username', username)
+        self.info.set_property('password', password)
+        self.info.set_property('skip-auto-bind', skip_auto_bind)
+        self.info.set_property('consumername', consumername)
 
         self.emit('move-to-screen', OWNER_SELECT_PAGE)
 
@@ -1220,8 +1231,8 @@ class ActivationKeyScreen(Screen):
         ]
     gui_file = "activation_key"
 
-    def __init__(self, parent):
-        super(ActivationKeyScreen, self).__init__(parent)
+    def __init__(self, reg_info, async_backend, facts, parent_window):
+        super(ActivationKeyScreen, self).__init__(reg_info, async_backend, facts, parent_window)
         self._initialize_consumer_name()
 
     def _initialize_consumer_name(self):
@@ -1244,9 +1255,9 @@ class ActivationKeyScreen(Screen):
         if not self._validate_consumername(consumername):
             return
 
-        self._parent.info.set_property('consumername', consumername)
-        self._parent.info.set_property('owner-key', owner_key)
-        self._parent.info.set_property('activation-keys', activation_keys)
+        self.info.set_property('consumername', consumername)
+        self.info.set_property('owner-key', owner_key)
+        self.info.set_property('activation-keys', activation_keys)
 
         self.emit('move-to-screen', PERFORM_REGISTER_PAGE)
 
@@ -1292,8 +1303,8 @@ class ActivationKeyScreen(Screen):
 
 class RefreshSubscriptionsScreen(NoGuiScreen):
 
-    def __init__(self, parent):
-        super(RefreshSubscriptionsScreen, self).__init__(parent)
+    def __init__(self, reg_info, async_backend, facts, parent_window):
+        super(RefreshSubscriptionsScreen, self).__init__(reg_info, async_backend, facts, parent_window)
         self.pre_message = _("Attaching subscriptions")
 
     def _on_refresh_cb(self, error=None):
@@ -1308,7 +1319,7 @@ class RefreshSubscriptionsScreen(NoGuiScreen):
 
     def pre(self):
         self._parent.set_property('details-label-txt', self.pre_message)
-        self._parent.async.refresh(self._on_refresh_cb)
+        self.async.refresh(self._on_refresh_cb)
         return True
 
 
@@ -1318,9 +1329,8 @@ class ChooseServerScreen(Screen):
                                           'activation_key_checkbox']
     gui_file = "choose_server"
 
-    def __init__(self, parent):
-
-        super(ChooseServerScreen, self).__init__(parent)
+    def __init__(self, reg_info, async_backend, facts, parent_window):
+        super(ChooseServerScreen, self).__init__(reg_info, async_backend, facts, parent_window)
 
         self.button_label = _("Next")
 
@@ -1386,9 +1396,9 @@ class ChooseServerScreen(Screen):
         log.debug("Writing server data to rhsm.conf")
         CFG.save()
 
-        self._parent.info.hostname = hostname
-        self._parent.info.port = port
-        self._parent.info.prefix = prefix
+        self.info.hostname = hostname
+        self.info.port = port
+        self.info.prefix = prefix
 
         if self.activation_key_checkbox.get_active():
             self.emit('move-to-screen', ACTIVATION_KEY_PAGE)
@@ -1457,6 +1467,9 @@ class AsyncBackend(object):
         try:
             installed_mgr = require(INSTALLED_PRODUCTS_MANAGER)
 
+            # TODO: not sure why we pass in a facts.Facts, and call it's
+            #       get_facts() three times. The two bracketing plugin calls
+            #       are meant to be able to enhance/tweak facts
             self.plugin_manager.run("pre_register_consumer", name=name,
                                     facts=facts.get_facts())
 
@@ -1688,8 +1701,8 @@ class AsyncBackend(object):
 class DoneScreen(Screen):
     gui_file = "done_box"
 
-    def __init__(self, parent):
-        super(DoneScreen, self).__init__(parent)
+    def __init__(self, reg_info, async_backend, facts, parent_window):
+        super(DoneScreen, self).__init__(reg_info, async_backend, facts, parent_window)
         self.pre_message = "We are done."
 
 
@@ -1708,8 +1721,8 @@ class InfoScreen(Screen):
         ]
     gui_file = "registration_info"
 
-    def __init__(self, parent):
-        super(InfoScreen, self).__init__(parent)
+    def __init__(self, reg_info, async_backend, facts, parent_window):
+        super(InfoScreen, self).__init__(reg_info, async_backend, facts, parent_window)
         self.button_label = _("Next")
         callbacks = {
                 "on_why_register_button_clicked":
