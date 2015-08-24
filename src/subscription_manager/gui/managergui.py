@@ -158,6 +158,7 @@ class MainWindow(widgets.SubmanBaseWidget):
         log.debug("Server Versions: %s " % get_server_versions(self.backend.cp_provider.get_consumer_auth_cp()))
 
         settings = self.main_window.get_settings()
+
         # prevent gtk from trying to save a list of recently used files, which
         # as root, causes gtk warning:
         #  "Attempting to set the permissions of `/root/.local/share/recently-used.xbel'

@@ -144,7 +144,9 @@ class RegisterInfo(ga_GObject.GObject):
     # registergui states
     skip_auto_bind = ga_GObject.property(type=bool, default=False)
     details_label_txt = ga_GObject.property(type=str, default='')
+    register_state = ga_GObject.property(type=int, default=REGISTERING)
 
+    # TODO: make a gobj prop as well, with custom set/get, so we can be notified
     @property
     def identity(self):
         id = require(IDENTITY)
@@ -177,7 +179,6 @@ class RegisterWidget(widgets.SubmanBaseWidget):
     initial_screen = CHOOSE_SERVER_PAGE
 
     details_label_txt = ga_GObject.property(type=str, default='')
-    register_state = ga_GObject.property(type=int, default=REGISTERING)
     register_button_label = ga_GObject.property(type=str, default=_('Register'))
     # TODO: a prop equilivent to initial-setups 'completed' and 'status' props
 
@@ -209,6 +210,10 @@ class RegisterWidget(widgets.SubmanBaseWidget):
                           self._on_connection_info_change)
         self.info.connect("notify::activation-keys",
                           self._on_activation_keys_change)
+        self.info.connect('notify::details-label-txt',
+                          self._on_details_label_txt_change)
+        self.info.connect('notify::register-state',
+                          self._on_register_state_change)
 
         # expect this to be driving from the parent dialog
         self.connect('proceed',
@@ -216,12 +221,6 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
         # FIXME: change glade name
         self.details_label = self.register_details_label
-
-        # update widgets if the values change
-        self.connect('notify::details-label-txt',
-                     self._on_details_label_txt_change)
-        self.connect('notify::register-state',
-                     self._on_register_state_change)
 
         # To update the 'next/register' button in the parent dialog based on the new page
         self.register_notebook.connect('switch-page',
@@ -279,6 +278,7 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         log.debug("RegisterWidget.initialize")
         self.set_initial_screen()
         self.clear_screens()
+        # TODO: move this so it's only running when a progress bar is "active"
         self.timer = ga_GObject.timeout_add(100, self._timeout_callback)
         self.register_widget.show_all()
 
@@ -312,6 +312,20 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         if activation_keys:
             self.backend.cp_provider.set_user_pass()
             self.backend.update()
+
+    # update the label under the progress bar on progress pages
+    def _on_details_label_txt_change(self, obj, value):
+        self.details_label.set_label("<small>%s</small>" %
+                                     obj.get_property('details-label-txt'))
+
+    # When we switch from registering to attaching, (the 'register-state'
+    # property changed), so update the related label on progress page.
+    def _on_register_state_change(self, obj, value):
+        state = obj.get_property('register-state')
+        if state == REGISTERING:
+            self.progress_label.set_markup(_("<b>Registering</b>"))
+        elif state == SUBSCRIBING:
+            self.progress_label.set_markup(_("<b>Attaching</b>"))
 
     # This should always get run first, when this widget emits a
     # 'register-error', then it's emitted to other handlers (namely,
@@ -444,20 +458,6 @@ class RegisterWidget(widgets.SubmanBaseWidget):
     def done(self):
         self.change_screen(DONE_PAGE)
 
-    # update the label under the progress bar on progress pages
-    def _on_details_label_txt_change(self, obj, value):
-        self.details_label.set_label("<small>%s</small>" %
-                                     self.get_property('details-label-txt'))
-
-    # When we switch from registering to attaching, (the 'register-state'
-    # property changed), soupdate the related label on progress page.
-    def _on_register_state_change(self, obj, value):
-        state = self.get_property('register-state')
-        if state == REGISTERING:
-            self.progress_label.set_markup(_("<b>Registering</b>"))
-        elif state == SUBSCRIBING:
-            self.progress_label.set_markup(_("<b>Attaching</b>"))
-
     def clear_screens(self):
         for screen in self._screens:
             screen.clear()
@@ -471,7 +471,7 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 class RegisterDialog(widgets.SubmanBaseWidget):
 
     widget_names = ['register_dialog', 'register_dialog_main_vbox',
-                    'register_progressbar', 'register_details_label',
+                    'register_details_label',
                     'cancel_button', 'register_button', 'progress_label',
                     'dialog_vbox6']
 
@@ -725,6 +725,7 @@ class PerformRegisterScreen(NoGuiScreen):
         try:
             managerlib.persist_consumer_cert(new_account)
 
+            # FIXME
             # trigger a id cert reload
             self.emit('identity-updated')
 
@@ -774,10 +775,10 @@ class PerformSubscribeScreen(NoGuiScreen):
 
     def pre(self):
         self.info.set_property('details-label-txt', self.pre_message)
-        self.async.subscribe(self._parent.identity.uuid,
-                                     self.info.get_property('current-sla'),
-                                     self.info.get_property('dry-run-result'),
-                                     self._on_subscribing_finished_cb)
+        self.async.subscribe(self.info.identity.uuid,
+                             self.info.get_property('current-sla'),
+                             self.info.get_property('dry-run-result'),
+                             self._on_subscribing_finished_cb)
 
         return True
 
@@ -916,8 +917,6 @@ class SelectSLAScreen(Screen):
                   result, error)
         if error is not None:
             if isinstance(error[1], ServiceLevelNotSupportedException):
-                #OkDialog(_("Unable to auto-attach, server does not support service levels."),
-                #        parent=self._parent.parent_window)
                 msg = _("Unable to auto-attach, server does not support service levels.")
                 self.emit('register-error', msg, None)
                 # HMM: if we make the ok a register-error as well, we may get
@@ -989,16 +988,18 @@ class SelectSLAScreen(Screen):
             self.emit('attach-finished')
 
     def pre(self):
-        self._parent.set_property('details-label-txt', self.pre_message)
-        self._parent.set_property('register-state', SUBSCRIBING)
-        self._parent.identity.reload()
+        self.info.set_property('details-label-txt', self.pre_message)
+        self.info.set_property('register-state', SUBSCRIBING)
+        self.info.identity.reload()
+
         log.debug("sla_screen pre identity=%s uuid=%s facts=%s",
-                  self._parent.identity,
-                  self._parent.identity.uuid,
-                  self._parent.facts)
-        self.async.find_service_levels(self._parent.identity.uuid,
-                                               self._parent.facts,
-                                               self._on_get_service_levels_cb)
+                  self.info.identity,
+                  self.info.identity.uuid,
+                  self.facts)
+
+        self.async.find_service_levels(self.info.identity.uuid,
+                                       self.facts,
+                                       self._on_get_service_levels_cb)
         return True
 
     def _can_add_more_subs(self, current_sla, sla_data_map):
@@ -1049,9 +1050,9 @@ class EnvironmentScreen(Screen):
             return
 
     def pre(self):
-        self._parent.set_property('details-label-txt', self.pre_message)
+        self.info.set_property('details-label-txt', self.pre_message)
         self.async.get_environment_list(self.info.get_property('owner-key'),
-                                                self._on_get_environment_list_cb)
+                                        self._on_get_environment_list_cb)
         return True
 
     def apply(self):
@@ -1115,9 +1116,9 @@ class OrganizationScreen(Screen):
             return
 
     def pre(self):
-        self._parent.set_property('details-label-txt', self.pre_message)
+        self.info.set_property('details-label-txt', self.pre_message)
         self.async.get_owner_list(self.info.get_property('username'),
-                                          self._on_get_owner_list_cb)
+                                  self._on_get_owner_list_cb)
         return True
 
     def apply(self):
@@ -1191,7 +1192,7 @@ class CredentialsScreen(Screen):
         return True
 
     def pre(self):
-        self._parent.set_property('details-label-txt', self.pre_message)
+        self.info.set_property('details-label-txt', self.pre_message)
         self.account_login.grab_focus()
         return False
 
@@ -1296,7 +1297,7 @@ class ActivationKeyScreen(Screen):
         return True
 
     def pre(self):
-        self._parent.set_property('details-label-txt', self.pre_message)
+        self.info.set_property('details-label-txt', self.pre_message)
         self.organization_entry.grab_focus()
         return False
 
@@ -1318,7 +1319,7 @@ class RefreshSubscriptionsScreen(NoGuiScreen):
         self.emit('attach-finished')
 
     def pre(self):
-        self._parent.set_property('details-label-txt', self.pre_message)
+        self.info.set_property('details-label-txt', self.pre_message)
         self.async.refresh(self._on_refresh_cb)
         return True
 
@@ -1353,7 +1354,7 @@ class ChooseServerScreen(Screen):
         # bump the resolver as well.
         self.reset_resolver()
 
-        self.network_config_dialog.set_parent_window(self._parent.parent_window)
+        self.network_config_dialog.set_parent_window(self.parent_window)
         self.network_config_dialog.show()
 
     def reset_resolver(self):
@@ -1365,6 +1366,9 @@ class ChooseServerScreen(Screen):
     def apply(self):
         self.stay()
         server = self.server_entry.get_text()
+
+        # TODO: test the values before saving, then update
+        #       self.info and cfg if it works
         try:
             (hostname, port, prefix) = parse_server_info(server)
             CFG.set('server', 'hostname', hostname)
@@ -1396,9 +1400,9 @@ class ChooseServerScreen(Screen):
         log.debug("Writing server data to rhsm.conf")
         CFG.save()
 
-        self.info.hostname = hostname
-        self.info.port = port
-        self.info.prefix = prefix
+        self.info.set_property('hostname', hostname)
+        self.info.set_property('port', port)
+        self.info.set_property('prefix', prefix)
 
         if self.activation_key_checkbox.get_active():
             self.emit('move-to-screen', ACTIVATION_KEY_PAGE)
@@ -1533,6 +1537,7 @@ class AsyncBackend(object):
                                         pool_id=pool_id, quantity=quantity)
                 ents = self.backend.cp_provider.get_consumer_auth_cp().bindByEntitlementPool(uuid, pool_id, quantity)
                 self.plugin_manager.run("post_subscribe", consumer_uuid=uuid, entitlement_data=ents)
+            # FIXME: this should be a different asyncBackend task
             managerlib.fetch_certificates(self.backend.certlib)
         except Exception:
             # Going to try to update certificates just in case we errored out
