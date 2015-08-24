@@ -178,11 +178,10 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
     initial_screen = CHOOSE_SERVER_PAGE
 
-    details_label_txt = ga_GObject.property(type=str, default='')
     register_button_label = ga_GObject.property(type=str, default=_('Register'))
     # TODO: a prop equilivent to initial-setups 'completed' and 'status' props
 
-    def __init__(self, backend, facts, parent_window=None):
+    def __init__(self, backend, facts, reg_info=None, parent_window=None):
         super(RegisterWidget, self).__init__()
 
         log.debug("RegisterWidget")
@@ -192,10 +191,13 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
         self.async = AsyncBackend(self.backend)
 
-        # TODO: should be able to get rid of this soon
+        # TODO: should be able to get rid of this soon, the
+        #       only thing that uses it is the NetworkConfigDialog in
+        #       chooseServerScreen and we can replace that with an embedded
+        #       widget
         self.parent_window = parent_window
 
-        self.info = RegisterInfo()
+        self.info = reg_info or RegisterInfo()
 
         # TODO: move these handlers into their own class
         self.info.connect("notify::username",
@@ -491,9 +493,11 @@ class RegisterDialog(widgets.SubmanBaseWidget):
                      "on_register_dialog_delete_event": self.cancel}
         self.connect_signals(callbacks)
 
+        self.reg_info = RegisterInfo()
         # FIXME: Need better error handling in general, but it's kind of
         # annoying to have to pass the top level widget all over the place
         self.register_widget = RegisterWidget(backend, facts,
+                                              reg_info=self.reg_info,
                                               parent_window=self.register_dialog)
 
         # Ensure that we start on the first page and that
@@ -506,17 +510,17 @@ class RegisterDialog(widgets.SubmanBaseWidget):
         self.register_button.connect('clicked', self._on_register_button_clicked)
         self.cancel_button.connect('clicked', self.cancel)
 
-        # initial-setup will likely
+        # initial-setup will likely handle these itself
         self.register_widget.connect('finished', self.cancel)
         self.register_widget.connect('register-error', self.on_register_error)
 
         # update window title on register state changes
-        self.register_widget.connect('notify::register-state',
-                                     self._on_register_state_change)
+        self.register_widget.info.connect('notify::register-state',
+                                           self._on_register_state_change)
 
         # update the 'next/register button on page change'
         self.register_widget.connect('notify::register-button-label',
-                                       self._on_register_button_label_change)
+                                     self._on_register_button_label_change)
 
         self.window = self.register_dialog
 
