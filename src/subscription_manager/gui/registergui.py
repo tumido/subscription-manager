@@ -300,20 +300,19 @@ class RegisterWidget(widgets.SubmanBaseWidget):
     #       the same GObject, these could be class closure handlers
     def _on_username_password_change(self, *args):
         log.debug("on_username_password_change args=%s", args)
-        self.backend.cp_provider.set_user_pass(self.info.username, self.info.password)
-        self.backend.update()
+        self.async.set_user_pass(self.info.username, self.info.password)
 
     def _on_connection_info_change(self, *args):
         log.debug("on_connection_info_change args=%s", args)
-        self.backend.update()
+        self.async.update()
 
     def _on_activation_keys_change(self, obj, param):
         activation_keys = obj.get_property('activation-keys')
 
         # Unset backend from attempting to use basic auth
         if activation_keys:
-            self.backend.cp_provider.set_user_pass()
-            self.backend.update()
+            self.async.cp_provider.set_user_pass()
+            self.async.update()
 
     # update the label under the progress bar on progress pages
     def _on_details_label_txt_change(self, obj, value):
@@ -701,17 +700,11 @@ class NoGuiScreen(ga_GObject.GObject):
         pass
 
 
-class ProgressScreen(NoGuiScreen):
-    def pre(self):
-        pass
-
-
 class PerformRegisterScreen(NoGuiScreen):
     screen_enum = PERFORM_REGISTER_PAGE
 
     def __init__(self, reg_info, async_backend, facts, parent_window):
         super(PerformRegisterScreen, self).__init__(reg_info, async_backend, facts, parent_window)
-        # REMOVE self._error_screen = CREDENTIALS_PAGE
 
     def _on_registration_finished_cb(self, new_account, error=None):
         if error is not None:
@@ -913,10 +906,6 @@ class SelectSLAScreen(Screen):
     # FIXME: this could be split into 'on_get_all_service_levels_cb' and
     #        and 'on_get_service_levels_cb'
     def _on_get_service_levels_cb(self, result, error=None):
-        # The parent for the dialogs is set to the grandparent window
-        # (which is MainWindow) because the parent window is closed
-        # by finish_registration() after displaying the dialogs.  See
-        # BZ #855762.
         log.debug("_on_get_service_levels_cb result=%s error=%s",
                   result, error)
         if error is not None:
@@ -1437,6 +1426,28 @@ class AsyncBackend(object):
         self.plugin_manager = require(PLUGIN_MANAGER)
         self.queue = Queue.Queue()
 
+    def update(self):
+        self.backend.update()
+
+    def set_user_pass(self, username, password):
+        self.backend.cp_provider.set_user_pass(username, password)
+        self.backend.update()
+
+    def _watch_thread(self):
+        """
+        glib idle method to watch for thread completion.
+        runs the provided callback method in the main thread.
+        """
+        try:
+            (callback, retval, error) = self.queue.get(block=False)
+            if error:
+                callback(retval, error=error)
+            else:
+                callback(retval)
+            return False
+        except Queue.Empty:
+            return True
+
     def _get_owner_list(self, username, callback):
         """
         method run in the worker thread.
@@ -1648,21 +1659,6 @@ class AsyncBackend(object):
             log.debug("_refresh exception: %s",
                       (callback, None, sys.exc_info()))
             self.queue.put((callback, None, sys.exc_info()))
-
-    def _watch_thread(self):
-        """
-        glib idle method to watch for thread completion.
-        runs the provided callback method in the main thread.
-        """
-        try:
-            (callback, retval, error) = self.queue.get(block=False)
-            if error:
-                callback(retval, error=error)
-            else:
-                callback(retval)
-            return False
-        except Queue.Empty:
-            return True
 
     def get_owner_list(self, username, callback):
         ga_GObject.idle_add(self._watch_thread)
