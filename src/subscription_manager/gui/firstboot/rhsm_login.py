@@ -371,7 +371,7 @@ class moduleClass(RhsmFirstbootModule, registergui.RegisterScreen):
         glade file.
         """
         self.vbox = gtk.VBox(spacing=10)
-        self.register_dialog = self.get_widget("dialog-vbox6")
+        self.vbox.pack_start(self.get_widget("register_widget"), False, False, 0)
         self.register_dialog.reparent(self.vbox)
 
         # Get rid of the 'register' and 'cancel' buttons, as we are going to
