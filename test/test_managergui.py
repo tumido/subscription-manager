@@ -12,9 +12,6 @@ from subscription_manager.injection import provide, \
 class TestManagerGuiMainWindow(SubManFixture):
     def test_main_window(self):
 
-        managergui.Backend = stubs.StubBackend
-        managergui.Facts = stubs.StubFacts()
-
         provide(PROD_DIR, stubs.StubProductDirectory([]))
         provide(PRODUCT_DATE_RANGE_CALCULATOR, mock.Mock())
 

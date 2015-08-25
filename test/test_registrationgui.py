@@ -80,13 +80,29 @@ def mock_parent():
     parent.async = Mock()
 
 
+class StubReg(object):
+    def __init__(self):
+        self.parent_window = Mock()
+        self.backend = StubBackend()
+        self.async = Mock()
+        self.reg_info = Mock()
+        self.expected_facts = {'fact1': 'one',
+                               'fact2': 'two',
+                               'system': '',
+                               'system.uuid': 'MOCKUUID'}
+        self.facts = StubFacts(fact_dict=self.expected_facts)
+
+
 class CredentialsScreenTests(SubManFixture):
 
     def setUp(self):
         super(CredentialsScreenTests, self).setUp()
-        self.parent = mock_parent()
 
-        self.screen = CredentialsScreen(self.parent)
+        stub_reg = StubReg()
+        self.screen = CredentialsScreen(reg_info=stub_reg.reg_info,
+                                        async_backend=stub_reg.async,
+                                        facts=stub_reg.facts,
+                                        parent_window=stub_reg.parent_window)
 
     def test_clear_credentials_dialog(self):
         # Pull initial value here since it will be different per machine.
@@ -106,8 +122,11 @@ class CredentialsScreenTests(SubManFixture):
 class ActivationKeyScreenTests(SubManFixture):
     def setUp(self):
         super(ActivationKeyScreenTests, self).setUp()
-        self.parent = mock_parent()
-        self.screen = ActivationKeyScreen(self.parent)
+        stub_reg = StubReg()
+        self.screen = ActivationKeyScreen(reg_info=stub_reg.reg_info,
+                                          async_backend=stub_reg.async,
+                                          facts=stub_reg.facts,
+                                          parent_window=stub_reg.parent_window)
 
     def test_split_activation_keys(self):
         expected = ['hello', 'world', 'how', 'are', 'you']
@@ -119,8 +138,11 @@ class ActivationKeyScreenTests(SubManFixture):
 class ChooseServerScreenTests(SubManFixture):
     def setUp(self):
         super(ChooseServerScreenTests, self).setUp()
-        self.parent = mock_parent()
-        self.screen = ChooseServerScreen(self.parent)
+        stub_reg = StubReg()
+        self.screen = ChooseServerScreen(reg_info=stub_reg.reg_info,
+                                         async_backend=stub_reg.async,
+                                         facts=stub_reg.facts,
+                                         parent_window=stub_reg.parent_window)
 
     def test_activation_key_checkbox_sensitive(self):
         self.screen.server_entry.set_text("foo.bar:443/baz")
