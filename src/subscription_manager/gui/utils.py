@@ -104,9 +104,6 @@ def handle_gui_exception(e, msg, parent, format_msg=True, log_msg=None):
 
 
 def format_mapped_message(e, msg, mapped_message, format_msg=True):
-
-    log.debug("format_mapped_message e=%s, msg=%s, mapped_message=%s",
-              e, msg, mapped_message)
     message = None
     if isinstance(e, connection.RestlibException):
         # If this exception's code is in the 200 range (such as 202 ACCEPTED)
@@ -126,9 +123,6 @@ def format_mapped_message(e, msg, mapped_message, format_msg=True):
 
 
 def format_interpolated_message(e, msg, mapped_message, format_msg=True):
-    print "\n\nINTP\n\n"
-    log.debug("format_intp_message e=%s, msg=%s, mapped_message=%s",
-              e, msg, mapped_message)
     message = None
     #catch-all, try to interpolate and if it doesn't work out, just display the message
     try:
@@ -140,14 +134,10 @@ def format_interpolated_message(e, msg, mapped_message, format_msg=True):
 
 
 def format_exception(e, msg, format_msg=True, log_msg=None):
-    print "\n\nEXP\n\n"
-    log.debug("format_exception e=%s, msg=%s",
-              e, msg)
     if isinstance(e, tuple):
         log.error(log_msg, exc_info=e)
         # Get the class instance of the exception
         e = e[1]
-    log.debug("format_exception e=%s, msg=%s", e, msg)
     message = None
     exception_mapper = ExceptionMapper()
     mapped_message = exception_mapper.get_message(e)

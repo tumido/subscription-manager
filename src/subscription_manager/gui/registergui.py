@@ -184,8 +184,6 @@ class RegisterWidget(widgets.SubmanBaseWidget):
     def __init__(self, backend, facts, reg_info=None, parent_window=None):
         super(RegisterWidget, self).__init__()
 
-        log.debug("RegisterWidget")
-        #widget
         self.backend = backend
         self.identity = require(IDENTITY)
 
@@ -277,7 +275,6 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         self.register_widget.show()
 
     def initialize(self):
-        log.debug("RegisterWidget.initialize")
         self.set_initial_screen()
         self.clear_screens()
         # TODO: move this so it's only running when a progress bar is "active"
@@ -299,11 +296,9 @@ class RegisterWidget(widgets.SubmanBaseWidget):
     # HMMM: If the connect/backend/async, and the auth info is composited into
     #       the same GObject, these could be class closure handlers
     def _on_username_password_change(self, *args):
-        log.debug("on_username_password_change args=%s", args)
         self.async.set_user_pass(self.info.username, self.info.password)
 
     def _on_connection_info_change(self, *args):
-        log.debug("on_connection_info_change args=%s", args)
         self.async.update()
 
     def _on_activation_keys_change(self, obj, param):
@@ -332,18 +327,12 @@ class RegisterWidget(widgets.SubmanBaseWidget):
     # 'register-error', then it's emitted to other handlers (namely,
     # any parent dialogs handlers it has set up
     def do_register_error(self, msg, exc_info):
-        log.debug("RW.do_register_error msg=%s exc_info=%s",
-                   msg, exc_info)
-
         # return to the last gui screen we showed
         self._set_screen(self.screen_history[-1])
 
     # Handler for 'register-error' signals emitted from the Screens, then
     # emit one ourselves.
     def _on_screen_register_error(self, obj, msg, exc_info):
-        log.debug("_on_screen_register_error obj=%s msg=%s exc_info=%s",
-                  obj, msg, exc_info)
-
         # Now emit a new signal for parent widget and self.do_register_error()
         # to handle
         self.emit('register-error', msg, exc_info)
@@ -368,8 +357,6 @@ class RegisterWidget(widgets.SubmanBaseWidget):
     # user somewhere aside from the 'next' screen. For example, to skip SLA
     # selection if there is only one SLA.
     def _on_move_to_screen(self, current_screen, next_screen_id):
-        log.debug("_on_move_to_screen current_screen_id=%s next_screen_id=%s",
-                  current_screen, next_screen_id)
         self.change_screen(next_screen_id)
 
     # Move to the next screen, by starting with calling the next screens .pre().
@@ -485,7 +472,7 @@ class RegisterDialog(widgets.SubmanBaseWidget):
         """
         super(RegisterDialog, self).__init__()
 
-        #dialog
+        # dialog
         callbacks = {"on_register_cancel_button_clicked": self.cancel,
                      "on_register_button_clicked": self._on_register_button_clicked,
                      "hide": self.cancel,
@@ -541,9 +528,6 @@ class RegisterDialog(widgets.SubmanBaseWidget):
         return True
 
     def on_register_error(self, obj, msg, exc_list):
-        log.debug("register_dialog.on_register_error obj=%s msg=%s exc_list=%s",
-                  obj, msg, exc_list)
-
         # TODO: we can add the register state, error type (error or exc)
         if exc_list:
             self.handle_register_exception(obj, msg, exc_list)
@@ -552,11 +536,13 @@ class RegisterDialog(widgets.SubmanBaseWidget):
         return True
 
     def handle_register_error(self, obj, msg):
+        log.error("registration error: %s", msg)
         self.error_dialog(obj, msg)
 
         # RegisterWidget.do_register_error() will take care of changing screens
 
     def handle_register_exception(self, obj, msg, exc_info):
+        # format_exception ends up logging the exception as well
         message = format_exception(exc_info, msg)
         self.error_dialog(obj, message)
 
@@ -621,7 +607,6 @@ class Screen(widgets.SubmanBaseWidget):
 
     def __init__(self, reg_info, async_backend, facts, parent_window):
         super(Screen, self).__init__()
-    #    log.debug("Screen %s init parent=%s", self.__class__.__name__, parent)
 
         self.pre_message = ""
         self.button_label = _("Register")
@@ -686,6 +671,7 @@ class NoGuiScreen(ga_GObject.GObject):
         self.pre_message = "Default Pre Message"
 
     # FIXME: a do_register_error could be used for logging?
+    #        Otherwise it's up to the parent dialog to do the logging.
 
     def pre(self):
         return True
@@ -708,8 +694,6 @@ class PerformRegisterScreen(NoGuiScreen):
 
     def _on_registration_finished_cb(self, new_account, error=None):
         if error is not None:
-            log.debug("_on_registration_finished_cb new_account=%s error=%s",
-                      new_account, error)
             self.emit('register-error',
                       REGISTER_ERROR,
                       error)
@@ -761,7 +745,6 @@ class PerformSubscribeScreen(NoGuiScreen):
         self.pre_message = _("Attaching subscriptions")
 
     def _on_subscribing_finished_cb(self, unused, error=None):
-        log.debug("_on_subscribing_finished_cb error=%s", error)
         if error is not None:
             message = _("Error subscribing: %s")
             self.emit('register-error', message, error)
@@ -885,8 +868,6 @@ class SelectSLAScreen(Screen):
             self.sla_radio_container.remove(child)
 
     def _radio_clicked(self, button, data):
-        log.debug("_radio_clicked button=%s data=%s",
-                  button, data)
         sla, sla_data_map = data
 
         if button.get_active():
@@ -906,8 +887,6 @@ class SelectSLAScreen(Screen):
     # FIXME: this could be split into 'on_get_all_service_levels_cb' and
     #        and 'on_get_service_levels_cb'
     def _on_get_service_levels_cb(self, result, error=None):
-        log.debug("_on_get_service_levels_cb result=%s error=%s",
-                  result, error)
         if error is not None:
             if isinstance(error[1], ServiceLevelNotSupportedException):
                 msg = _("Unable to auto-attach, server does not support service levels.")
@@ -984,11 +963,6 @@ class SelectSLAScreen(Screen):
         self.info.set_property('details-label-txt', self.pre_message)
         self.info.set_property('register-state', SUBSCRIBING)
         self.info.identity.reload()
-
-        log.debug("sla_screen pre identity=%s uuid=%s facts=%s",
-                  self.info.identity,
-                  self.info.identity.uuid,
-                  self.facts)
 
         self.async.find_service_levels(self.info.identity.uuid,
                                        self.facts,
@@ -1649,15 +1623,10 @@ class AsyncBackend(object):
             self.queue.put((callback, None, sys.exc_info()))
 
     def _refresh(self, callback):
-        log.debug("_refresh: callbacl=%s", callback)
         try:
             managerlib.fetch_certificates(self.backend.certlib)
-            log.debug("cert fetched: %s",
-                      (callback, None, None))
             self.queue.put((callback, None, None))
         except Exception:
-            log.debug("_refresh exception: %s",
-                      (callback, None, sys.exc_info()))
             self.queue.put((callback, None, sys.exc_info()))
 
     def get_owner_list(self, username, callback):

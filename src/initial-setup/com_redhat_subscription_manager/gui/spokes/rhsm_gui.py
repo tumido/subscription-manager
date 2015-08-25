@@ -160,21 +160,17 @@ class RHSMSpoke(FirstbootOnlySpokeMixIn, NormalSpoke):
             return "System is not registered to RHSM."
 
     def _on_register_button_clicked(self, button):
-        #log.debug("dialog on_register_button_clicked, button=%s, %s", button, self.register_widget)
         # unset any error info
         self.clear_info()
 
         self.register_widget.emit('proceed')
 
     def _on_register_error(self, widget, msg, exc_info):
-        log.debug("rhsm_gui _on_register_error_foo widget=%s msg=%s",
-                  widget, msg)
-
         if exc_info:
             formatted_msg = utils.format_exception(exc_info, msg)
-            log.debug("_on_register_error formatted_msg=%s", formatted_msg)
             self.set_error(formatted_msg)
         else:
+            log.error(msg)
             self.set_error(msg)
 
     def _on_register_button_label_change(self, obj, value):
