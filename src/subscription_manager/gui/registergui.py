@@ -188,6 +188,7 @@ class RegisterInfo(ga_GObject.GObject):
     # split into AttachInfo or FindSlaInfo?
     current_sla = ga_GObject.property(type=ga_GObject.TYPE_PYOBJECT, default=None)
     preferred_sla = ga_GObject.property(type=ga_GObject.TYPE_PYOBJECT, default=None)
+    #sla_preferences = ga_GObject.property(type=ga_GObject.TYPE_PYOBJECT, default=[])
     dry_run_result = ga_GObject.property(type=ga_GObject.TYPE_PYOBJECT, default=None)
 
     # register behaviour options
@@ -363,6 +364,7 @@ class RegisterWidget(widgets.SubmanBaseWidget):
                                                               tab_label=None)
 
     def initialize(self):
+        log.debug("RegisterWidget.initialize")
         self.set_initial_screen()
         self.clear_screens()
         self.populate_screens()
@@ -671,6 +673,10 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         if self.progress_timer:
             ga_GObject.source_remove(self.progress_timer)
             self.progress_timer = None
+
+    def populate_screens(self):
+        for screen in self._screens:
+            screen.populate()
 
     def populate_screens(self):
         for screen in self._screens:
@@ -1275,6 +1281,9 @@ class SelectSLAScreen(Screen):
 
         self.sla_combobox.set_model(self.list_store)
         self.sla_combobox.set_active(0)
+        # The sla the user or kickstart requested
+        preferred_sla = self.info.get_property('preferred_sla')
+        log.debug("SelectSLAScreen.set_model preferred_sla=%s", preferred_sla)
 
     def apply(self):
         self.emit('move-to-screen', CONFIRM_SUBS_PAGE)
@@ -1862,6 +1871,16 @@ class ChooseServerScreen(Screen):
         else:
             self.emit('move-to-screen', CREDENTIALS_PAGE)
             return True
+
+    def clear(self):
+        # Load the current server values from rhsm.conf:
+        current_hostname = CFG.get('server', 'hostname')
+        current_port = CFG.get('server', 'port')
+        current_prefix = CFG.get('server', 'prefix')
+
+        self.set_server_entry(current_hostname,
+                              current_port,
+                              current_prefix)
 
     def set_server_entry(self, hostname, port, prefix):
         # No need to show port and prefix for hosted:
