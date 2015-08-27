@@ -70,6 +70,11 @@ NOTES:
 #  need to verify the encodings all work
 
 
+class RegisterArgs(object):
+    def __init__(self):
+        pass
+
+
 class KickstartRhsmData(object):
     # A holder of rhsm info, that is not a gobject...
     def __init__(self):
@@ -160,7 +165,39 @@ class RHSMAddonData(AddonData):
            This method is called before the installation
            is started and directly from spokes. It must be possible
            to call it multiple times without breaking the environment."""
-        AddonData.setup(self, storage, ksdata, instclass)
+        # AddonData.setup(self, storage, ksdata, instclass)
+
+        self.log.debug("storage %s", storage)
+        self.log.debug("ksdata %s", ksdata)
+        self.log.debug("instclass %s", instclass)
+
+    # TODO: remove and use native error handling
+    def _system_exit(self, code, msgs=None):
+        if msgs:
+            if type(msgs) not in [type([]), type(())]:
+                msgs = (msgs, )
+        else:
+            msgs = []
+
+        for msg in msgs:
+            if isinstance(msg, Exception):
+                msg = "%s" % msg
+            log.debug("Error running rhsm_ks: %s", msg)
+
+    def build_args(self):
+        # TODO: build a type for the args
+        #       str/reprs, etc
+        args = []
+        args.append("--serverurl=%s" % self.serverurl)
+        if self.org:
+            args.append("--org=%s" % self.org)
+        if self.activationkeys:
+            for act_key in self.activationkeys:
+                args.append("--activationkey=%s" % act_key)
+        if self.auto_attach:
+            args.append("--auto-attach")
+
+        return args
 
     def execute(self, storage, ksdata, instClass, users):
 
@@ -169,7 +206,20 @@ class RHSMAddonData(AddonData):
            This method is called only once in the post-install
            setup phase.
         """
-        log.debug("Read RHSM ks info, but non gui ks is currently not implemented.")
+        sys_root = getSysroot()
+        log.debug("sys_root=%s", sys_root)
+
+        register_command = managercli.RegisterCommand()
+        args = ["--help"]
+
+        parsed_args = self.build_args()
+        log.debug("parsed_args=%s", parsed_args)
+
+        # sadly, monkeypatch our own managercli to disarm system_exit
+        managercli.system_exit = self._system_exit
+
+        ret = register_command.main(args=args)
+        log.debug("rhsm_ks exit status=%s", ret)
 
     def handle_header(self, lineno, args):
         """Process additional arguments to the %addon line.
