@@ -52,7 +52,7 @@ class RHSMSpoke(FirstbootOnlySpokeMixIn, NormalSpoke):
     mainWidgetName = "RHSMSpokeWindow"
 
     uiFile = "rhsm_gui.ui"
-    
+
     helpFile = "SubscriptionManagerSpoke.xml"
 
     category = SystemCategory
@@ -74,7 +74,9 @@ class RHSMSpoke(FirstbootOnlySpokeMixIn, NormalSpoke):
 
         backend = managergui.Backend()
 
+        self.reg_info = registergui.RegisterInfo()
         self.register_widget = registergui.RegisterWidget(backend, facts,
+                                                          reg_info=self.reg_info,
                                                           parent_window=self.main_window)
 
         self.register_box = self.builder.get_object("register_box")
@@ -98,6 +100,9 @@ class RHSMSpoke(FirstbootOnlySpokeMixIn, NormalSpoke):
         # update the 'next/register button on page change'
         self.register_widget.connect('notify::register-button-label',
                                        self._on_register_button_label_change)
+
+        self.reg_info.connect('notify::register-state',
+                              self._on_register_state_change)
 
         self.register_box.show_all()
         self.register_widget.initialize()
@@ -181,3 +186,14 @@ class RHSMSpoke(FirstbootOnlySpokeMixIn, NormalSpoke):
 
         if register_label:
             self.proceed_button.set_label(register_label)
+
+    def _on_register_state_change(self, obj, value):
+        state = obj.get_property('register-state')
+        if state == registergui.RegisterState.REGISTERING:
+            self._done = False
+        elif state == registergui.RegisterState.ATTACHING:
+            self._done = False
+        elif state == registergui.RegisterState.REGISTERED:
+            self._done = True
+        elif state == registergui.RegisterState.FINISHED:
+            self._done = True

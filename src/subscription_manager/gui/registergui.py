@@ -54,19 +54,14 @@ log = logging.getLogger('rhsm-app.' + __name__)
 
 CFG = config.initConfig()
 
-REGISTERING = 0
-SUBSCRIBING = 1
-state = REGISTERING
 
+class RegisterState(object):
+    UNREGISTERED = 0
+    REGISTERING = 1
+    REGISTERED = 2
+    ATTACHING = 3
+    FINISHED = 4
 
-def get_state():
-    global state
-    return state
-
-
-def set_state(new_state):
-    global state
-    state = new_state
 
 ERROR_SCREEN = -3
 DONT_CHANGE = -2
@@ -140,7 +135,7 @@ class RegisterInfo(ga_GObject.GObject):
     # registergui states
     skip_auto_bind = ga_GObject.property(type=bool, default=False)
     details_label_txt = ga_GObject.property(type=str, default='')
-    register_state = ga_GObject.property(type=int, default=REGISTERING)
+    register_state = ga_GObject.property(type=int, default=RegisterState.UNREGISTERED)
 
     # TODO: make a gobj prop as well, with custom set/get, so we can be notified
     @property
@@ -176,6 +171,8 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
     register_button_label = ga_GObject.property(type=str, default=_('Register'))
     # TODO: a prop equilivent to initial-setups 'completed' and 'status' props
+
+    in_progress = ga_GObject.property(type=bool, default=False)
 
     def __init__(self, backend, facts, reg_info=None, parent_window=None):
         super(RegisterWidget, self).__init__()
@@ -214,9 +211,12 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         self.info.connect('notify::register-state',
                           self._on_register_state_change)
 
+        #self.connect('notify::in-progress',
+        #             self._on_in_progress_change)
+
         # expect this to be driving from the parent dialog
-        self.connect('proceed',
-                     self._on_proceed)
+        self.proceed_handler_id = self.connect('proceed',
+                                               self._on_proceed)
 
         # FIXME: change glade name
         self.details_label = self.register_details_label
@@ -265,6 +265,8 @@ class RegisterWidget(widgets.SubmanBaseWidget):
                        self._on_screen_register_finished)
         screen.connect('attach-finished',
                        self._on_screen_attach_finished)
+        screen.connect('pre-done',
+                       self._on_screen_pre_done)
 
         self._screens.append(screen)
 
@@ -281,6 +283,9 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         self.clear_screens()
         # TODO: move this so it's only running when a progress bar is "active"
         self.register_widget.show_all()
+
+    #def set_in_progress(self, in_progress=False):
+    #    self.reg_info.set_property('in-progress', in_progress)
 
     def start_progress_timer(self):
         if not self.progress_timer:
@@ -329,10 +334,16 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         (the 'register-state' property changed), so update the
         related label on progress page."""
         state = obj.get_property('register-state')
-        if state == REGISTERING:
+        if state == RegisterState.REGISTERING:
             self.progress_label.set_markup(_("<b>Registering</b>"))
-        elif state == SUBSCRIBING:
+        elif state == RegisterState.ATTACHING:
             self.progress_label.set_markup(_("<b>Attaching</b>"))
+
+    def _on_in_progress_change(self, obj, value):
+        state = obj.get_property('in-progress')
+        log.debug('RegisterWidget.on_in_progress_change obj=%s, state=%s',
+                  obj, state)
+        return True
 
     def do_register_error(self, msg, exc_info):
         """Class closure signal handler for 'register-error'.
@@ -354,6 +365,11 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
         # do_register_error handles it for this widget, so stop emission
         return False
+
+    def _on_screen_pre_done(self, obj):
+        log.debug("_On_screen_pre_done handler")
+        self.set_property('in-progress', False)
+        self.handler_unblock(self.proceed_handler_id)
 
     def _on_stay_on_screen(self, current_screen):
         """A 'stay-on-screen' handler, for errors that need to be corrected before proceeding.
@@ -385,14 +401,22 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         off a thread and we should wait for a callback, then move the screen to the
         PROGRESS_PAGE. The callback passed to AsyncBackend in pre() is then responsible
         for sending the user to the right screen via 'move-to-screen' signal."""
+        log.debug("change_screen, next_screen_id=%s, in-progress=%s",
+                  next_screen_id, self.get_property('in-progress'))
+
         next_screen = self._screens[next_screen_id]
 
         self._set_screen(next_screen_id)
 
         async = next_screen.pre()
+
+        # unsens the register button until...?
+
         if async:
             self.start_progress_timer()
             next_screen.emit('move-to-screen', PROGRESS_PAGE)
+        else:
+            self.set_property('in-progress', False)
 
     def _set_screen(self, screen):
         """Handle both updating self._current_screen, and updating register_notebook."""
@@ -417,10 +441,15 @@ class RegisterWidget(widgets.SubmanBaseWidget):
     # could just be 'move-to-screen', next screen
     # Go to the next screen/state
     def _on_proceed(self, obj):
+        log.debug("_on_proceed handler obj=%s", obj)
+        self.handler_block(self.proceed_handler_id)
+        self.set_property('in-progress', True)
         self.apply_current_screen()
 
     def apply_current_screen(self):
         """Extract any info from the widgets and call the screens apply()."""
+        # Set unsens/block proceed here, until... end of next screens pre()
+        # and/or end of it's callback?
         self._screens[self._current_screen].apply()
 
     def _on_screen_register_finished(self, obj):
@@ -501,11 +530,11 @@ class RegisterDialog(widgets.SubmanBaseWidget):
         super(RegisterDialog, self).__init__()
 
         # dialog
-        callbacks = {"on_register_cancel_button_clicked": self.cancel,
-                     "on_register_button_clicked": self._on_register_button_clicked,
-                     "hide": self.cancel,
-                     "on_register_dialog_delete_event": self.cancel}
-        self.connect_signals(callbacks)
+        #callbacks = {"on_register_cancel_button_clicked": self.cancel,
+        #             "on_register_button_clicked": self._on_register_button_clicked,
+        #             "hide": self.cancel,
+        #             "on_register_dialog_delete_event": self.cancel}
+        #self.connect_signals(callbacks)
 
         self.reg_info = RegisterInfo()
 
@@ -516,11 +545,11 @@ class RegisterDialog(widgets.SubmanBaseWidget):
         # out container
         self.register_dialog_main_vbox.pack_start(self.register_widget.register_widget,
                                                   True, True, 0)
-
         # reset/clear/setup
         self.register_widget.initialize()
 
-        self.register_button.connect('clicked', self._on_register_button_clicked)
+        self.clicked_handler = self.register_button.connect('clicked',
+                                                            self._on_register_button_clicked)
         self.cancel_button.connect('clicked', self.cancel)
 
         self.window = self.register_dialog
@@ -550,8 +579,13 @@ class RegisterDialog(widgets.SubmanBaseWidget):
                                       self._on_register_state_change)
 
         # update the 'next/register button on page change'
-        register_widget.connect('notify::register-button-label',
-                                self._on_register_button_label_change)
+        self.register_widget.connect('notify::register-button-label',
+                                     self._on_register_button_label_change)
+
+        self.register_widget.connect('notify::in-progress',
+                                     self._on_in_progress_change)
+
+        self.window = self.register_dialog
 
         return register_widget
 
@@ -595,9 +629,9 @@ class RegisterDialog(widgets.SubmanBaseWidget):
 
     def _on_register_state_change(self, obj, value):
         state = obj.get_property('register-state')
-        if state == REGISTERING:
+        if state == RegisterState.REGISTERING:
             self.register_dialog.set_title(_("System Registration"))
-        elif state == SUBSCRIBING:
+        elif state == RegisterState.ATTACHING:
             self.register_dialog.set_title(_("Subscription Attachment"))
 
     def _on_register_button_label_change(self, obj, value):
@@ -606,6 +640,22 @@ class RegisterDialog(widgets.SubmanBaseWidget):
         #
         if register_label:
             self.register_button.set_label(register_label)
+
+    def _on_in_progress_change(self, obj, value):
+        state = obj.get_property('in-progress')
+        #state = obj.get_property(value)
+        log.debug('value=%s', value)
+        log.debug('on_in_progress_change obj=%s, state=%s, in-progress=%s',
+                  obj, state, self.register_widget.get_property('in-progress'))
+
+        if state:
+            self.set_nav_sensitivity(False)
+        else:
+            self.set_nav_sensitivity(True)
+
+    def set_nav_sensitivity(self, is_sensitive):
+        log.debug("set_nav_sensitive: is_sensitive=%s", is_sensitive)
+        self.register_button.set_sensitive(is_sensitive)
 
 
 class AutobindWizardDialog(RegisterDialog):
@@ -640,6 +690,10 @@ class Screen(widgets.SubmanBaseWidget):
                                  None, []),
                     'attach-finished': (ga_GObject.SignalFlags.RUN_FIRST,
                                  None, []),
+                    'pre': (ga_GObject.SignalFlags.RUN_FIRST,
+                            None, []),
+                    'pre-done': (ga_GObject.SignalFlags.RUN_FIRST,
+                            None, []),
                     'register-error': (ga_GObject.SignalFlags.RUN_FIRST,
                               None, (ga_GObject.TYPE_PYOBJECT,
                                      ga_GObject.TYPE_PYOBJECT)),
@@ -662,9 +716,22 @@ class Screen(widgets.SubmanBaseWidget):
 
     def stay(self):
         self.emit('stay-on-screen')
+        self.emit('pre-done')
+
+    def move_to_screen(self, next_screen_id):
+        self.emit('move-to-screen', next_screen_id)
+        self.emit('pre-done')
+
+    def register_error(self, msg, exc_list=None):
+        self.emit('register-error', msg, exc_list)
+        self.emit('pre-done')
 
     def pre(self):
         return False
+
+    def pre_done(self):
+        self.emit('pre-done')
+        return True
 
     # do whatever the screen indicates, and emit any signals indicating where
     # to move to next. apply() should not return anything.
@@ -687,6 +754,8 @@ class NoGuiScreen(ga_GObject.GObject):
                                        None, (int,)),
                     'stay-on-screen': (ga_GObject.SignalFlags.RUN_FIRST,
                                        None, []),
+                    'pre-done': (ga_GObject.SignalFlags.RUN_FIRST,
+                            None, []),
                     'register-finished': (ga_GObject.SignalFlags.RUN_FIRST,
                                  None, []),
                     'attach-finished': (ga_GObject.SignalFlags.RUN_FIRST,
@@ -715,8 +784,18 @@ class NoGuiScreen(ga_GObject.GObject):
     def pre(self):
         return True
 
+    def pre_done(self):
+        self.emit('pre-done')
+
+    def stay(self):
+        self.emit('stay-on-screen')
+        self.emit('pre-done')
+
     def apply(self):
-        self.emit('move-to-screen')
+        log.debug("noGuiScreen.apply self=%s, class=%s",
+                  self, self.__class__.__name__)
+        self.stay()
+        #self.emit('move-to-screen')
 
     def post(self):
         pass
@@ -737,6 +816,7 @@ class PerformRegisterScreen(NoGuiScreen):
                       REGISTER_ERROR,
                       error)
             # TODO: register state
+            self.pre_done()
             return
 
         try:
@@ -744,6 +824,7 @@ class PerformRegisterScreen(NoGuiScreen):
         except Exception, e:
             # hint: register error, back to creds?
             self.emit('register-error', REGISTER_ERROR, e)
+            self.pre_done()
             return
 
         # trigger a id cert reload
@@ -763,6 +844,7 @@ class PerformRegisterScreen(NoGuiScreen):
             self.emit('move-to-screen', REFRESH_SUBSCRIPTIONS_PAGE)
             return
         elif self.info.get_property('skip-auto-bind'):
+            self.pre_done()
             return
         else:
             self.emit('move-to-screen', SELECT_SLA_PAGE)
@@ -794,10 +876,12 @@ class PerformSubscribeScreen(NoGuiScreen):
         if error is not None:
             message = _("Error subscribing: %s")
             self.emit('register-error', message, error)
+            self.pre_done()
             return
 
         self.emit('certs-updated')
         self.emit('attach-finished')
+        self.pre_done()
 
     def pre(self):
         self.info.set_property('details-label-txt', self.pre_message)
@@ -941,23 +1025,27 @@ class SelectSLAScreen(Screen):
                 # wacky ordering if the register-error is followed immed by a
                 # register-finished?
                 self.emit('attach-finished')
+                self.pre_done()
                 return
             elif isinstance(error[1], NoProductsException):
                 msg = _("No installed products on system. No need to attach subscriptions at this time.")
                 self.emit('register-error', msg, None)
                 self.emit('attach-finished')
+                self.pre_done()
                 return
             elif isinstance(error[1], AllProductsCoveredException):
                 msg = _("All installed products are covered by valid entitlements. "
                         "No need to attach subscriptions at this time.")
                 self.emit('register-error', msg, None)
                 self.emit('attach-finished')
+                self.pre_done()
                 return
             elif isinstance(error[1], GoneException):
                 # FIXME: shoudl we log here about deleted consumer or
                 #        did we do that when we created GoneException?
                 msg = _("Consumer has been deleted.")
                 self.emit('register-error', msg, None)
+                self.pre_done()
                 return
                 # TODO: where we should go from here?
             else:
@@ -965,6 +1053,7 @@ class SelectSLAScreen(Screen):
                 self.emit('register-error',
                           _("Error subscribing"),
                           error)
+                self.pre_done()
                 return
 
         (current_sla, unentitled_products, sla_data_map) = result
@@ -984,11 +1073,13 @@ class SelectSLAScreen(Screen):
                 # TODO: add 'attach' state
                 self.emit('register-error', msg, None)
                 self.emit('attach-finished')
+                self.pre_done()
                 return
 
             self.info.set_property('dry-run-result',
                                            sla_data_map.values()[0])
             self.emit('move-to-screen', CONFIRM_SUBS_PAGE)
+            self.pre_done()
             return
         elif len(sla_data_map) > 1:
             self.set_model(unentitled_products, sla_data_map)
@@ -1004,10 +1095,11 @@ class SelectSLAScreen(Screen):
             # TODO: add 'registering/attaching' state info
             self.emit('register-error', msg, None)
             self.emit('attach-finished')
+            self.pre_done()
 
     def pre(self):
         self.info.set_property('details-label-txt', self.pre_message)
-        self.info.set_property('register-state', SUBSCRIBING)
+        self.info.set_property('register-state', RegisterState.ATTACHING)
         self.info.identity.reload()
 
         self.async.find_service_levels(self.info.identity.uuid,
@@ -1044,17 +1136,20 @@ class EnvironmentScreen(Screen):
         if error is not None:
             # TODO: registering state
             self.emit('register-error', REGISTER_ERROR, error)
+            self.pre_done()
             return
 
         if not environments:
             self.set_environment(None)
             self.emit('move-to-screen', PERFORM_REGISTER_PAGE)
+            self.pre_done()
             return
 
         envs = [(env['id'], env['name']) for env in environments]
         if len(envs) == 1:
             self.set_environement(envs[0][0])
             self.emit('move-to-screen', PERFORM_REGISTER_PAGE)
+            self.pre_done()
             return
 
         else:
@@ -1104,6 +1199,7 @@ class OrganizationScreen(Screen):
     def _on_get_owner_list_cb(self, owners, error=None):
         if error is not None:
             self.emit('register-error', REGISTER_ERROR, error)
+            self.pre_done()
             return
 
         owners = [(owner['key'], owner['displayName']) for owner in owners]
@@ -1114,6 +1210,7 @@ class OrganizationScreen(Screen):
             msg = _("<b>User %s is not able to register with any orgs.</b>") % \
                     self.info.get_property('username')
             self.emit('register-error', msg, None)
+            self.pre_done()
             return
 
         if len(owners) == 1:
@@ -1121,6 +1218,7 @@ class OrganizationScreen(Screen):
             self.info.set_property('owner-key', owner_key)
             # only one org, use it and skip the org selection screen
             self.emit('move-to-screen', ENVIRONMENT_SELECT_PAGE)
+            self.pre_done()
             return
 
         else:
