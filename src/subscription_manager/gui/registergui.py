@@ -544,6 +544,7 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
     # switch-page should be after the current screen is reset
     def _on_switch_page(self, notebook, page, page_num):
+        log.debug("_on_switch_page page=%s page_num=%s", page, page_num)
         if self.current_screen.button_label:
             self.set_property('register-button-label',
                               self.current_screen.button_label)
@@ -758,6 +759,7 @@ class RegisterDialog(widgets.SubmanBaseWidget):
         return register_widget
 
     def initialize(self):
+        log.debug("RegisterDialog.initialize")
         self.register_widget.initialize()
 
     def show(self):
