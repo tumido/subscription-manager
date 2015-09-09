@@ -177,7 +177,8 @@ class RegisterWidget(widgets.SubmanBaseWidget):
     register_button_label = ga_GObject.property(type=str, default=_('Register'))
     # TODO: a prop equilivent to initial-setups 'completed' and 'status' props
 
-    def __init__(self, backend, facts, reg_info=None, parent_window=None):
+    def __init__(self, backend, facts, reg_info=None,
+                 parent_window=None):
         super(RegisterWidget, self).__init__()
 
         self.backend = backend
@@ -280,7 +281,7 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         return self._screens[self._current_screen]
 
     def initialize(self):
-        log.debug("RegisterWidget.initialize")
+        log.debug("%s.initialize", self.__class__.__name__)
         self.clear_screens()
         self.set_initial_screen()
 
@@ -298,7 +299,10 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         any parent dialogs for example)."""
         # return to the last gui screen we showed.
 
-        self._set_screen(self.screen_history[-1])
+        try:
+            self._set_screen(self.screen_history[-1])
+        except IndexError:
+            pass
 
     def do_finished(self):
         """Class closure signal handler for the 'finished' signal.
@@ -314,11 +318,55 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
 # methods for moving around between screens and tracking the state
 
+    # On showing the widget, it could start at initial_screen, but with something
+    # in the background checking if registered and updating RegisterInfo, and notify
+    # on it's properties could trigger a move to 'AttachScreen' for example. Or perhaps
+    # a "This is already registered, are you sure?" register screen.
+    #
+    # Maybe RegisterWidget via ChooseServerScreen .pre() could decide if it is
+    # a client register or possibly forced.
+    #  clean -> ChooseServerScreen
+    #  dirty -> AreYouSureYouWantToRegisterScreen
     def set_initial_screen(self):
         log.debug("set_initial_screen current_screen=%s", self.current_screen)
-        self.current_screen.emit('move-to-screen', self.initial_screen)
+        log.debug("info.identity=%s", self.info.identity)
 
-        self.screen_history = [self.initial_screen]
+        ga_GObject.idle_add(self.choose_initial_screen)
+        log.debug("idle added a register check")
+#        self.current_screen.pre()
+        #self.current_screen.emit('move-to-screen', self.initial_screen)
+
+        #self.current_screen
+        #self.screen_history = [self.initial_screen]
+
+    def choose_initial_screen(self):
+        try:
+            log.debug("are we registered?")
+            self.info.identity.reload()
+        except Exception, e:
+            log.exception(e)
+            self.emit('register-error',
+                      'Error detecting if we were registered:',
+                      sys.exc_info())
+            return False
+
+        log.debug("about to see if identity is_valid")
+        if self.info.identity.is_valid():
+            log.debug("identity.is_valid()=True")
+            self.emit('register-finished')
+            # We are done if there is auto bind is being skipped ("Manually attach
+            # to subscriptions" is clicked in the gui)
+            if self.info.get_property('skip-auto-bind'):
+                self.emit('finished')
+            #self.emit('register-error', 'System is already registered', None)
+            self.current_screen.emit('move-to-screen', SELECT_SLA_PAGE)
+            return False
+
+        log.debug("Not registered, not doing much")
+        self.current_screen.stay()
+        # Note registered, thats fine. We stay
+        # on this screen.
+        return False
 
     def _on_stay_on_screen(self, current_screen):
         """A 'stay-on-screen' handler, for errors that need to be corrected before proceeding.
@@ -534,15 +582,23 @@ class RegisterDialog(widgets.SubmanBaseWidget):
         self.reg_info = RegisterInfo()
 
         # RegisterWidget is a oect, but not a Gtk.Widget
-        self.register_widget = self.create_register_widget(backend, facts, self.reg_info,
-                                                           self.register_dialog)
+        self.register_widget = self.create_wizard_widget(backend, facts, self.reg_info,
+                                                         self.register_dialog)
+
         # But RegisterWidget.register_widget is a Gtk.Widget, so add it to
         # out container
         self.register_dialog_main_vbox.pack_start(self.register_widget.register_widget,
                                                   True, True, 0)
 
+        # initial-setup will likely handle these itself
+        self.register_widget.connect('finished', self.cancel)
+        self.register_widget.connect('register-error', self.on_register_error)
+
+        # update the 'next/register button on page change'
+        self.register_widget.connect('notify::register-button-label',
+                                self._on_register_button_label_change)
         # reset/clear/setup
-        self.register_widget.initialize()
+        #self.register_widget.initialize()
 
         self.register_button.connect('clicked', self._on_register_button_clicked)
         self.cancel_button.connect('clicked', self.cancel)
@@ -553,36 +609,23 @@ class RegisterDialog(widgets.SubmanBaseWidget):
 
         self.window = self.register_dialog
 
-        log.debug("RegisterDIalog.__init__")
-        # FIXME: needed by firstboot
-        self.password = None
+        log.debug("%s.__init__", self.__class__.__name__)
 
-    def create_register_widget(self, backend, facts, reg_info, parent_window):
+    def create_wizard_widget(self, backend, facts, reg_info, parent_window):
+        """Create a RegisterWidget or subclass and use it for our content."""
 
         # FIXME: Need better error handling in general, but it's kind of
         # annoying to have to pass the top level widget all over the place
         register_widget = RegisterWidget(backend=backend,
-                                         facts=facts,
-                                         reg_info=reg_info,
-                                         parent_window=parent_window)
+                                       facts=facts,
+                                       reg_info=reg_info,
+                                       parent_window=parent_window)
 
         log.debug("created_register_widget")
-        # Ensure that we start on the first page and that
-        # all widgets are cleared.
-        # register_widget.initialize()
-
-        # initial-setup will likely handle these itself
-        register_widget.connect('finished', self.cancel)
-        register_widget.connect('register-error', self.on_register_error)
-
-        # update the 'next/register button on page change'
-        register_widget.connect('notify::register-button-label',
-                                self._on_register_button_label_change)
-
         return register_widget
 
     def initialize(self):
-        log.debug("RegisterDialog.initialize")
+        log.debug("%s.initialize", self.__class__.__name__)
         self.register_widget.initialize()
 
     def show(self):
@@ -633,17 +676,37 @@ class RegisterDialog(widgets.SubmanBaseWidget):
             self.register_button.set_label(register_label)
 
 
-class AutobindWizardDialog(RegisterDialog):
-    __gtype_name__ = "AutobindWizard"
+class AutoBindWidget(RegisterWidget):
+    __gtype_name__ = "AutobindWidget"
 
     initial_screen = SELECT_SLA_PAGE
+
+    def __init__(self, backend, facts, reg_info=None,
+                 parent_window=None):
+        import traceback
+        traceback.print_stack()
+        log.debug("AutoBindWidget pre super")
+        super(AutoBindWidget, self).__init__(backend, facts, reg_info,
+                                             parent_window)
+
+
+class AutobindWizardDialog(RegisterDialog):
+    __gtype_name__ = "AutobindWizardDialog"
 
     def __init__(self, backend, facts):
         super(AutobindWizardDialog, self).__init__(backend, facts)
 
-    def show(self):
-        super(AutobindWizardDialog, self).show()
-        self.register_widget.change_screen(SELECT_SLA_PAGE)
+    def create_wizard_widget(self, backend, facts, reg_info, parent_window):
+
+        # FIXME: Need better error handling in general, but it's kind of
+        # annoying to have to pass the top level widget all over the place
+        autobind_widget = AutoBindWidget(backend=backend,
+                                         facts=facts,
+                                         reg_info=reg_info,
+                                         parent_window=parent_window)
+
+        log.debug("created_autobind_widget")
+        return autobind_widget
 
 
 # TODO: Screen could be a container widget, that has the rest of the gui as
@@ -1469,12 +1532,58 @@ class ChooseServerScreen(Screen):
                     current_port, current_prefix))
 
     def pre(self):
+        return False
+
+    def not_pre(self):
         log.debug("ChooseServerScreen.pre")
         log.debug("register-state=%s",
                   self.info.get_property('register-state'))
         log.debug("info.identity=%s", self.info.identity)
 
+        ga_GObject.idle_add(self.is_registered)
+        log.debug("idle added a register check")
+
+        return True
+
+    def is_registered(self):
+        try:
+            log.debug("are we registered?")
+            self.info.identity.reload()
+        except Exception, e:
+            log.exception(e)
+            self.emit('register-error',
+                      'Error detecting if we were registered:',
+                      sys.exc_info())
+            return False
+
+        log.debug("about to see if identity is_valid")
+        if self.info.identity.is_valid():
+            log.debug("identity.is_valid()=True")
+            self.emit('register-finished')
+            return False
+
+        log.debug("Not registered, not doing much")
+        # Note registered, thats fine. We stay
+        # on this screen.
+        self.stay()
         return False
+
+    # Not needed?
+    def _is_registered_cb(self, results, error=None):
+        if error is not None:
+            self.emit('register-error', 'Error deciding if we were registered', error)
+            return
+
+        if results:
+            # This will send us to SelectSLAScreen pre
+            self.emit('register-finished')
+            return
+
+        self.emit('register-error',
+                  'This system is already registered. Are you sure you want to reregister it?')
+
+        # focus on a 'force' widget?
+        return
 
 
 class AsyncBackend(object):
