@@ -1001,6 +1001,13 @@ class NoGuiScreen(ga_GObject.GObject):
         self.set_property('ready', True)
 
 
+class DetectIfRegisteredScreen(NoGuiScreen):
+    screen_enum = DETECT_IF_REGISTERED_PAGE
+
+    def __init__(self, reg_info, async_backend, facts, parent_window):
+        super(DetectIfRegisteredScreen, self).__init__(reg_info, async_backend, facts, parent_window)
+
+
 class PerformRegisterScreen(NoGuiScreen):
     screen_enum = PERFORM_REGISTER_PAGE
 
