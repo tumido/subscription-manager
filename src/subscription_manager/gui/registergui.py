@@ -201,6 +201,8 @@ class RegisterInfo(ga_GObject.GObject):
 
     register_status = ga_GObject.property(type=str, default='')
 
+    register_status = ga_GObject.property(type=str, default='')
+
     # TODO: make a gobj prop as well, with custom set/get, so we can be notified
     @property
     def identity(self):
@@ -208,6 +210,7 @@ class RegisterInfo(ga_GObject.GObject):
         return id
 
     def __init__(self):
+        log.debug("RegisterInfo.__init__")
         ga_GObject.GObject.__init__(self)
         self._defaults_from_config()
         self._initial_registration_status()
@@ -403,6 +406,13 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         last_server_info['cert_file'] = self.backend.cp_provider.cert_file
         last_server_info['key_file'] = self.backend.cp_provider.key_file
         self.info.set_property('server-info', last_server_info)
+
+        msg = _("Error during registration.")
+        self.info.set_property('register-status', msg)
+
+    def do_register_finished(self):
+        msg = _("The system has been registered with ID: %s ") % self.info.identity.uuid
+        self.info.set_property('register-status', msg)
 
     def do_finished(self):
         """Class closure signal handler for the 'finished' signal.

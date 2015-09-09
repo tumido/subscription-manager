@@ -157,11 +157,13 @@ class RHSMSpoke(FirstbootOnlySpokeMixIn, NormalSpoke):
 
     # take info from the gui widgets and set into the self.data
     def apply(self):
+        log.debug("apply")
         self.data.addons.com_redhat_subscription_manager.text = \
             "System is registered to Red Hat Subscription Management."
 
     # when the spoke is left, this can run anything that happens
     def execute(self):
+        log.debug("execute")
         pass
 
     def cancel(self, button):
