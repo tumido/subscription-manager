@@ -142,6 +142,8 @@ class RegisterInfo(ga_GObject.GObject):
     details_label_txt = ga_GObject.property(type=str, default='')
     register_state = ga_GObject.property(type=int, default=REGISTERING)
 
+    register_status = ga_GObject.property(type=str, default='')
+
     # TODO: make a gobj prop as well, with custom set/get, so we can be notified
     @property
     def identity(self):
@@ -149,6 +151,7 @@ class RegisterInfo(ga_GObject.GObject):
         return id
 
     def __init__(self):
+        log.debug("RegisterInfo.__init__")
         ga_GObject.GObject.__init__(self)
 
 
@@ -192,7 +195,9 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         #       widget
         self.parent_window = parent_window
 
-        self.info = reg_info or RegisterInfo()
+        #self.info = reg_info or RegisterInfo()
+        self.info = reg_info
+        log.debug("self.info %s", reg_info)
 
         self.progress_timer = None
 
@@ -303,6 +308,13 @@ class RegisterWidget(widgets.SubmanBaseWidget):
             self._set_screen(self.screen_history[-1])
         except IndexError:
             pass
+
+        msg = _("Error during registration.")
+        self.info.set_property('register-status', msg)
+
+    def do_register_finished(self):
+        msg = _("The system has been registered with ID: %s ") % self.info.identity.uuid
+        self.info.set_property('register-status', msg)
 
     def do_finished(self):
         """Class closure signal handler for the 'finished' signal.
@@ -863,9 +875,10 @@ class PerformRegisterScreen(NoGuiScreen):
             return
 
     def pre(self):
-        log.info("Registering to owner: %s environment: %s" %
+        msg = _("Registering to owner: %s environment: %s") % \
                  (self.info.get_property('owner-key'),
-                  self.info.get_property('environment')))
+                  self.info.get_property('environment'))
+        self.info.set_property('register-status', msg)
 
         self.async.register_consumer(self.info.get_property('consumername'),
                                      self.facts,
@@ -1012,7 +1025,7 @@ class SelectSLAScreen(Screen):
 
         if button.get_active():
             self.info.set_property('dry-run-result',
-                                           sla_data_map[sla])
+                                   sla_data_map[sla])
 
     def _format_prods(self, prod_certs):
         prod_str = ""
@@ -1081,7 +1094,7 @@ class SelectSLAScreen(Screen):
                 return
 
             self.info.set_property('dry-run-result',
-                                           sla_data_map.values()[0])
+                                   sla_data_map.values()[0])
             self.emit('move-to-screen', CONFIRM_SUBS_PAGE)
             return
         elif len(sla_data_map) > 1:
@@ -1713,13 +1726,21 @@ class AsyncBackend(object):
             for pool_quantity in dry_run_result.json:
                 pool_id = pool_quantity['pool']['id']
                 quantity = pool_quantity['quantity']
+
                 log.debug("  pool %s quantity %s" % (pool_id, quantity))
+
                 self.plugin_manager.run("pre_subscribe", consumer_uuid=uuid,
                                         pool_id=pool_id, quantity=quantity)
-                ents = self.backend.cp_provider.get_consumer_auth_cp().bindByEntitlementPool(uuid, pool_id, quantity)
-                self.plugin_manager.run("post_subscribe", consumer_uuid=uuid, entitlement_data=ents)
+
+                cp = self.backend.cp_provider.get_consumer_auth_cp()
+                ents = cp.bindByEntitlementPool(uuid, pool_id, quantity)
+
+                self.plugin_manager.run("post_subscribe",
+                                        consumer_uuid=uuid, entitlement_data=ents)
+
             # FIXME: this should be a different asyncBackend task
             managerlib.fetch_certificates(self.backend.certlib)
+
         except Exception:
             # Going to try to update certificates just in case we errored out
             # mid-way through a bunch of binds:
