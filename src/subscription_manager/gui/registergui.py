@@ -276,67 +276,19 @@ class RegisterWidget(widgets.SubmanBaseWidget):
             screen.index = self.register_notebook.append_page(screen.container,
                                                               tab_label=None)
 
-    def initialize(self):
-        self.set_initial_screen()
-        self.clear_screens()
-        # TODO: move this so it's only running when a progress bar is "active"
-        self.register_widget.show_all()
-
-    def start_progress_timer(self):
-        if not self.progress_timer:
-            self.progress_timer = ga_GObject.timeout_add(100, self._timeout_callback)
-
-    def stop_progress_timer(self):
-        if self.progress_timer:
-            ga_GObject.source_remove(self.progress_timer)
-            self.progress_timer = None
-
     @property
     def current_screen(self):
         return self._screens[self._current_screen]
 
-    def set_initial_screen(self):
-        self._set_screen(self.initial_screen)
-        self._current_screen = self.initial_screen
-        self.screen_history = [self.initial_screen]
+    def initialize(self):
+        self.set_initial_screen()
+        self.clear_screens()
 
-    # switch-page should be after the current screen is reset
-    def _on_switch_page(self, notebook, page, page_num):
-        if self.current_screen.button_label:
-            self.set_property('register-button-label',
-                              self.current_screen.button_label)
+        # TODO: move this so it's only running when a progress bar is "active"
+        self.register_widget.show_all()
 
-    # HMMM: If the connect/backend/async, and the auth info is composited into
-    #       the same GObject, these could be class closure handlers
-    def _on_username_password_change(self, *args):
-        self.async.set_user_pass(self.info.username, self.info.password)
-
-    def _on_connection_info_change(self, *args):
-        self.async.update()
-
-    def _on_activation_keys_change(self, obj, param):
-        activation_keys = obj.get_property('activation-keys')
-
-        # Unset backend from attempting to use basic auth
-        if activation_keys:
-            self.async.cp_provider.set_user_pass()
-            self.async.update()
-
-    def _on_details_label_txt_change(self, obj, value):
-        """Update the label under the progress bar on progress page."""
-        self.details_label.set_label("<small>%s</small>" %
-                                     obj.get_property('details-label-txt'))
-
-    def _on_register_state_change(self, obj, value):
-        """Handler for the signal indicating we moved from registering to attaching.
-
-        (the 'register-state' property changed), so update the
-        related label on progress page."""
-        state = obj.get_property('register-state')
-        if state == REGISTERING:
-            self.progress_label.set_markup(_("<b>Registering</b>"))
-        elif state == SUBSCRIBING:
-            self.progress_label.set_markup(_("<b>Attaching</b>"))
+# Class closure signal handlers that are invoked first if this GObject
+# emits a signal they are connected to.
 
     def do_register_error(self, msg, exc_info):
         """Class closure signal handler for 'register-error'.
@@ -348,16 +300,24 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
         self._set_screen(self.screen_history[-1])
 
-    def _on_screen_register_error(self, obj, msg, exc_info):
-        """Handler for 'register-error' signals emitted from the Screens.
+    def do_finished(self):
+        """Class closure signal handler for the 'finished' signal.
 
-        Then emit one ourselves. Now emit a new signal for parent widget and
-        self.do_register_error() to handle"""
+        Ran first before the any other signal handlers attach to 'finished'"""
+        if self.progress_timer:
+            ga_GObject.source_remove(self.progress_timer)
 
-        self.emit('register-error', msg, exc_info)
+        # Switch to the 'done' screen before telling other signal handlers we
+        # are done. This way, parent widgets like initial-setup that don't just
+        # close the window have something to display.
+        self.done()
 
-        # do_register_error handles it for this widget, so stop emission
-        return False
+# methods for moving around between screens and tracking the state
+
+    def set_initial_screen(self):
+        self._set_screen(self.initial_screen)
+        self._current_screen = self.initial_screen
+        self.screen_history = [self.initial_screen]
 
     def _on_stay_on_screen(self, current_screen):
         """A 'stay-on-screen' handler, for errors that need to be corrected before proceeding.
@@ -421,16 +381,45 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         # indicating the gui has switched to that page.
         self.register_notebook.set_current_page(next_notebook_page)
 
+    def apply_current_screen(self):
+        """Extract any info from the widgets and call the screens apply()."""
+        self.current_screen.apply()
+        #self._screens[self._current_screen].apply()
+
     # FIXME: figure out to determine we are on first screen, then this
     # could just be 'move-to-screen', next screen
     # Go to the next screen/state
     def _on_proceed(self, obj):
         self.apply_current_screen()
 
-    def apply_current_screen(self):
-        """Extract any info from the widgets and call the screens apply()."""
-        self.current_screen.apply()
-        #self._screens[self._current_screen].apply()
+    # switch-page should be after the current screen is reset
+    def _on_switch_page(self, notebook, page, page_num):
+        if self.current_screen.button_label:
+            self.set_property('register-button-label',
+                              self.current_screen.button_label)
+
+    def done(self):
+        self.change_screen(DONE_PAGE)
+
+    def clear_screens(self):
+        for screen in self._screens:
+            screen.clear()
+
+    # Handlers conntected to signals emitted from our Screens() in self._screens
+    # Mostly just so they can then raise a RegisterWidget version of the signal
+    # ie, any Screen() widget can emit a 'register-error', and we handle it here
+    # and then emit a 'register-error' from RegisterWidget.
+
+    def _on_screen_register_error(self, obj, msg, exc_info):
+        """Handler for 'register-error' signals emitted from the Screens.
+
+        Then emit one ourselves. Now emit a new signal for parent widget and
+        self.do_register_error() to handle"""
+
+        self.emit('register-error', msg, exc_info)
+
+        # do_register_error handles it for this widget, so stop emission
+        return False
 
     def _on_screen_register_finished(self, obj):
         """Handler for 'register-finished' signal, indicating register is finished.
@@ -467,24 +456,48 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         # shutdown (like detaching self.timer) first.
         self.emit('finished')
 
-    def do_finished(self):
-        """Class closure signal handler for the 'finished' signal.
+    # HMMM: If the connect/backend/async, and the auth info is composited into
+    #       the same GObject, these could be class closure handlers
+    def _on_username_password_change(self, *args):
+        self.async.set_user_pass(self.info.username, self.info.password)
 
-        Ran first before the any other signal handlers attach to 'finished'"""
+    def _on_connection_info_change(self, *args):
+        self.async.update()
+
+    def _on_activation_keys_change(self, obj, param):
+        activation_keys = obj.get_property('activation-keys')
+
+        # Unset backend from attempting to use basic auth
+        if activation_keys:
+            self.async.cp_provider.set_user_pass()
+            self.async.update()
+
+    def _on_details_label_txt_change(self, obj, value):
+        """Update the label under the progress bar on progress page."""
+        self.details_label.set_label("<small>%s</small>" %
+                                     obj.get_property('details-label-txt'))
+
+    def _on_register_state_change(self, obj, value):
+        """Handler for the signal indicating we moved from registering to attaching.
+
+        (the 'register-state' property changed), so update the
+        related label on progress page."""
+        state = obj.get_property('register-state')
+        if state == REGISTERING:
+            self.progress_label.set_markup(_("<b>Registering</b>"))
+        elif state == SUBSCRIBING:
+            self.progress_label.set_markup(_("<b>Attaching</b>"))
+
+    # Various bits for starting/stopping the timer used to pulse the progress bar
+
+    def start_progress_timer(self):
+        if not self.progress_timer:
+            self.progress_timer = ga_GObject.timeout_add(100, self._timeout_callback)
+
+    def stop_progress_timer(self):
         if self.progress_timer:
             ga_GObject.source_remove(self.progress_timer)
-
-        # Switch to the 'done' screen before telling other signal handlers we
-        # are done. This way, parent widgets like initial-setup that don't just
-        # close the window have something to display.
-        self.done()
-
-    def done(self):
-        self.change_screen(DONE_PAGE)
-
-    def clear_screens(self):
-        for screen in self._screens:
-            screen.clear()
+            self.progress_timer = None
 
     def _timeout_callback(self):
         """Callback used to drive the progress bar 'pulse'."""
@@ -733,7 +746,6 @@ class NoGuiScreen(ga_GObject.GObject):
 
 
 class DetectIfRegisteredScreen(NoGuiScreen):
-    screen_enum = DETECT_IF_REGISTERED_PAGE
 
     def __init__(self, reg_info, async_backend, facts, parent_window):
         super(DetectIfRegisteredScreen, self).__init__(reg_info, async_backend, facts, parent_window)
