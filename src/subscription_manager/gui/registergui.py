@@ -364,7 +364,7 @@ class RegisterWidget(widgets.SubmanBaseWidget):
                                                               tab_label=None)
 
     def initialize(self):
-        log.debug("RegisterWidget.initialize")
+        log.debug("%s.initialize", self.__class__.__name__)
         self.set_initial_screen()
         self.clear_screens()
         self.populate_screens()
@@ -759,7 +759,7 @@ class RegisterDialog(widgets.SubmanBaseWidget):
         return register_widget
 
     def initialize(self):
-        log.debug("RegisterDialog.initialize")
+        log.debug("%s.initialize", self.__class__.__name__)
         self.register_widget.initialize()
 
     def show(self):
