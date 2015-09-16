@@ -69,7 +69,6 @@ class RHSMSpoke(FirstbootOnlySpokeMixIn, NormalSpoke):
         init_dep_injection()
         log.debug("self.data=%s", self.data)
         log.debug("type(self.data)=%s", type(self.data))
-        #self._data = self.data.addons.com_redhat_subscription_manager
 
         facts = inj.require(inj.FACTS)
 
