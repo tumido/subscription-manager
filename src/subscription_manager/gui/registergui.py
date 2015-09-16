@@ -410,6 +410,13 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         msg = _("Error during registration.")
         self.info.set_property('register-status', msg)
 
+    def do_register_message(self, msg, msg_type=None):
+        log.debug("do_register_message msg=%s msg_type=%s",
+                   msg, msg_type)
+        # NOTE: we ignore msg_type here
+        self._go_back_to_last_screen()
+        self.info.set_property('register-status', msg)
+
     def do_register_finished(self):
         msg = _("The system has been registered with ID: %s ") % self.info.identity.uuid
         self.info.set_property('register-status', msg)
@@ -444,6 +451,7 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         ga_GObject.idle_add(self.choose_initial_screen)
 
     def choose_initial_screen(self):
+        log.debug("choose_initial_screen")
         try:
             self.info.identity.reload()
         except Exception, e:
@@ -786,7 +794,15 @@ class RegisterDialog(widgets.SubmanBaseWidget):
         # NOTE: We ignore the message type here, but initial-setup wont.
         gui_utils.show_info_window(msg)
 
+    def on_register_message(self, obj, msg, msg_type=None):
+        # NOTE: We ignore the message type here, but initial-setup wont.
+        log.debug("on_register_message obj=%s msg=%s msg_type=%s",
+                  obj, msg, msg_type)
+        gui_utils.show_info_window(msg)
+
     def on_register_error(self, obj, msg, exc_list):
+        log.debug("on_register_error obj=%s msg=%s exc_list=%s",
+                  obj, msg, exc_list)
         # TODO: we can add the register state, error type (error or exc)
         if exc_list:
             self.handle_register_exception(obj, msg, exc_list)
@@ -1889,16 +1905,6 @@ class ChooseServerScreen(Screen):
         else:
             self.emit('move-to-screen', CREDENTIALS_PAGE)
             return True
-
-    def clear(self):
-        # Load the current server values from rhsm.conf:
-        current_hostname = CFG.get('server', 'hostname')
-        current_port = CFG.get('server', 'port')
-        current_prefix = CFG.get('server', 'prefix')
-
-        self.set_server_entry(current_hostname,
-                              current_port,
-                              current_prefix)
 
     def set_server_entry(self, hostname, port, prefix):
         # No need to show port and prefix for hosted:
