@@ -58,7 +58,7 @@ class RHSMSpoke(FirstbootOnlySpokeMixIn, NormalSpoke):
     title = "Subscription Manager"
 
     def __init__(self, data, storage, payload, instclass):
-        NormalSpoke.__init__(self, date, storage, payload, instclass)
+        NormalSpoke.__init__(self, data, storage, payload, instclass)
         self._done = False
         self._addon_data = self.data.addons.com_redhat_subscription_manager
 
@@ -67,13 +67,10 @@ class RHSMSpoke(FirstbootOnlySpokeMixIn, NormalSpoke):
         self._done = False
 
         init_dep_injection()
-        log.debug("self.data=%s", self.data)
-        log.debug("type(self.data)=%s", type(self.data))
 
         facts = inj.require(inj.FACTS)
 
         backend = managergui.Backend()
-
         self.info = registergui.RegisterInfo()
         self.register_widget = registergui.RegisterWidget(backend, facts,
                                                           reg_info=self.info,
@@ -108,40 +105,71 @@ class RHSMSpoke(FirstbootOnlySpokeMixIn, NormalSpoke):
         self.register_box.show_all()
         self.register_widget.initialize()
 
-    # handler for RegisterWidgets 'finished' signal
-    def finished(self, obj):
-        self._done = True
-        really_hide(self.button_box)
+    @property
+    def ready(self):
+        """A boolean property indicating the spoke is ready to be visited.
+        This could depend on other modules or waiting for internal
+        state to be setup."""
 
-    # If we completed registration, that's close enough to consider
-    # completed.
-    def register_finished(self, obj):
-        self._done = True
+        return True
 
-    # Update gui widgets to reflect state of self.data
-    # This could also be used to pre populate partial answers from a ks
-    # or answer file
+    @property
+    def completed(self):
+        """A boolean property indicating if all the mandatory actions are completed."""
+        # TODO: tie into register_widget.info.register-state
+
+        return self._done
+
+    @property
+    def mandatory(self):
+        """A boolean property indicating if the module has to be completed before initial-setup is done."""
+
+        return False
+
+    @property
+    def status(self):
+        """A string property indicating a user facing summary of the spokes status.
+        This is displayed under the spokes name on it's hub."""
+
+        return self._status_message
+
     def refresh(self):
-        log.debug("data.addons.com_redhat_subscription_manager %s",
-                  self.data.addons.com_redhat_subscription_manager)
-        if self._data.serverurl:
-            log.debug("serverurl=%s", self._data.serverurl)
-            (hostname, port, prefix) = utils.parse_server_info(self._data.serverurl)
+        """Update gui widgets to reflect state of self.data.
+
+        This is called whenever a user returns to a Spoke to update the
+        info displayed, since the data could have been changed or updated
+        by another spoke or by actions that completed in the mean time.
+
+        Here it is used to populate RHSMSpokes registerGui.RegisterInfo self.info,
+        since changes there are applied to RegisterWidget self.register_widget
+        by RegisterWidget itself.
+
+        The RHSM 'ks' spoke can read values from the kickstart files read by
+        initial-setup, and stored in self._addon_data. So this method will
+        seed RHSMSpokes gui with any values set there.
+        """
+
+        if self._addon_data.serverurl:
+            (hostname, port, prefix) = utils.parse_server_info(self._addon_data.serverurl)
             self.info.set_property('hostname', hostname)
             self.info.set_property('port', port)
             self.info.set_property('prefix', prefix)
 
         if self._addon_data.username:
-            self.info.set_property('username', self._addon_data.username)
+            self.info.set_property('username',
+                                   self._addon_data.username)
 
         if self._addon_data.password:
-            self.info.set_property('password', self._addon_data.password)
+            self.info.set_property('password',
+                                   self._addon_data.password)
 
         if self._addon_data.org:
-            self.info.set_property('owner_key', self._addon_data.org)
+            self.info.set_property('owner_key',
+                                   self._addon_data.org)
 
         if self._addon_data.activationkeys:
-            self.info.set_property('activation_keys', self._addon_data.activationkeys)
+            self.info.set_property('activation_keys',
+                                   self._addon_data.activationkeys)
 
         # TODO: support a ordered list of sla preferences?
         if self._addon_data.servicelevel:
@@ -156,16 +184,28 @@ class RHSMSpoke(FirstbootOnlySpokeMixIn, NormalSpoke):
 
     # take info from the gui widgets and set into the self.data
     def apply(self):
-        log.debug("apply")
-        self.data.addons.com_redhat_subscription_manager.text = \
-            "System is registered to Red Hat Subscription Management."
+        """Take info from the gui widgets and set into the self.data.addons AddonData.
 
-    # when the spoke is left, this can run anything that happens
-    def execute(self):
-        log.debug("execute")
+        self.data.addons will be used to persist the values into a
+        initial-setup-ks.cfg file when initial-setup completes."""
+
+        # TODO: implement
         pass
 
-    def cancel(self, button):
+    def execute(self):
+        """When the spoke is left, this can run anything that needs to happen.
+
+        For RHSMSpoke, the spoke has already done everything it needs to do,
+        so this is empty. Typically a module would gather enough info to
+        perform all the actions in the execute(), but RHSMSpoke is not typical."""
+
+        pass
+
+    def _on_cancel_button_clicked(self, button):
+        """Handler for self.cancel_buttons 'clicked' signal.
+
+        Clear out any user set values and return to the start screen."""
+
         # TODO: clear out settings and restart?
         # TODO: attempt to undo the REST api calls we've made?
         self.register_widget.set_initial_screen()

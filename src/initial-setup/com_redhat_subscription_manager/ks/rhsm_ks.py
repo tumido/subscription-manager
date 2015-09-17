@@ -165,11 +165,7 @@ class RHSMAddonData(AddonData):
            This method is called before the installation
            is started and directly from spokes. It must be possible
            to call it multiple times without breaking the environment."""
-        # AddonData.setup(self, storage, ksdata, instclass)
-
-        self.log.debug("storage %s", storage)
-        self.log.debug("ksdata %s", ksdata)
-        self.log.debug("instclass %s", instclass)
+        AddonData.setup(self, storage, ksdata, instclass)
 
     # TODO: remove and use native error handling
     def _system_exit(self, code, msgs=None):
@@ -206,20 +202,21 @@ class RHSMAddonData(AddonData):
            This method is called only once in the post-install
            setup phase.
         """
+        # TODO: This doesn't really do anything yet.
         sys_root = getSysroot()
-        log.debug("sys_root=%s", sys_root)
 
         register_command = managercli.RegisterCommand()
         args = ["--help"]
 
         parsed_args = self.build_args()
-        log.debug("parsed_args=%s", parsed_args)
 
         # sadly, monkeypatch our own managercli to disarm system_exit
         managercli.system_exit = self._system_exit
 
-        ret = register_command.main(args=args)
-        log.debug("rhsm_ks exit status=%s", ret)
+        args.extend(parsed_args)
+        # ret = register_command.main(args=args)
+        log.debug("execute() sys_root=%s parsed_args=%s reg_command=%s",
+                  sys_root, parsed_args, register_command)
 
     def handle_header(self, lineno, args):
         """Process additional arguments to the %addon line.

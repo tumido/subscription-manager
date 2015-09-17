@@ -210,7 +210,6 @@ class RegisterInfo(ga_GObject.GObject):
         return id
 
     def __init__(self):
-        log.debug("RegisterInfo.__init__")
         ga_GObject.GObject.__init__(self)
         self._defaults_from_config()
         self._initial_registration_status()
@@ -367,7 +366,6 @@ class RegisterWidget(widgets.SubmanBaseWidget):
                                                               tab_label=None)
 
     def initialize(self):
-        log.debug("%s.initialize", self.__class__.__name__)
         self.set_initial_screen()
         self.clear_screens()
         self.populate_screens()
@@ -451,7 +449,6 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         ga_GObject.idle_add(self.choose_initial_screen)
 
     def choose_initial_screen(self):
-        log.debug("choose_initial_screen")
         try:
             self.info.identity.reload()
         except Exception, e:
@@ -562,7 +559,6 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
     # switch-page should be after the current screen is reset
     def _on_switch_page(self, notebook, page, page_num):
-        log.debug("_on_switch_page page=%s page_num=%s", page, page_num)
         if self.current_screen.button_label:
             self.set_property('register-button-label',
                               self.current_screen.button_label)
@@ -777,7 +773,6 @@ class RegisterDialog(widgets.SubmanBaseWidget):
         return register_widget
 
     def initialize(self):
-        log.debug("%s.initialize", self.__class__.__name__)
         self.register_widget.initialize()
 
     def show(self):
@@ -796,13 +791,9 @@ class RegisterDialog(widgets.SubmanBaseWidget):
 
     def on_register_message(self, obj, msg, msg_type=None):
         # NOTE: We ignore the message type here, but initial-setup wont.
-        log.debug("on_register_message obj=%s msg=%s msg_type=%s",
-                  obj, msg, msg_type)
         gui_utils.show_info_window(msg)
 
     def on_register_error(self, obj, msg, exc_list):
-        log.debug("on_register_error obj=%s msg=%s exc_list=%s",
-                  obj, msg, exc_list)
         # TODO: we can add the register state, error type (error or exc)
         if exc_list:
             self.handle_register_exception(obj, msg, exc_list)
@@ -1317,7 +1308,6 @@ class SelectSLAScreen(Screen):
         self.sla_combobox.set_active(0)
         # The sla the user or kickstart requested
         preferred_sla = self.info.get_property('preferred_sla')
-        log.debug("SelectSLAScreen.set_model preferred_sla=%s", preferred_sla)
 
     def apply(self):
         self.emit('move-to-screen', CONFIRM_SUBS_PAGE)
