@@ -314,7 +314,7 @@ install-ui:
 # We could choose here, but it doesn't matter.
 install-gui: install-glade install-ui
 
-install-files: set-versions dbus-service-install desktop-files install-plugins install-post-boot install-ga install-gui
+install-files: set-versions dbus-service-install desktop-files install-post-boot install-ga install-gui
 	install -d $(PYTHON_INST_DIR)/api
 	install -d $(PYTHON_INST_DIR)/gui
 	install -d $(PYTHON_INST_DIR)/gui/data/icons

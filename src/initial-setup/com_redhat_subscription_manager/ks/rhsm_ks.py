@@ -23,6 +23,9 @@ import sys
 from pyanaconda.addons import AddonData
 from pyanaconda.iutil import getSysroot
 
+from pykickstart.options import KSOptionParser
+from pykickstart.errors import KickstartParseError, formatErrorMsg
+
 log = logging.getLogger(__name__)
 
 RHSM_PATH = "/usr/share/rhsm"
@@ -75,6 +78,105 @@ class RegisterArgs(object):
         pass
 
 
+class AddonDataOption(object):
+    option_name = 'default'
+    default_value = None
+
+    def __init__(self):
+        self.value = None
+        self.raw_content = []
+        self.line = None
+
+    @classmethod
+    def from_line(cls, line):
+        addon_data_option = cls()
+        addon_data_option.line = line
+        return addon_data_option
+
+    def __str__(self):
+        return '%s = %s' % (self.option_name,
+                            self.value or self.default_value)
+
+    @property
+    def value(self):
+        if not self.line:
+            raise ValueError('Value error: "line" attribute is None')
+
+        # TODO: figure out what exceptions we want to handle
+        return self.handler(self.line)
+
+    # override
+    def handler(self, line):
+        return self.handle_line(line)
+
+    def handle_line(self, line):
+        """Process one kickstart line."""
+        self.raw_content += line
+
+        line = line.strip()
+        (lhs, sep, rhs) = line.partition('=')
+
+        lhs = lhs.strip()
+
+        sep = sep.strip()
+
+        rhs = rhs.strip()
+        rhs = rhs.strip('"')
+
+        if lhs[0] == '#':
+            return
+
+        return rhs
+
+
+class BoolAddonDataOption(AddonDataOption):
+    def handler(self, line):
+        value_string = self.handle_line(line)
+        return self.string_to_bool(value_string)
+
+    # TODO: verify this is consistent with other kickstart bool option handling
+    def string_to_bool(self, value):
+        if value == 'true':
+            return True
+        return False
+
+
+class ListAddonDataOption(AddonDataOption):
+    def __init__(self):
+        super(ListAddonDataOption, self).__init__(self)
+        self.values = []
+        self.lines = []
+
+    def handler(self, line):
+        self.lines.append(line)
+        value_string = self.handle_line(line)
+        return self.string_to_bool(value_string)
+
+
+class AddonDataOptions(object):
+    string_options = ['serverurl',
+                      'username',
+                      'password',   # TODO: password specific DataOption
+                      'org']
+
+    bool_options = ['auto-attach',
+                    'force']
+
+    list_options = ['activationkey',
+                    'servicelevel']
+
+    def __init__(self):
+        self._map = {}
+
+
+class AddonDataBoolOption(object):
+    # TODO: verify this is consistent with other kickstart bool option handling
+    def _bool(self, value):
+        if value == 'true':
+            return True
+        return False
+
+
 class KickstartRhsmData(object):
     # A holder of rhsm info, that is not a gobject...
     def __init__(self):
@@ -109,6 +211,41 @@ class KickstartRhsmData(object):
         # self.consumerid
         # self.name  (the consumer name, ie hostname)
 
+        self.line_handlers = {'serverurl': self._parse_serverurl,
+                              'activationkey': self._parse_activationkey,
+                              'auto-attach': self._parse_auto_attach,
+                              'username': self._parse_username,
+                              'password': self._parse_password,
+                              'servicelevel': self._parse_servicelevel,
+                              'force': self._parse_force,
+                              'org': self._parse_org}
+
+    def _parse_activationkey(self, value):
+        self.activationkeys.append(value)
+
+    # Allow multiple SLAs in order of preference
+    def _parse_servicelevel(self, value):
+        self.servicelevel.append(value)
+
+    def _parse_auto_attach(self, value):
+        self.auto_attach = self._bool(value)
+
+    def _parse_force(self, value):
+        self.force = self._bool(value)
+
+    # TODO: these could all use a generic setter
+    def _parse_org(self, value):
+        self.org = value
+
+    def _parse_username(self, value):
+        self.username = value
+
+    def _parse_password(self, value):
+        self.password = value
+
+    def _parse_serverurl(self, value):
+        self.serverurl = value
+
 
 class RHSMAddonData(AddonData):
     """This is a common parent class for loading and storing
@@ -131,10 +268,10 @@ class RHSMAddonData(AddonData):
 
         self.name = name
         self.content = ""
-        self.header_args = ""
 
         self.rhsm_data = KickstartRhsmData()
 
+        self.addon_data_version = None
         # TODO: make this a data class
         self.serverurl = None
         self.activationkeys = []
@@ -157,7 +294,19 @@ class RHSMAddonData(AddonData):
                               'org': self._parse_org}
 
     def __str__(self):
-        return "%%addon %s %s\n%s%%end\n" % (self.name, self.header_args, self.content)
+        buf = self.format_header(name=self.name, opts=self.opts)
+        buf += self.content()
+        buf += "%end\n"
+        return buf
+
+    def content(self):
+        buf = ''
+
+
+    def format_header(self, name, opts):
+        header_args = '%s' % opts
+        header = '%%addon %s %s' % (name, header_args)
+        return header
 
     def setup(self, storage, ksdata, instclass):
         """Make the changes to the install system.
@@ -236,14 +385,21 @@ class RHSMAddonData(AddonData):
 
         """
 
-        if args:
-            self.header_args += " ".join(args)
+        op = KSOptionParser()
+        op.add_option("--addon-version", action="store", default=RHSM_ADDON_VERSION,
+                dest="addon_version", help="Specify the version of the RHSM addon section.")
+        (opts, extra) = op.parse_args(args=args, lineno=lineno)
 
-    # TODO: verify this is consistent with other kickstart bool option handling
-    def _bool(self, value):
-        if value == 'true':
-            return True
-        return False
+        self.opts = opts
+        log.debug("self.opts=%s", self.opts)
+        # Reject any additional arguments.
+        if extra:
+            msg = "Unhandled arguments on %%addon line for %s" % self.name
+            if lineno is not None:
+                raise KickstartParseError(formatErrorMsg(lineno, msg=msg))
+            else:
+                raise KickstartParseError(msg)
+
 
     # TODO
     # FIXME: move these to KickstartRhsmData
@@ -276,7 +432,7 @@ class RHSMAddonData(AddonData):
 
     def handle_line(self, line):
         """Process one kickstart line."""
-        self.content += line
+        self.raw_content += line
 
         line = line.strip()
         (lhs, sep, rhs) = line.partition('=')
