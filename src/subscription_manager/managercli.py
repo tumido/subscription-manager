@@ -277,6 +277,8 @@ class CliCommand(AbstractCLICommand):
         if self.require_connection():
             self._add_proxy_options()
 
+        self._add_debug_options()
+
         self.server_url = None
 
         # TODO
@@ -323,6 +325,10 @@ class CliCommand(AbstractCLICommand):
                                 default=None, help=_("user for HTTP proxy with basic authentication"))
         self.parser.add_option("--proxypassword", dest="proxy_password",
                                 default=None, help=_("password for HTTP proxy with basic authentication"))
+
+    def _add_debug_options(self):
+        self.parser.add_option("--debug", dest="debug",
+                               action="store_true")
 
     def _do_command(self):
         pass
@@ -391,6 +397,11 @@ class CliCommand(AbstractCLICommand):
             for arg in self.args:
                 print _("cannot parse argument: %s") % arg
             system_exit(os.EX_USAGE)
+
+        if self.options.debug:
+            logging.getLogger('rhsm-app').setLevel(logging.DEBUG)
+            logging.getLogger('rhsm').setLevel(logging.DEBUG)
+            logging.getLogger('subscription_manager').setLevel(logging.DEBUG)
 
         if hasattr(self.options, "insecure") and self.options.insecure:
             cfg.set("server", "insecure", "1")
