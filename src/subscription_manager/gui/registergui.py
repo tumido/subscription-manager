@@ -488,8 +488,8 @@ class RegisterWidget(widgets.SubmanBaseWidget):
             next_notebook_page = screen + 1
 
         # If we are showing a screen again, it's because we failed
-        if next_notebook_page in self.applied_screen_history._list:
-            self.applied_screen_history.remove(next_notebook_page)
+        #if next_notebook_page in self.applied_screen_history._list:
+        #    self.applied_screen_history.remove(next_notebook_page)
 
         # set_current_page changes the gui, and also results in the
         # 'switch-page' attribute of the gtk notebook being emitted,
