@@ -611,8 +611,10 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
         if ready:
             self.handler_unblock(self.proceed_handler)
+            self.handler_unblock(self.back_handler)
         else:
             self.handler_block(self.proceed_handler)
+            self.handler_block(self.back_handler)
 
     # HMMM: If the connect/backend/async, and the auth info is composited into
     #       the same GObject, these could be class closure handlers
@@ -779,6 +781,7 @@ class RegisterDialog(widgets.SubmanBaseWidget):
     def _on_register_screen_ready_change(self, obj, value):
         ready = self.register_widget.current_screen.get_property('ready')
         self.register_button.set_sensitive(ready)
+        self.back_button.set_sensitive(ready)
 
     def _on_register_button_clicked(self, button):
         self.register_widget.emit('proceed')
