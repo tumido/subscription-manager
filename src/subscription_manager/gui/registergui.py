@@ -663,7 +663,7 @@ class RegisterDialog(widgets.SubmanBaseWidget):
 
     widget_names = ['register_dialog', 'register_dialog_main_vbox',
                     'register_details_label',
-                    'cancel_button', 'register_button', 'progress_label',
+                    'back_button', 'register_button', 'progress_label',
                     'dialog_vbox6']
 
     gui_file = "register_dialog"
@@ -708,7 +708,7 @@ class RegisterDialog(widgets.SubmanBaseWidget):
         #self.register_widget.initialize()
 
         self.register_button.connect('clicked', self._on_register_button_clicked)
-        self.cancel_button.connect('clicked', self.cancel)
+        self.back_button.connect('clicked', self._on_back_button_clicked)
 
         # update window title on register state changes
         self.reg_info.connect('notify::register-state',
@@ -766,6 +766,9 @@ class RegisterDialog(widgets.SubmanBaseWidget):
 
     def error_dialog(self, obj, msg):
         gui_utils.show_error_window(msg)
+
+    def _on_back_button_clicked(self, obj):
+        self.register_widget.emit('back')
 
     def _on_register_screen_ready_change(self, obj, value):
         ready = self.register_widget.current_screen.get_property('ready')
