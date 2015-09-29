@@ -351,7 +351,7 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         any parent dialogs for example)."""
 
         # return to the last gui screen we showed.
-        self._go_back_to_last_screen()
+        self._pop_last_screen()
         # FIXME: we have more info here, but we need a good 'blurb'
         #        for the status message.
         msg = _("Error during registration.")
@@ -359,7 +359,7 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
     def do_register_message(self, msg, msg_type=None):
         # NOTE: we ignore msg_type here
-        self._go_back_to_last_screen()
+        self._pop_last_screen()
         self.info.set_property('register-status', msg)
 
     def do_register_finished(self):
@@ -378,7 +378,7 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         # close the window have something to display.
         self.done()
 
-    def _go_back_to_last_screen(self):
+    def _pop_last_screen(self):
         try:
             #self._set_screen(self.screen_history[-1])
             last = self.applied_screen_history.pop()
@@ -389,7 +389,7 @@ class RegisterWidget(widgets.SubmanBaseWidget):
             log.debug("index error ash=%s", self.applied_screen_history)
             pass
 
-    def _go_back_to_prev_screen(self):
+    def _last_screen(self):
         try:
             #self._set_screen(self.screen_history[-1])
             log.debug("ps appliend_screen_history=%s", self.applied_screen_history)
@@ -433,13 +433,6 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         self.register_widget.show_all()
         return False
 
-    def _screen_history_append(self, screen_index):
-        log.debug("_screen_history_append: %s", screen_index)
-        log.debug("_screen_history_append before sh=%s ush=%s", self.screen_history, self.uniq_screen_history)
-        self.screen_history.append(screen_index)
-        self.uniq_screen_history.append(screen_index)
-        log.debug("_screen_history_append after sh=%s ush=%s", self.screen_history, self.uniq_screen_history)
-
     def _on_stay_on_screen(self, current_screen):
         """A 'stay-on-screen' handler, for errors that need to be corrected before proceeding.
 
@@ -452,7 +445,6 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         This also represents screens that allow the user to potentially correct
         an error, so we track the history of these screens so errors can go to
         a useful screen."""
-        #self._screen_history_append(current_screen.screens_index)
         self._set_screen(self._current_screen)
 
     # TODO: replace most of the gui flow logic in the Screen subclasses with
@@ -509,20 +501,22 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
     def apply_current_screen(self):
         """Extract any info from the widgets and call the screens apply()."""
-        self._screen_history_append(self.current_screen.screens_index)
+        #self._screen_history_append(self.current_screen.screens_index)
 
         # The apply can emit a move to page signal, changing current_page
         # So save current screen index first.
         current_screen_index = self.current_screen.screens_index
+        self.applied_screen_history.append(current_screen_index)
+
         res = self.current_screen.apply()
 
         if res:
             log.debug("apply_current_screen  ash=%s",
                       self.applied_screen_history)
-            self.applied_screen_history.append(current_screen_index)
             log.debug("apply_current_screen after ash=%s",
                       self.applied_screen_history)
         else:
+            #self.applied_screen_history.pop()
             log.debug("%s apply return Falsey %s", current_screen_index,
                       res)
 
@@ -534,7 +528,7 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
     def _on_back(self, obj):
         log.debug("_on_back obj=%s", obj)
-        self._go_back_to_prev_screen()
+        self._last_screen()
 
     # switch-page should be after the current screen is reset
     def _on_switch_page(self, notebook, page, page_num):
