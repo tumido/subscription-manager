@@ -173,6 +173,9 @@ class RegisterInfo(ga_GObject.GObject):
     register_state = ga_GObject.property(type=int, default=RegisterState.REGISTERING)
 
     register_status = ga_GObject.property(type=str, default='')
+    # Used to set the state of the back button. we don't support going 'back'
+    # past register yet.
+    can_go_back = ga_GObject.property(type=bool, default=True)
 
     # TODO: make a gobj prop as well, with custom set/get, so we can be notified
     @property
@@ -215,8 +218,10 @@ class RegisterWidget(widgets.SubmanBaseWidget):
                                           None, [])}
 
     initial_screen = CHOOSE_SERVER_PAGE
+    can_register = True
 
-    screen_ready = ga_GObject.property(type=bool, default=True)
+    back_ready = ga_GObject.property(type=bool, default=True)
+    proceed_ready = ga_GObject.property(type=bool, default=True)
     register_button_label = ga_GObject.property(type=str, default=_('Register'))
     # TODO: a prop equilivent to initial-setups 'completed' and 'status' props
 
@@ -314,7 +319,8 @@ class RegisterWidget(widgets.SubmanBaseWidget):
                        self._on_screen_register_finished)
         screen.connect('attach-finished',
                        self._on_screen_attach_finished)
-        screen.connect('notify::ready', self._on_screen_ready_change)
+        screen.connect('notify::proceed-ready', self._on_screen_proceed_ready_change)
+        screen.connect('notify::back-ready', self._on_screen_back_ready_change)
 
         self._screens.append(screen)
 
@@ -360,6 +366,8 @@ class RegisterWidget(widgets.SubmanBaseWidget):
     def do_register_finished(self):
         msg = _("The system has been registered with ID: %s ") % self.info.identity.uuid
         self.info.set_property('register-status', msg)
+
+        self.info.set_property('can_go_back', False)
 
     def do_finished(self):
         """Class closure signal handler for the 'finished' signal.
@@ -456,7 +464,8 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
         self._set_screen(next_screen_id)
 
-        self.current_screen.set_property('ready', False)
+        self.current_screen.set_property('proceed-ready', False)
+        self.current_screen.set_property('back-ready', False)
 
         async = next_screen.pre()
         if async:
@@ -576,20 +585,40 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         # shutdown (like detaching self.timer) first.
         self.emit('finished')
 
-    def _on_screen_ready_change(self, obj, param):
+    def _on_screen_back_ready_change(self, obj, param):
+        ready = obj.get_property('back-ready')
+
+        # Disble 'back' if
+        try:
+            prev_screen = self.applied_screen_history.last()
+        except IndexError:
+            prev_screen = None
+
+        just_registered = prev_screen == CREDENTIALS_PAGE
+        registered = self.info.get_property('register-state') == RegisterState.SUBSCRIBING
+        log.debug("just_registered=%s registered=%s and %s",
+                  just_registered, registered, just_registered and registered)
+        can_go_back = not registered or not just_registered
+        log.debug("can_go_back=%s", can_go_back)
+        if ready and can_go_back:
+            self.set_property('back-ready', ready)
+            self.handler_unblock(self.back_handler)
+        else:
+            self.set_property('back-ready', False)
+            self.handler_block(self.back_handler)
+
+    def _on_screen_proceed_ready_change(self, obj, param):
         # This could potentially be self.current_sceen.get_property('ready')
 
-        ready = obj.get_property('ready')
+        ready = obj.get_property('proceed-ready')
 
         # property for parent dialog to use for nav button sensitivity
-        self.set_property('screen-ready', ready)
+        self.set_property('proceed-ready', ready)
 
         if ready:
             self.handler_unblock(self.proceed_handler)
-            self.handler_unblock(self.back_handler)
         else:
             self.handler_block(self.proceed_handler)
-            self.handler_block(self.back_handler)
 
     # HMMM: If the connect/backend/async, and the auth info is composited into
     #       the same GObject, these could be class closure handlers
@@ -688,7 +717,9 @@ class RegisterDialog(widgets.SubmanBaseWidget):
         self.register_widget.connect('notify::register-button-label',
                                 self._on_register_button_label_change)
         self.register_widget.connect('notify::screen-ready',
-                                     self._on_register_screen_ready_change)
+                                     self._on_register_screen_proceed_ready_change)
+        self.register_widget.connect('notify::back-ready',
+                                     self._on_register_screen_back_ready_change)
 
         # reset/clear/setup
         #self.register_widget.initialize()
@@ -756,9 +787,12 @@ class RegisterDialog(widgets.SubmanBaseWidget):
     def _on_back_button_clicked(self, obj):
         self.register_widget.emit('back')
 
-    def _on_register_screen_ready_change(self, obj, value):
-        ready = self.register_widget.current_screen.get_property('ready')
+    def _on_register_screen_proceed_ready_change(self, obj, value):
+        ready = self.register_widget.current_screen.get_property('proceed-ready')
         self.register_button.set_sensitive(ready)
+
+    def _on_register_screen_back_ready_change(self, obj, value):
+        ready = self.register_widget.current_screen.get_property('back-ready')
         self.back_button.set_sensitive(ready)
 
     def _on_register_button_clicked(self, button):
@@ -781,6 +815,7 @@ class AutoBindWidget(RegisterWidget):
     __gtype_name__ = "AutobindWidget"
 
     initial_screen = SELECT_SLA_PAGE
+    can_register = False
 
     def __init__(self, backend, facts, reg_info=None,
                  parent_window=None):
@@ -838,7 +873,8 @@ class Screen(widgets.SubmanBaseWidget):
                     'move-to-screen': (ga_GObject.SignalFlags.RUN_FIRST,
                                        None, (int,))}
 
-    ready = ga_GObject.property(type=bool, default=True)
+    back_ready = ga_GObject.property(type=bool, default=True)
+    proceed_ready = ga_GObject.property(type=bool, default=True)
 
     def __init__(self, reg_info, async_backend, facts, parent_window):
         super(Screen, self).__init__()
@@ -856,14 +892,16 @@ class Screen(widgets.SubmanBaseWidget):
 
     def stay(self):
         self.emit('stay-on-screen')
-        self.set_properties('ready', True)
+        self.set_properties('proceed-ready', True)
+        self.set_properties('back-ready', True)
 
     def pre(self):
         self.pre_done()
         return False
 
     def pre_done(self):
-        self.set_property('ready', True)
+        self.set_property('proceed-ready', True)
+        self.set_property('back-ready', True)
 
     # do whatever the screen indicates, and emit any signals indicating where
     # to move to next. apply() should not return anything.
@@ -902,7 +940,8 @@ class NoGuiScreen(ga_GObject.GObject):
                     'certs-updated': (ga_GObject.SignalFlags.RUN_FIRST,
                                       None, [])}
 
-    ready = ga_GObject.property(type=bool, default=True)
+    back_ready = ga_GObject.property(type=bool, default=True)
+    proceed_ready = ga_GObject.property(type=bool, default=True)
 
     def __init__(self, reg_info, async_backend, facts, parent_window):
         ga_GObject.GObject.__init__(self)
@@ -924,7 +963,8 @@ class NoGuiScreen(ga_GObject.GObject):
         return True
 
     def pre_done(self):
-        self.set_property('ready', True)
+        self.set_property('proceed-ready', True)
+        self.set_property('back-ready', True)
 
     def apply(self):
         self.emit('move-to-screen')
@@ -941,7 +981,8 @@ class NoGuiScreen(ga_GObject.GObject):
 
     def stay(self):
         self.emit('stay-on-screen')
-        self.set_property('ready', True)
+        self.set_property('proceed-ready', True)
+        self.set_property('back-ready', True)
 
 
 class PerformRegisterScreen(NoGuiScreen):
@@ -984,6 +1025,9 @@ class PerformRegisterScreen(NoGuiScreen):
             self.emit('move-to-screen', SELECT_SLA_PAGE)
 
         self.pre_done()
+
+        # prevent user from going back past PerformRegister
+        self.set_property('back-ready', False)
         return
 
     def pre(self):
@@ -1088,6 +1132,9 @@ class ConfirmSubscriptionsScreen(Screen):
     def pre(self):
         self.set_model()
         self.pre_done()
+        # Note: Leaving 'back-ready' to it's state from previous screen
+        # by not calling pre_done() that would reset.
+        #self.set_property('proceed-ready', True)
         return False
 
 
@@ -1206,6 +1253,8 @@ class SelectSLAScreen(Screen):
                 self.pre_done()
                 return
 
+        # If we get here, we are registered (also, the 'register-state' prop)
+
         # We have a lot of SLA options.
         # current_sla = the sla that the Consumer from candlepin has
         #               set in its 'serviceLevel' attribute
@@ -1230,6 +1279,7 @@ class SelectSLAScreen(Screen):
                 self.emit('register-error', msg, None)
                 self.emit('attach-finished')
                 self.pre_done()
+                self.set_property('back-ready', False)
                 return
 
             self.info.set_property('dry-run-result',
@@ -1241,6 +1291,7 @@ class SelectSLAScreen(Screen):
             self.set_model(unentitled_products, sla_data_map)
             self.stay()
             self.pre_done()
+            self.set_property('back-ready', False)
             return
         else:
             log.info("No suitable service levels found.")
@@ -1607,6 +1658,7 @@ class RefreshSubscriptionsScreen(NoGuiScreen):
             self.pre_done()
             return
 
+        # We could block 'back' to register here, but we
         self.emit('attach-finished')
         self.pre_done()
 
