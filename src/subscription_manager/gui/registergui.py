@@ -115,7 +115,6 @@ class UniqueList(object):
         self._list = []
 
     def append(self, item):
-        log.debug("append item=%s", item)
         if item in self._list:
             self._list.remove(item)
         return self._list.append(item)
@@ -126,20 +125,16 @@ class UniqueList(object):
         return buf
 
     def remove(self, value):
-        log.debug("remove value=%s", value)
         return self._list.remove(value)
 
     def last(self):
-        log.debug("last %s", repr(self))
         return self._list[-1]
 
     def pop(self, index=None):
         # list.pop() has a odd not quite a keyword optional arg
-        log.debug("UL.pop %s", repr(self))
         if index:
             p = self._list.pop(index)
         p = self._list.pop()
-        log.debug("UL.pop p=%s ash=%s", p, repr(self))
         return p
 
 
@@ -380,23 +375,15 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
     def _pop_last_screen(self):
         try:
-            #self._set_screen(self.screen_history[-1])
             last = self.applied_screen_history.pop()
-            log.debug("going back to screen %s", last)
-            log.debug("ash=%s", self.applied_screen_history)
             self._set_screen(last)
         except IndexError:
-            log.debug("index error ash=%s", self.applied_screen_history)
             pass
 
     def _last_screen(self):
         try:
-            #self._set_screen(self.screen_history[-1])
-            log.debug("ps appliend_screen_history=%s", self.applied_screen_history)
-            log.debug("ps going back to screen %s", self.applied_screen_history.last())
             self._set_screen(self.applied_screen_history.last())
         except IndexError:
-            log.debug("no prev screen %s", self.applied_screen_history)
             pass
 
     # methods for moving around between screens and tracking the state
@@ -513,7 +500,6 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         self.apply_current_screen()
 
     def _on_back(self, obj):
-        log.debug("_on_back obj=%s", obj)
         self._last_screen()
 
     # switch-page should be after the current screen is reset
