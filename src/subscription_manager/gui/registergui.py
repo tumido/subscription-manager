@@ -490,10 +490,6 @@ class RegisterWidget(widgets.SubmanBaseWidget):
             # TODO: replace with a generator
             next_notebook_page = screen + 1
 
-        # If we are showing a screen again, it's because we failed
-        #if next_notebook_page in self.applied_screen_history._list:
-        #    self.applied_screen_history.remove(next_notebook_page)
-
         # set_current_page changes the gui, and also results in the
         # 'switch-page' attribute of the gtk notebook being emitted,
         # indicating the gui has switched to that page.
@@ -508,17 +504,7 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         current_screen_index = self.current_screen.screens_index
         self.applied_screen_history.append(current_screen_index)
 
-        res = self.current_screen.apply()
-
-        if res:
-            log.debug("apply_current_screen  ash=%s",
-                      self.applied_screen_history)
-            log.debug("apply_current_screen after ash=%s",
-                      self.applied_screen_history)
-        else:
-            #self.applied_screen_history.pop()
-            log.debug("%s apply return Falsey %s", current_screen_index,
-                      res)
+        self.current_screen.apply()
 
     # FIXME: figure out to determine we are on first screen, then this
     # could just be 'move-to-screen', next screen
