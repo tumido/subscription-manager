@@ -170,6 +170,8 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
     __gsignals__ = {'proceed': (ga_GObject.SignalFlags.RUN_FIRST,
                                 None, []),
+                    'back': (ga_GObject.SignalFlags.RUN_FIRST,
+                             None, []),
                     'register-message': (ga_GObject.SignalFlags.RUN_FIRST,
                                          None, (ga_GObject.TYPE_PYOBJECT,
                                                 ga_GObject.TYPE_PYOBJECT)),
