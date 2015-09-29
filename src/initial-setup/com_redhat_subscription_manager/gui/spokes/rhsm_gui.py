@@ -209,10 +209,11 @@ class RHSMSpoke(FirstbootOnlySpokeMixIn, NormalSpoke):
 
         Clear out any user set values and return to the start screen."""
 
+        self.register_widget.emit('back')
         # TODO: clear out settings and restart?
         # TODO: attempt to undo the REST api calls we've made?
-        self.register_widget.set_initial_screen()
-        self.register_widget.clear_screens()
+        #self.register_widget.set_initial_screen()
+        #self.register_widget.clear_screens()
 
     def _on_register_button_clicked(self, button):
         """Handler for self.proceed_buttons 'clicked' signal.
