@@ -109,11 +109,13 @@ def reset_resolver():
         pass
 
 
+# FIXME: TODO: subclass collections.MutableSequence
 class UniqueList(object):
     def __init__(self):
         self._list = []
 
     def append(self, item):
+        log.debug("append item=%s", item)
         if item in self._list:
             self._list.remove(item)
         return self._list.append(item)
@@ -124,13 +126,21 @@ class UniqueList(object):
         return buf
 
     def remove(self, value):
+        log.debug("remove value=%s", value)
         return self._list.remove(value)
 
     def last(self):
+        log.debug("last %s", repr(self))
         return self._list[-1]
 
-    def previous(self):
-        return self._list[-2]
+    def pop(self, index=None):
+        # list.pop() has a odd not quite a keyword optional arg
+        log.debug("UL.pop %s", repr(self))
+        if index:
+            p = self._list.pop(index)
+        p = self._list.pop()
+        log.debug("UL.pop p=%s ash=%s", p, repr(self))
+        return p
 
 
 class RegisterInfo(ga_GObject.GObject):
@@ -342,7 +352,6 @@ class RegisterWidget(widgets.SubmanBaseWidget):
 
         # return to the last gui screen we showed.
         self._go_back_to_last_screen()
-
         # FIXME: we have more info here, but we need a good 'blurb'
         #        for the status message.
         msg = _("Error during registration.")
@@ -372,17 +381,19 @@ class RegisterWidget(widgets.SubmanBaseWidget):
     def _go_back_to_last_screen(self):
         try:
             #self._set_screen(self.screen_history[-1])
-            last = self.uniq_screen_history.last()
+            last = self.applied_screen_history.pop()
             log.debug("going back to screen %s", last)
+            log.debug("ash=%s", self.applied_screen_history)
             self._set_screen(last)
         except IndexError:
+            log.debug("index error ash=%s", self.applied_screen_history)
             pass
 
     def _go_back_to_prev_screen(self):
         try:
             #self._set_screen(self.screen_history[-1])
-            log.debug("appliend_screen_history=%s", self.applied_screen_history)
-            log.debug("going back to screen %s", self.applied_screen_history.last())
+            log.debug("ps appliend_screen_history=%s", self.applied_screen_history)
+            log.debug("ps going back to screen %s", self.applied_screen_history.last())
             self._set_screen(self.applied_screen_history.last())
         except IndexError:
             log.debug("no prev screen %s", self.applied_screen_history)
@@ -506,12 +517,10 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         res = self.current_screen.apply()
 
         if res:
-            log.debug("apply_current_screen before sh=%s ush=%s ash=%s",
-                      self.screen_history, self.uniq_screen_history,
+            log.debug("apply_current_screen  ash=%s",
                       self.applied_screen_history)
             self.applied_screen_history.append(current_screen_index)
-            log.debug("apply_current_screen after sh=%s ush=%s ash=%s",
-                      self.screen_history, self.uniq_screen_history,
+            log.debug("apply_current_screen after ash=%s",
                       self.applied_screen_history)
         else:
             log.debug("%s apply return Falsey %s", current_screen_index,
