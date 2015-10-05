@@ -1,0 +1,187 @@
+- port from gtk2 to gtk3 and gtk2
+- port from firstboot to firstboot and initial-setup
+- registergui.RegisterDialog split into RegisterWidget and
+  RegisterDialog
+  - RegisterWidget is most of the logic and display, including
+   the 'screens' in the the register gui wizard
+  - RegisterWidget _does not_ provide the back/next/cancel buttons or
+    'destroy' handlers
+       - Reasons:
+         - s-m-gui provides a top level dialog for it
+         - initial-setup requires a Spoke subclass, and the
+           RegisterWidget is added to a Spokes gui
+         - firstboot does that as well, but differently.
+         - previously the reusable widget was all in the same
+           glade file, and all in RegisterDialog, which may
+           it difficult to:
+             - reparent the widget into firstboot/initial-setup screens
+             - handle the different ways the top level tools provided
+               input to the screen (required lots of complicated
+               inheritance and callbacks). At times firstboot rhel6,
+               firstboot rhel6, firstboot rhel7, initial-setup, s-m-gui
+               had different sematics for movement, sometimes completely
+               opposite.
+             - cases where we want to specify the parent window or at
+               least the 'transient_for' window got gnarly
+
+       - Implications
+         - RegisterWidget expects a handful of the signals it emits to
+           be handled by a parent widget (RegisterDialog, RHSMSpoke,etc)
+             - error-handling ('register-error', 'register-message')
+               - for ex, initial-setup uses Gtk.InfoBar()s for this,
+                 s-m-gui uses ErrorDialogs
+             - high level state changes ('register-finished',
+               'attach-finished', 'finished')
+                - for ex, s-m-gui closes the window, initial-setup sets
+                  'completed' to true and shows done screen
+         - RegisterWidget nav is also driven by signals it emit's,
+           namely 'proceed' and 'back'
+             - The parent widget will need to emit RegisterWidget's
+               'proceed' when it wants to change screen, for example,
+               after a 'Next' button is clicked.
+             - note for firstboot, we kind of abuse the firstboot
+               dialogs nav buttons and use them to emit 'proceed' etc
+
+- Much heavier use of Gtk signals for nav/error handling, etc.
+  - previously nav was done via registergui python callbacks, and meant
+    they often blocked the main thread, or were fighting with the native
+    event loop
+
+- Started using GObject properties, especially in places where there
+  'notify' signals are useful
+
+- Much of the internal state of the registergui registration process
+  has been extracted out to registergui.RegisterInfo. 
+
+  - RegisterInfo is a GObject that acts as a bag of properties
+  - Info that needs be shared between register Screen() classes should
+    generally go into RegisterInfo
+  - the RegisterInfo() object is init'ed before RegisterWidget, and is
+    passed to it. RhsmSpoke and RegisterDialog create a RegisterInfo
+    before creating there RegisterWidget
+
+- registergui.RegisterWidget is a GObject[1], not a Gtk.Widget. This
+  means it has signals and properties, but it can't be added to a 
+  Gtk parent widget directly. It has a 'register_widget' attribute that
+  is a Gtk.Widget.
+
+    - This matters because it affects signal emission and handling.
+      - Since it is not a widget directly, it does not automatically
+        propagate gtk signals up to it's parent widget (it has no
+        parent widget...).
+
+      - This is the root of some of the oddity in registergui, related
+      to connecting a signal handler to some gobject/widgets signals and
+      having that signal handler just turn around and emit the same or
+      similar signal on RegisterWidget. If it was a Gtk.Widget (esp
+      some container of some sort), any widgets added to it would have
+      the signals propagated. But see [1]
+
+- ditto RegisterDialog, registergui.Screen, and all the
+  registergui.*Screen sub classes
+
+
+Gotchas
+
+- The aforementioned 'not really a widget' case complicates things. Note
+that you can't use Gtk.Widget methods/props/signals (for ex, .destroy())
+on RegisterWidget. You have to do it on RegisterWidget.register_widget
+
+- There are multiple object inheritance models involved
+  a) Plain Old Python Objects (classes, modules, etc)
+  b-1) GObject based objects
+  b-2) python gobject introspection based objects
+     (both be because all GObjects automatically get some python gobject
+     introspection ['gi'] python object. Ie, for the most part, you can
+     use any GObject based object in python via 'gi'
+ c) Gtk widget layout
+    - ie, a Gtk.Box with a Gtk.Label in it is a tree that can be walked
+      and followed, regardless of how the python objects that provide
+      the Box or Label are related. 
+ d) UI organization
+    - for ex, s-m-gui has a MainWindow and a RegisterDialog, and there
+      is ways for user to get back and forth, but there may be no other
+      relation (classes are subclasses, the widgets aren't neccarily in
+      the same tree, etc).
+    - Another example would be initial-setup->hubs->spokes
+
+- gui/data/ui/*.ui files need to be saved a newish version of glade
+  (The f22 'glade' [not glade-3] works). It will save the files as
+  targetting gtk 3.0+. The newer version is also needed to use the
+  glade libraries provided by anaconda-gui
+
+- gui/data/glade/*.glade files need to be saved with a older version of
+  glade that targets gtk2.x. The f22 'glade-3' seems to work (note:
+  not 'glade' on f22)
+
+- The glade available on rhel7 _does not work_ for either case.
+
+- implication is that many glade changes will need to be 'backported' by
+  hand for older glade. This will show up when you change a widget name
+  in gui/data/ui/*.ui, and the unit tests in jenkins fail because they
+  run on rhel6 and you forgot to also change the widget name in
+  gui/data/glade/*.glade
+
+- Register/Auto Attach
+
+  - in s-m-gui, the mainwindow changes the 'Register' button to
+  'Auto-attach' if the system is registered. Both use the same
+  code, but Auth-Attach creates a AutoAttachDialog, which is
+  a subclass of RegisterDialog, but mainly just starts on
+  SelectSlaScreen
+
+  - in initial-setup, it's all RegisterWidget, but
+    choose_initial_screen() does some logic to detect if it's
+    registered, and starts in approriate place.
+
+Behaviour diffs between initial-setup and s-m-gui
+
+- 'register-error' and 'register-message' 
+  - s-m-gui eventually uses a Gtk MessageDialog to display the
+    error/warning. RegisterDialog.on_register_error ->
+    RegisterDialog.error_dialog -> ... -> MessageDialog
+  - initial-setup will use a Gtk.InfoBar displayed on the bottom of the
+    screen. RhsmSpoke._on_register_error -> RhsmSpoke.set_error -> <...
+    various initial-setup/anaconda classes ...> -> Gtk.InfoBar
+
+- 'destroy'/'hide'
+  - s-m-gui will close the dialog
+    (note there is a pending pr to change that to 'destroy' the dialog)
+  - initial-setup ignores it, more or less ('hide' is top level window
+    specific, so doesn't apply)
+
+- RegisterWidget 'finished' signal
+ - s-m-gui will move to the DoneScreen, but will also immed hide the dialog (also, pr pending to change this to
+   destroy)
+ - initial-setup will stay put on DoneScreen, and update what
+   RhsmSpoke.completed() will return to True
+
+   Both cases, RegisterWidget will update the 'register-status' msg property
+   in RegisterInfo. initial-setup uses this for it's status blob.
+
+- Going home early/cancel
+ - initial-setup will always have the option to leave the register gui
+   via intiail-setups 'Done' button in top left.
+
+   - Note this doesn't destroy or hide the dialog or stop it from doing
+     anything.
+
+   - There are hooks in initial-setup that will get run whenever the
+     user leaves or enters the spoke
+       - leave -> RhsmSpoke.execute()
+       - enter -> RhsmSpoke.refresh()
+
+ - s-m-gui currently doesn't have an obvious way to cancel, but alt-f4
+   or esc or window manager 'close' currently trigger
+   RegisterDialog.cancel which hides the dialog. Note pr mentioned above
+   changes this to a destroy.
+
+[1] explaination why: RegisterWidget subclasses SubmanBaseWidget which
+has a Gtk.Builder attribute. Initially this was to support loading the
+gtk2 compat glade files or the gtk3 compat glade files (.ui). But even
+plain Gtk.Builder() isn't a Gtk.Widget itself. There isn't a great
+way to use a Widget defined in glade files directly as a Gtk.Widget
+
+GObject
+ - widgets.SubmanBaseWidget
+   - registergui.RegisterWidget
