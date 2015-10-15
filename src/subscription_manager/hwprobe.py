@@ -113,6 +113,9 @@ class Hardware:
         self.prefix = prefix or ''
         self.testing = testing or False
 
+        # FIXME: find a better way to detect guest uuid and dmi info
+        #        likely a combo of systemd-detect-virt and /sys/class/dmi based dmidecode
+        self.not_root = True
         self.no_dmi_arches = ['s390x', 'ppc64', 'ppc64le', 'ppc']
 
         # ppc64 LPAR has it's virt.uuid in /proc/devicetree
@@ -170,7 +173,7 @@ class Hardware:
         """
         # we could potential consider /proc/sysinfo as a FirmwareInfoProvider
         # but at the moment, it is just firmware/dmi stuff.
-        if self.arch in self.no_dmi_arches:
+        if self.arch in self.no_dmi_arches or self.not_root:
             log.debug("Not looking for DMI info since it is not available on '%s'" % self.arch)
             platform_specific_info_provider = GenericPlatformSpecificInfoProvider
         else:

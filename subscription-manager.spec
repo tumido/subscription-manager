@@ -540,6 +540,7 @@ rm -rf %{buildroot}
 %defattr(-,root,root,-)
 %{python_sitelib}/dnf-plugins/*
 %endif
+
 %pre
 getent group rhsm >/dev/null || groupadd -r rhsm
 getent passwd rhsm >/dev/null || \
