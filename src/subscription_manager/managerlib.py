@@ -813,9 +813,12 @@ def check_identity_cert_perms():
             # Only relevant if these files exist.
             continue
         statinfo = os.stat(cert)
-        if statinfo[stat.ST_UID] != 0 or statinfo[stat.ST_GID] != 0:
-            os.chown(cert, 0, 0)
-            log.warn("Corrected incorrect ownership of %s." % cert)
+#
+# FIXME: default to rhsm
+#
+#        if statinfo[stat.ST_UID] != 0 or statinfo[stat.ST_GID] != 0:
+#            os.chown(cert, 0, 0)
+#            log.warn("Corrected incorrect ownership of %s." % cert)
 
         mode = stat.S_IMODE(statinfo[stat.ST_MODE])
         if mode != ID_CERT_PERMS:

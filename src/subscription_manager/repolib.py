@@ -22,6 +22,7 @@ import gettext
 from iniparse import RawConfigParser as ConfigParser
 import logging
 import os
+import stat
 import string
 import socket
 import subscription_manager.injection as inj
@@ -758,6 +759,22 @@ class RepoFile(ConfigParser):
             ConfigParser.write(self, tidy_writer)
             tidy_writer.close()
             f.close()
+
+            statinfo = os.stat(self.path)
+
+            # FIXME
+
+            # FIXME
+
+            RHSM_GID = 981
+            if statinfo[stat.ST_GID] != RHSM_GID:
+                os.chown(self.path, -1, RHSM_GID)
+            # Expected permissions for redhat.repo
+            stat.S_IWGRP
+            REDHAT_REPO_PERMS = stat.S_IRUSR | stat.S_IWUSR | stat.S_IWGRP
+            mode = stat.S_IMODE(statinfo[stat.ST_MODE])
+            if mode != REDHAT_REPO_PERMS:
+                os.chmod(self.path, REDHAT_REPO_PERMS)
 
     def add(self, repo):
         self.add_section(repo.id)

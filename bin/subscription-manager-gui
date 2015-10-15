@@ -114,9 +114,9 @@ except RuntimeError, e:
     system_exit(2, "Unable to start.  Error: %s" % e)
 
 # quick check to see if you are a super-user.
-if os.getuid() != 0:
-    sys.stderr.write('Error: must be root to execute\n')
-    sys.exit(8)
+#if os.getuid() != 0:
+#    sys.stderr.write('Error: must be root to execute\n')
+#    sys.exit(8)
 
 try:
     # this has to be done first thing due to module level translated vars.
