@@ -342,14 +342,14 @@ rm -rf %{buildroot}
 %endif
 
 # our config dirs and files
-%attr(07575,rhsm,rhsm) %dir %{_sysconfdir}/rhsm
-%attr(0644,rhsm,rhsm) %config(noreplace) %{_sysconfdir}/rhsm/rhsm.conf
-%config(noreplace) %attr(0644,rhsm,rhsm) %{_sysconfdir}/rhsm/logging.conf
+%attr(0775,rhsm,rhsm) %dir %{_sysconfdir}/rhsm
+%attr(0664,rhsm,rhsm) %config(noreplace) %{_sysconfdir}/rhsm/rhsm.conf
+%config(noreplace) %attr(0664,rhsm,rhsm) %{_sysconfdir}/rhsm/logging.conf
 
-%attr(0755,rhsm,rhsm) %dir %{_sysconfdir}/rhsm/facts
+%attr(0775,rhsm,rhsm) %dir %{_sysconfdir}/rhsm/facts
 
-%attr(0755,rhsm,rhsm) %dir %{_sysconfdir}/pki/consumer
-%attr(0755,rhsm,rhsm) %dir %{_sysconfdir}/pki/entitlement
+%attr(0775,rhsm,rhsm) %dir %{_sysconfdir}/pki/consumer
+%attr(0775,rhsm,rhsm) %dir %{_sysconfdir}/pki/entitlement
 
 %config(noreplace) %{_sysconfdir}/dbus-1/system.d/com.redhat.SubscriptionManager.conf
 
@@ -372,13 +372,13 @@ rm -rf %{buildroot}
 
 
 # /var
-%attr(0755,rhsm,rhsm) %dir %{_var}/log/rhsm
-%attr(0755,rhsm,rhsm) %dir %{_var}/spool/rhsm/debug
-%attr(0755,rhsm,rhsm) %dir %{_var}/run/rhsm
-%attr(0755,rhsm,rhsm) %dir %{_var}/lib/rhsm
-%attr(0755,rhsm,rhsm) %dir %{_var}/lib/rhsm/facts
-%attr(0755,rhsm,rhsm) %dir %{_var}/lib/rhsm/packages
-%attr(0755,rhsm,rhsm) %dir %{_var}/lib/rhsm/cache
+%attr(0775,rhsm,rhsm) %dir %{_var}/log/rhsm
+%attr(0775,rhsm,rhsm) %dir %{_var}/spool/rhsm/debug
+%attr(0775,rhsm,rhsm) %dir %{_var}/run/rhsm
+%attr(0775,rhsm,rhsm) %dir %{_var}/lib/rhsm
+%attr(0775,rhsm,rhsm) %dir %{_var}/lib/rhsm/facts
+%attr(0775,rhsm,rhsm) %dir %{_var}/lib/rhsm/packages
+%attr(0775,rhsm,rhsm) %dir %{_var}/lib/rhsm/cache
 
 # bash completion scripts
 %{_sysconfdir}/bash_completion.d/subscription-manager
