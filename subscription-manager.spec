@@ -336,20 +336,20 @@ rm -rf %{buildroot}
 # init scripts and systemd services
 %if %use_systemd
     %attr(644,root,root) %{_unitdir}/rhsmcertd.service
-    %attr(644,root,root) %{_tmpfilesdir}/%{name}.conf
+    %attr(644,rhsm,rhsm) %{_tmpfilesdir}/%{name}.conf
 %else
     %attr(755,root,root) %{_initrddir}/rhsmcertd
 %endif
 
 # our config dirs and files
-%attr(755,root,root) %dir %{_sysconfdir}/rhsm
-%attr(644,root,root) %config(noreplace) %{_sysconfdir}/rhsm/rhsm.conf
-%config(noreplace) %attr(644,root,root) %{_sysconfdir}/rhsm/logging.conf
+%attr(07575,rhsm,rhsm) %dir %{_sysconfdir}/rhsm
+%attr(0644,rhsm,rhsm) %config(noreplace) %{_sysconfdir}/rhsm/rhsm.conf
+%config(noreplace) %attr(0644,rhsm,rhsm) %{_sysconfdir}/rhsm/logging.conf
 
-%attr(755,root,root) %dir %{_sysconfdir}/rhsm/facts
+%attr(0755,rhsm,rhsm) %dir %{_sysconfdir}/rhsm/facts
 
-%attr(755,root,root) %dir %{_sysconfdir}/pki/consumer
-%attr(755,root,root) %dir %{_sysconfdir}/pki/entitlement
+%attr(0755,rhsm,rhsm) %dir %{_sysconfdir}/pki/consumer
+%attr(0755,rhsm,rhsm) %dir %{_sysconfdir}/pki/entitlement
 
 %config(noreplace) %{_sysconfdir}/dbus-1/system.d/com.redhat.SubscriptionManager.conf
 
@@ -372,13 +372,13 @@ rm -rf %{buildroot}
 
 
 # /var
-%attr(755,root,root) %dir %{_var}/log/rhsm
-%attr(755,root,root) %dir %{_var}/spool/rhsm/debug
-%attr(755,root,root) %dir %{_var}/run/rhsm
-%attr(755,root,root) %dir %{_var}/lib/rhsm
-%attr(755,root,root) %dir %{_var}/lib/rhsm/facts
-%attr(755,root,root) %dir %{_var}/lib/rhsm/packages
-%attr(755,root,root) %dir %{_var}/lib/rhsm/cache
+%attr(0755,rhsm,rhsm) %dir %{_var}/log/rhsm
+%attr(0755,rhsm,rhsm) %dir %{_var}/spool/rhsm/debug
+%attr(0755,rhsm,rhsm) %dir %{_var}/run/rhsm
+%attr(0755,rhsm,rhsm) %dir %{_var}/lib/rhsm
+%attr(0755,rhsm,rhsm) %dir %{_var}/lib/rhsm/facts
+%attr(0755,rhsm,rhsm) %dir %{_var}/lib/rhsm/packages
+%attr(0755,rhsm,rhsm) %dir %{_var}/lib/rhsm/cache
 
 # bash completion scripts
 %{_sysconfdir}/bash_completion.d/subscription-manager
@@ -537,6 +537,12 @@ rm -rf %{buildroot}
 %defattr(-,root,root,-)
 %{python_sitelib}/dnf-plugins/*
 %endif
+%pre
+getent group rhsm >/dev/null || groupadd -r rhsm
+getent passwd rhsm >/dev/null || \
+    useradd -r -g rhsm -d /var/run/rhsm -s /sbin/nologin \
+        -c "Group for the RHSM tools" rhsm
+exit 0
 
 %post
 %if %use_systemd
