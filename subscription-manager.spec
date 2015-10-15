@@ -326,8 +326,11 @@ rm -rf %{buildroot}
 # executables
 %attr(755,root,root) %{_sbindir}/subscription-manager
 
+# FIXME: not sure what the more current version of this is
+#  but remove it for now so there is no prompt for root
 # symlink to console-helper
-%{_bindir}/subscription-manager
+#%{_bindir}/subscription-manager
+
 %attr(755,root,root) %{_bindir}/rhsmcertd
 
 %attr(755,root,root) %{_libexecdir}/rhsmcertd-worker
@@ -460,7 +463,7 @@ rm -rf %{buildroot}
 %defattr(-,root,root,-)
 %attr(755,root,root) %{_sbindir}/subscription-manager-gui
 # symlink to console-helper
-%{_bindir}/subscription-manager-gui
+# % {_bindir}/subscription-manager-gui
 %{_bindir}/rhsm-icon
 %dir %{_datadir}/rhsm/subscription_manager/gui
 %dir %{_datadir}/rhsm/subscription_manager/gui/data

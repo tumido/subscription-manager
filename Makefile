@@ -455,8 +455,8 @@ install-files: set-versions dbus-service-install desktop-files install-plugins i
 	install -m 644 etc-conf/subscription-manager-gui.desktop \
 		$(PREFIX)/$(INSTALL_DIR)/applications
 
-	ln -sf /usr/bin/consolehelper $(PREFIX)/usr/bin/subscription-manager-gui
-	ln -sf /usr/bin/consolehelper $(PREFIX)/usr/bin/subscription-manager
+	#ln -sf /usr/bin/consolehelper $(PREFIX)/usr/bin/subscription-manager-gui
+	#ln -sf /usr/bin/consolehelper $(PREFIX)/usr/bin/subscription-manager
 
 	install -m 644 etc-conf/subscription-manager-gui.pam \
 		$(PREFIX)/etc/pam.d/subscription-manager-gui
