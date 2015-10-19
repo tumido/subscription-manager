@@ -160,8 +160,8 @@ class CacheManager(object):
                 # Return the number of 'updates' we did, assuming updating all
                 # packages at once is one update.
                 return 1
-            except connection.RestlibException, re:
-                raise re
+            except connection.RestlibException:
+                raise
             except Exception, e:
                 log.error("Error updating system data on the server")
                 log.exception(e)

@@ -1058,6 +1058,12 @@ class RegisterCommand(UserPassCommand):
             else:
                 admin_cp = self.cp_provider.get_no_auth_cp()
 
+
+            log.debug("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX username=%s", self.username)
+            log.debug("\n\n\n\n\npassword=%s \n\n\n\n\n", self.password)
+
+
+            log.debug("admin_cp=%s", admin_cp)
             facts_dic = facts.get_facts()
 
             self.plugin_manager.run("pre_register_consumer", name=consumername,
