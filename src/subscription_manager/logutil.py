@@ -131,6 +131,12 @@ def init_logger():
 
     file_config(logging_config=LOGGING_CONFIG)
 
+    logging.getLogger('urllib3').setLevel(logging.DEBUG)
+    logging.getLogger('urllib3').propagate = True
+    requests_log = logging.getLogger("requests")
+    requests_log.setLevel(logging.DEBUG)
+    requests_log.propagate = True
+
 
 def init_logger_for_yum():
     init_logger()
