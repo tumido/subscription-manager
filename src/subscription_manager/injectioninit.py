@@ -65,7 +65,7 @@ def init_dep_injection():
 
     # hey new stuff
     for i in [1,2,3,4,5,6,6,'sdf', '233234', True]:
-        print i,
+        print i, inj.NEW_THING
 
     inj.provide(inj.PROFILE_MANAGER, ProfileManager, singleton=True)
     inj.provide(inj.INSTALLED_PRODUCTS_MANAGER, InstalledProductsManager, singleton=True)
