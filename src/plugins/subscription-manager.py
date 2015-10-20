@@ -152,22 +152,52 @@ def warnOrGiveUsageMessage(conduit):
 
 def postconfig_hook(conduit):
     """ update """
+
     # register rpm name for yum history recording"
     # yum on 5.7 doesn't have this method, so check for it
+    try:
+        if hasattr(conduit, 'registerPackageName'):
+            conduit.registerPackageName("subscription-manager")
+    except Exception, e:
+        conduit.error(2, str(e))
 
-    logutil.init_logger_for_yum()
+    try:
+        logutil.init_logger_for_yum()
+    except Exception, e:
+        conduit.info(2, str(e))
+        conduit.info(2, 'Error opening logger.')
 
-    init_dep_injection()
+    try:
+        init_dep_injection()
+    except Exception, e:
+        conduit.error(2, str(e))
+        # We are in an unknown state now, return before
+        # breaking anything
+        return
 
-    # If a tool (it's, e.g., Mock) manages a chroot via 'yum --installroot',
-    # we must update entitlements in that directory.
-    chroot(conduit.getConf().installroot)
+    try:
+        # If a tool (it's, e.g., Mock) manages a chroot via 'yum --installroot',
+        # we must update entitlements in that directory.
+        chroot_installroot = conduit.getConf().installroot
+    except Exception, e:
+        conduit.error(2, 'Error reading the configured installroot')
+        conduit.error(2, str(e))
+        return
 
-    cfg = config.initConfig()
-    cache_only = not bool(cfg.get_int('rhsm', 'full_refresh_on_yum'))
+    try:
+        chroot(chroot_installroot)
+    except Exception, e:
+        conduit.error(2, 'Error attempting to chroot to installroot: %' % chroot_installroot)
+        conduit.error(e, str(e))
+        return
 
-    if hasattr(conduit, 'registerPackageName'):
-        conduit.registerPackageName("subscription-manager")
+    cache_only = True
+    try:
+        cfg = config.initConfig()
+        cache_only = not bool(cfg.get_int('rhsm', 'full_refresh_on_yum'))
+    except Exception, e:
+        conduit.error(2, str(e))
+
     try:
         update(conduit, cache_only)
         warnOrGiveUsageMessage(conduit)

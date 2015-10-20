@@ -36,6 +36,11 @@ def init_dep_injection():
 
     This needs to be called from any entry-point into subscription manager.
     """
+
+    print "FFFFFFFFFFFFFFFFFFFF"
+    import traceback
+    traceback.print_stack()
+
     # Set up consumer identity as a singleton so we don't constantly re-load
     # it from disk. Call reload when anything changes and all references will be
     # updated.
@@ -73,6 +78,7 @@ def init_dep_injection():
 
     # see what happens with non singleton, callable
     inj.provide(inj.FACTS, Facts)
+
 
     try:
         # This catch fixes the product-id module on anaconda

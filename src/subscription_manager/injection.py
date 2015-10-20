@@ -34,6 +34,11 @@ INSTALLED_PRODUCTS_MANAGER = "INSTALLED_PRODUCTS_MANAGER"
 RELEASE_STATUS_CACHE = "RELEASE_STATUS_CACHE"
 
 
+import logging
+logging.basicConfig()
+log = logging.getLogger('rhsm-app.injection')
+
+
 class FeatureBroker:
     """
     Tracks all configured features.
@@ -56,6 +61,7 @@ class FeatureBroker:
         invocation. (i.e. pass an actual instance if you want a "singleton".
         """
         self.providers[feature] = provider
+        log.debug("feature=%s, provider=%s", feature, provider)
 
     def require(self, feature, *args, **kwargs):
         """
@@ -74,8 +80,11 @@ class FeatureBroker:
         if isinstance(provider, (type, types.ClassType)):
             # Args should never be used with singletons, they are ignored
             self.providers[feature] = provider()
+            log.debug("created provider=%s", provider)
         elif callable(provider):
-            return provider(*args, **kwargs)
+            p = provider(*args, **kwargs)
+            log.debug("created provider=%s from callable=%s", p, provider)
+            return p
 
         return self.providers[feature]
 
