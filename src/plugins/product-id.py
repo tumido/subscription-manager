@@ -41,7 +41,7 @@ def posttrans_hook(conduit):
 
     try:
         init_dep_injection()
-    except ImportError, e:
+    except Exception, e:
         conduit.error(3, str(e))
         return
 
