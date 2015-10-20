@@ -40,6 +40,7 @@ def init_dep_injection():
     print "FFFFFFFFFFFFFFFFFFFF"
     import traceback
     traceback.print_stack()
+    print
 
     # Set up consumer identity as a singleton so we don't constantly re-load
     # it from disk. Call reload when anything changes and all references will be
@@ -61,6 +62,11 @@ def init_dep_injection():
     inj.provide(inj.RELEASE_STATUS_CACHE, ReleaseStatusCache,
                 singleton=False)
 
+
+    # hey new stuff
+    for i in [1,2,3,4,5,6,6,'sdf', '233234', True]:
+        print i,
+
     inj.provide(inj.PROFILE_MANAGER, ProfileManager, singleton=True)
     inj.provide(inj.INSTALLED_PRODUCTS_MANAGER, InstalledProductsManager, singleton=True)
 
@@ -78,7 +84,6 @@ def init_dep_injection():
 
     # see what happens with non singleton, callable
     inj.provide(inj.FACTS, Facts)
-
 
     try:
         # This catch fixes the product-id module on anaconda
