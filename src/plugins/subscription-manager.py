@@ -26,7 +26,6 @@ from subscription_manager.repolib import RepoActionInvoker
 from subscription_manager.hwprobe import ClassicCheck
 from subscription_manager.certlib import Locker
 from subscription_manager.utils import chroot
-from subscription_manager.injectioninit import init_dep_injection
 from subscription_manager import logutil
 from rhsm import connection
 from rhsm import config
@@ -166,6 +165,8 @@ def postconfig_hook(conduit):
     except Exception, e:
         conduit.info(2, str(e))
         conduit.info(2, 'Error opening logger.')
+
+    from subscription_manager.injectioninit import init_dep_injection
 
     try:
         init_dep_injection()

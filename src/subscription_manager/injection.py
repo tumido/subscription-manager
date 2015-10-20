@@ -34,6 +34,8 @@ INSTALLED_PRODUCTS_MANAGER = "INSTALLED_PRODUCTS_MANAGER"
 RELEASE_STATUS_CACHE = "RELEASE_STATUS_CACHE"
 
 
+SOME_NEW_THING = "SOME_NEW_THING"
+
 import logging
 logging.basicConfig()
 log = logging.getLogger('rhsm-app.injection')
