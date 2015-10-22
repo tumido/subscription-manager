@@ -23,6 +23,7 @@ from iniparse import RawConfigParser as ConfigParser
 import logging
 import os
 import string
+import StringIO
 import subscription_manager.injection as inj
 from subscription_manager.cache import OverrideStatusCache, WrittenOverrideCache
 from subscription_manager import utils
@@ -294,6 +295,8 @@ class RepoUpdateActionCommand(object):
             self.written_overrides.overrides = self.overrides
             self.written_overrides.write_cache()
         log.info("repos updated: %s" % self.report)
+        self.report.repo_file = repo_file
+
         return self.report
 
     def get_unique_content(self):
@@ -430,6 +433,7 @@ class RepoActionReport(ActionReport):
         self.repo_updates = []
         self.repo_added = []
         self.repo_deleted = []
+        self.repo_file = None
 
     def updates(self):
         """How many repos were updated"""
@@ -647,7 +651,7 @@ class Repo(dict):
         return hash(self.id)
 
 
-class TidyWriter:
+class TidyWriter(object):
 
     """
     ini file reader that removes successive newlines,
@@ -751,6 +755,15 @@ class RepoFile(ConfigParser):
             ConfigParser.write(self, tidy_writer)
             tidy_writer.close()
             f.close()
+
+    def render_to_string(self):
+        string_io = StringIO.StringIO()
+        tidy_writer = TidyWriter(string_io)
+        ConfigParser.write(self, tidy_writer)
+        tidy_writer.close()
+        buf = string_io.getvalue()
+        string_io.close()
+        return buf
 
     def add(self, repo):
         self.add_section(repo.id)
