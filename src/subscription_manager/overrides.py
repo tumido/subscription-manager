@@ -14,7 +14,8 @@
 # in this software or its documentation.
 #
 from subscription_manager import injection as inj
-from subscription_manager.repolib import RepoActionInvoker
+#from subscription_manager.repolib import RepoActionInvoker
+from subscription_manager.content_action_client import ContentActionClient
 
 import logging
 
@@ -28,7 +29,9 @@ class Overrides(object):
         self.cp_provider = inj.require(inj.CP_PROVIDER)
 
         self.cache = inj.require(inj.OVERRIDE_STATUS_CACHE)
-        self.repo_lib = RepoActionInvoker(cache_only=True)
+
+        # FIXME: cache_only?
+        self.content_action = ContentActionClient()
 
     def get_overrides(self, consumer_uuid):
         return self._build_from_json(self.cache.load_status(self._getuep(), consumer_uuid))
@@ -46,7 +49,7 @@ class Overrides(object):
     def update(self, overrides):
         self.cache.server_status = [override.to_json() for override in overrides]
         self.cache.write_cache()
-        self.repo_lib.update()
+        self.content_action.update()
 
     def _delete_overrides(self, consumer_uuid, override_data):
         return self._build_from_json(self._getuep().deleteContentOverrides(consumer_uuid, override_data))
