@@ -130,6 +130,27 @@ The Subscription Manager package provides programs and libraries to allow users
 to manage subscriptions and yum repositories from the Red Hat entitlement
 platform.
 
+# Should our plugin package for yum content also include
+# the subman-in-yum plugins?
+
+%package -n subscription-manager-plugin-yum
+Summary: A plugin for handling yum content.
+Group: System Environment/Base
+
+%description -n subscription-manager-plugin-yum
+Enables handling of content of type 'yum' in any certificates
+from the server. Populates /etc/yum.repos.d/redhat.repo
+
+# the yum-in-subman plugin doesn't actually
+# seem to need yum installed...
+
+%files -n subscription-manager-plugin-yum
+%defattr(-,root,root,-)
+%{_sysconfdir}/rhsm/pluginconf.d/yum_content.YumContentPlugin.conf
+%{rhsm_plugins_dir}/yum_content.py*
+%{_datadir}/rhsm/subscription_manager/plugin/yum/*.py*
+# remove the repo file when we are deleted
+%ghost %{_sysconfdir}/yum.repos.d/redhat.repo
 
 %if %has_ostree
 %package -n subscription-manager-plugin-ostree
@@ -357,8 +378,6 @@ rm -rf %{buildroot}
 %{_sysconfdir}/pam.d/subscription-manager
 %{_sysconfdir}/security/console.apps/subscription-manager
 
-# remove the repo file when we are deleted
-%ghost %{_sysconfdir}/yum.repos.d/redhat.repo
 
 # yum plugin config
 %config(noreplace) %attr(644,root,root) %{_sysconfdir}/yum/pluginconf.d/subscription-manager.conf
