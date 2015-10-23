@@ -19,7 +19,8 @@
 # TODO: cleanup config parser imports
 from ConfigParser import Error as ConfigParserError
 import gettext
-from iniparse import RawConfigParser as ConfigParser
+#from iniparse import RawConfigParser as ConfigParser
+import ConfigParser
 import logging
 import os
 import string
@@ -45,6 +46,8 @@ ALLOWED_CONTENT_TYPES = ["yum"]
 
 _ = gettext.gettext
 
+from gi.repository import GLib
+
 
 def manage_repos_enabled():
     manage_repos = True
@@ -65,13 +68,15 @@ def manage_repos_enabled():
 
 class RepoActionInvoker(BaseActionInvoker):
     """Invoker for yum repo updating related actions."""
-    def __init__(self, cache_only=False, locker=None):
+    def __init__(self, cache_only=False, locker=None, apply_overrides=False):
         super(RepoActionInvoker, self).__init__(locker=locker)
         self.cache_only = cache_only
+        self.apply_overrides = apply_overrides
         self.identity = inj.require(inj.IDENTITY)
 
     def _do_update(self):
-        action = RepoUpdateActionCommand(cache_only=self.cache_only)
+        action = RepoUpdateActionCommand(cache_only=self.cache_only,
+                                         apply_overrides=self.apply_overrides)
         res = action.perform()
         return res
 
@@ -126,10 +131,14 @@ class YumReleaseverSource(object):
     # if all eles fails the default is to leave the marker un expanded
     default = marker
 
-    def __init__(self):
+    def __init__(self, cache_only=False):
 
         self.release_status_cache = inj.require(inj.RELEASE_STATUS_CACHE)
         self._expansion = None
+
+        self.cache_only = cache_only
+        if self.cache_only:
+            return
 
         self.identity = inj.require(inj.IDENTITY)
         self.cp_provider = inj.require(inj.CP_PROVIDER)
@@ -164,8 +173,11 @@ class YumReleaseverSource(object):
         if self._expansion:
             return self._expansion
 
-        result = self.release_status_cache.read_status(self.uep,
-                                                       self.identity.uuid)
+        if self.cache_only:
+            result = self.release_status_cache._read_cache()
+        else:
+            result = self.release_status_cache.read_status(self.uep,
+                                                           self.identity.uuid)
 
         # status cache returned None, which points to a failure.
         # Since we only have one value, use the default there and cache it
@@ -196,6 +208,7 @@ class RepoUpdateActionCommand(object):
 
     Returns an RepoActionReport.
     """
+    @profile
     def __init__(self, cache_only=False, apply_overrides=True):
         self.identity = inj.require(inj.IDENTITY)
 
@@ -205,26 +218,32 @@ class RepoUpdateActionCommand(object):
 
         self.ent_source = ent_cert.EntitlementDirEntitlementSource()
 
-        self.cp_provider = inj.require(inj.CP_PROVIDER)
-        self.uep = self.cp_provider.get_consumer_auth_cp()
-
         self.manage_repos = 1
         self.apply_overrides = apply_overrides
         self.manage_repos = manage_repos_enabled()
+        self.cache_only = cache_only
+        self.override_supported = False
 
         self.release = None
         self.overrides = {}
-        self.override_supported = bool(self.identity.is_valid() and self.uep and self.uep.supports_resource('content_overrides'))
         self.written_overrides = WrittenOverrideCache()
 
         # FIXME: empty report at the moment, should be changed to include
         # info about updated repos
         self.report = RepoActionReport()
         self.report.name = "Repo updates"
+
         # If we are not registered, skip trying to refresh the
         # data from the server
         if not self.identity.is_valid():
             return
+
+        if not apply_overrides:
+            return
+
+        self.cp_provider = inj.require(inj.CP_PROVIDER)
+        self.uep = self.cp_provider.get_consumer_auth_cp()
+        self.override_supported = bool(self.identity.is_valid() and self.uep and self.uep.supports_resource('content_overrides'))
 
         # NOTE: if anything in the RepoActionInvoker init blocks, and it
         #       could, yum could still block. The closest thing to an
@@ -251,6 +270,7 @@ class RepoUpdateActionCommand(object):
                     self.overrides[item['contentLabel']] = {}
                 self.overrides[item['contentLabel']][item['name']] = item['value']
 
+    @profile
     def perform(self):
         # Load the RepoFile from disk, this contains all our managed yum repo sections:
         repo_file = RepoFile()
@@ -294,11 +314,12 @@ class RepoUpdateActionCommand(object):
             # Update with the values we just wrote
             self.written_overrides.overrides = self.overrides
             self.written_overrides.write_cache()
-        log.info("repos updated: %s" % self.report)
+        #log.info("repos updated: %s" % self.report)
         self.report.repo_file = repo_file
 
         return self.report
 
+    @profile
     def get_unique_content(self):
         # FIXME Shouldn't this skip all of the repo updating?
         if not self.manage_repos:
@@ -317,10 +338,12 @@ class RepoUpdateActionCommand(object):
     # Expose as public API for RepoActionInvoker.is_managed, since that
     # is used by openshift tooling.
     # See https://bugzilla.redhat.com/show_bug.cgi?id=1223038
+    @profile
     def matching_content(self):
         return model.find_content(self.ent_source,
                                   content_type="yum")
 
+    @profile
     def get_all_content(self, baseurl, ca_cert):
         matching_content = self.matching_content()
         content_list = []
@@ -332,7 +355,7 @@ class RepoUpdateActionCommand(object):
         # wait until we know we have content before fetching
         # release. We could make YumReleaseverSource understand
         # cache_only as well.
-        release_source = YumReleaseverSource()
+        release_source = YumReleaseverSource(cache_only=self.cache_only)
 
         for content in matching_content:
             repo = Repo.from_ent_cert_content(content, baseurl, ca_cert,
@@ -371,6 +394,7 @@ class RepoUpdateActionCommand(object):
             result[key] = Repo.PROPERTIES.get(key, (1, None))
         return result
 
+    @profile
     def update_repo(self, old_repo, new_repo):
         """
         Checks an existing repo definition against a potentially updated
@@ -464,6 +488,7 @@ class RepoActionReport(ActionReport):
     def format_sections(self, sections):
         return self.format_repos_info(sections, self.section_format)
 
+    @profile
     def __str__(self):
         s = [_('Repo updates') + '\n']
         s.append(_('Total repo updates: %d') % self.updates())
@@ -695,12 +720,12 @@ class TidyWriter(object):
             self.backing_file.write("\n")
 
 
-class RepoFile(ConfigParser):
+class RepoFile(ConfigParser.RawConfigParser):
 
     PATH = 'etc/yum.repos.d/'
 
     def __init__(self, name='redhat.repo'):
-        ConfigParser.__init__(self)
+        ConfigParser.RawConfigParser.__init__(self)
         # note PATH get's expanded with chroot info, etc
         self.path = Path.join(self.PATH, name)
         self.repos_dir = Path.abs(self.PATH)
@@ -722,8 +747,12 @@ class RepoFile(ConfigParser):
     def exists(self):
         return self.path_exists(self.path)
 
+    @profile
     def read(self):
-        ConfigParser.read(self, self.path)
+        foo = GLib.KeyFile()
+        foo.load_from_file(self.path, GLib.KeyFileFlags.KEEP_COMMENTS)
+        groups = foo.get_groups()
+        ConfigParser.RawConfigParser.read(self, self.path)
 
     def _configparsers_equal(self, otherparser):
         if set(otherparser.sections()) != set(self.sections()):
@@ -740,10 +769,11 @@ class RepoFile(ConfigParser):
         '''
         Check if the version on disk is different from what we have loaded
         '''
-        on_disk = ConfigParser()
+        on_disk = ConfigParser.RawConfigParser()
         on_disk.read(self.path)
         return not self._configparsers_equal(on_disk)
 
+    @profile
     def write(self):
         if not self.manage_repos:
             log.debug("Skipping write due to manage_repos setting: %s" %
@@ -752,14 +782,15 @@ class RepoFile(ConfigParser):
         if self._has_changed():
             f = open(self.path, 'w')
             tidy_writer = TidyWriter(f)
-            ConfigParser.write(self, tidy_writer)
+            ConfigParser.RawConfigParser.write(self, tidy_writer)
             tidy_writer.close()
             f.close()
 
+    @profile
     def render_to_string(self):
         string_io = StringIO.StringIO()
         tidy_writer = TidyWriter(string_io)
-        ConfigParser.write(self, tidy_writer)
+        ConfigParser.RawConfigParser.write(self, tidy_writer)
         tidy_writer.close()
         buf = string_io.getvalue()
         string_io.close()
@@ -769,9 +800,11 @@ class RepoFile(ConfigParser):
         self.add_section(repo.id)
         self.update(repo)
 
+    @profile
     def delete(self, section):
         return self.remove_section(section)
 
+    @profile
     def update(self, repo):
         # Need to clear out the old section to allow unsetting options:
         # don't use remove section though, as that will reorder sections,
@@ -781,7 +814,7 @@ class RepoFile(ConfigParser):
             self.remove_option(repo.id, k)
 
         for k, v in repo.items():
-            ConfigParser.set(self, repo.id, k, v)
+            ConfigParser.RawConfigParser.set(self, repo.id, k, v)
 
     def section(self, section):
         if self.has_section(section):
