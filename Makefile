@@ -181,6 +181,9 @@ install-content-plugins-conf-ostree:
 install-content-plugin-container:
 	install -m 644 $(CONTENT_PLUGINS_SRC_DIR)/container_content.py $(RHSM_PLUGIN_DIR)
 
+install-content-plugin-yum:
+	install -m 644 $(CONTENT_PLUGINS_SRC_DIR)/yum_content.py $(RHSM_PLUGIN_DIR)
+
 install-content-plugins-conf-container:
 	install -m 644 -p \
 		$(CONTENT_PLUGINS_SRC_DIR)/container_content.ContainerContentPlugin.conf \
@@ -198,7 +201,7 @@ install-content-plugins-ca:
 
 install-content-plugins-conf: install-content-plugins-conf-dir install-content-plugins-conf-ostree install-content-plugins-conf-container install-content-plugins-ca
 
-install-content-plugins: install-content-plugins-dir install-content-plugin-ostree install-content-plugin-container
+install-content-plugins: install-content-plugins-dir install-content-plugin-ostree install-content-plugin-container install-content-plugin-yum
 
 
 install-plugins-conf-dir:
@@ -323,8 +326,7 @@ install-files: set-versions dbus-service-install desktop-files install-plugins i
 	install -d $(PYTHON_INST_DIR)/migrate
 	install -d $(PYTHON_INST_DIR)/plugin
 	install -d $(PYTHON_INST_DIR)/plugin/ostree
-	install -d $(PYTHON_INST_DIR)/plugin
-	install -d $(PYTHON_INST_DIR)/plugin/ostree
+	install -d $(PYTHON_INST_DIR)/plugin/yum
 	install -d $(PREFIX)/$(INSTALL_DIR)/locale/
 	install -d $(PREFIX)/usr/sbin
 	install -d $(PREFIX)/etc/rhsm
@@ -384,6 +386,8 @@ install-files: set-versions dbus-service-install desktop-files install-plugins i
 		install -d $(PREFIX)/$(PYTHON_SITELIB)/dnf-plugins/ ; \
 		install -m 644 -p src/dnf-plugins/*.py $(PREFIX)/$(PYTHON_SITELIB)/dnf-plugins/ ; \
 	fi ; \
+
+	install -m 644 -p $(SRC_DIR)/plugin/yum/*.py $(SUBMAN_INST_DIR)/plugin/yum 
 
 	#icons
 	install -m 644 $(SRC_DIR)/gui/data/icons/hicolor/16x16/apps/*.png \

@@ -19,12 +19,14 @@ requires_api_version = "1.1"
 from subscription_manager import repolib
 
 
-class YumRepoContentPlugin(base_plugin.SubManPlugin):
+class YumContentPlugin(base_plugin.SubManPlugin):
     name = "yum_content"
 
     def update_content_hook(self, conduit):
         conduit.log.debug("YumRepoContentPlugin.update_content_hook")
 
         action_invoker = repolib.RepoUpdateActionCommand()
+        conduit.log.debug("yum action_invoker=%s", action_invoker)
         report = action_invoker.perform()
+        conduit.log.debug("report=%s", report)
         conduit.reports.add(report)
