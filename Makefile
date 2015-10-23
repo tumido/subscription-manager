@@ -184,6 +184,11 @@ install-content-plugin-container:
 install-content-plugin-yum:
 	install -m 644 $(CONTENT_PLUGINS_SRC_DIR)/yum_content.py $(RHSM_PLUGIN_DIR)
 
+install-content-plugins-conf-yum:
+	install -m 644 -p \
+		$(CONTENT_PLUGINS_SRC_DIR)/yum_content.YumContentPlugin.conf \
+		$(RHSM_PLUGIN_CONF_DIR)
+
 install-content-plugins-conf-container:
 	install -m 644 -p \
 		$(CONTENT_PLUGINS_SRC_DIR)/container_content.ContainerContentPlugin.conf \
@@ -199,7 +204,7 @@ install-content-plugins-ca:
 	install -d $(PREFIX)/etc/rhsm/ca
 	install -m 644 -p etc-conf/redhat-entitlement-authority.pem $(PREFIX)/etc/rhsm/ca/redhat-entitlement-authority.pem
 
-install-content-plugins-conf: install-content-plugins-conf-dir install-content-plugins-conf-ostree install-content-plugins-conf-container install-content-plugins-ca
+install-content-plugins-conf: install-content-plugins-conf-dir install-content-plugins-conf-yum install-content-plugins-conf-ostree install-content-plugins-conf-container install-content-plugins-ca
 
 install-content-plugins: install-content-plugins-dir install-content-plugin-ostree install-content-plugin-container install-content-plugin-yum
 
