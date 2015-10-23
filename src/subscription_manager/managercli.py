@@ -49,7 +49,7 @@ from subscription_manager.jsonwrapper import PoolWrapper
 from subscription_manager import managerlib
 from subscription_manager.managerlib import valid_quantity, format_date
 from subscription_manager.release import ReleaseBackend
-from subscription_manager.repolib import RepoActionInvoker, RepoFile, manage_repos_enabled
+#from subscription_manager.repolib import RepoActionInvoker, RepoFile, manage_repos_enabled
 from subscription_manager.utils import parse_server_info, \
         parse_baseurl_info, format_baseurl, is_valid_server_info, \
         MissingCaCertException, get_client_versions, get_server_versions, \
@@ -1941,8 +1941,10 @@ class ReposCommand(CliCommand):
             self.options.list_disabled = True
 
     def _do_command(self):
+        return 0
         self._validate_options()
         rc = 0
+        # TODO: replace with some version of 'is the yum plugin enabled'.
         if not manage_repos_enabled():
             print _("Repositories disabled by configuration.")
             return rc
