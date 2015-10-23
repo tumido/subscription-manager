@@ -26,6 +26,7 @@ import os
 import string
 import StringIO
 import subscription_manager.injection as inj
+
 from subscription_manager.cache import OverrideStatusCache, WrittenOverrideCache
 from subscription_manager import utils
 from subscription_manager import model
@@ -208,7 +209,6 @@ class RepoUpdateActionCommand(object):
 
     Returns an RepoActionReport.
     """
-    @profile
     def __init__(self, cache_only=False, apply_overrides=True):
         self.identity = inj.require(inj.IDENTITY)
 
@@ -270,7 +270,6 @@ class RepoUpdateActionCommand(object):
                     self.overrides[item['contentLabel']] = {}
                 self.overrides[item['contentLabel']][item['name']] = item['value']
 
-    @profile
     def perform(self):
         # Load the RepoFile from disk, this contains all our managed yum repo sections:
         repo_file = RepoFile()
@@ -319,7 +318,6 @@ class RepoUpdateActionCommand(object):
 
         return self.report
 
-    @profile
     def get_unique_content(self):
         # FIXME Shouldn't this skip all of the repo updating?
         if not self.manage_repos:
@@ -338,12 +336,10 @@ class RepoUpdateActionCommand(object):
     # Expose as public API for RepoActionInvoker.is_managed, since that
     # is used by openshift tooling.
     # See https://bugzilla.redhat.com/show_bug.cgi?id=1223038
-    @profile
     def matching_content(self):
         return model.find_content(self.ent_source,
                                   content_type="yum")
 
-    @profile
     def get_all_content(self, baseurl, ca_cert):
         matching_content = self.matching_content()
         content_list = []
@@ -394,7 +390,6 @@ class RepoUpdateActionCommand(object):
             result[key] = Repo.PROPERTIES.get(key, (1, None))
         return result
 
-    @profile
     def update_repo(self, old_repo, new_repo):
         """
         Checks an existing repo definition against a potentially updated
@@ -488,7 +483,6 @@ class RepoActionReport(ActionReport):
     def format_sections(self, sections):
         return self.format_repos_info(sections, self.section_format)
 
-    @profile
     def __str__(self):
         s = [_('Repo updates') + '\n']
         s.append(_('Total repo updates: %d') % self.updates())
@@ -747,7 +741,6 @@ class RepoFile(ConfigParser.RawConfigParser):
     def exists(self):
         return self.path_exists(self.path)
 
-    @profile
     def read(self):
         foo = GLib.KeyFile()
         foo.load_from_file(self.path, GLib.KeyFileFlags.KEEP_COMMENTS)
@@ -773,7 +766,6 @@ class RepoFile(ConfigParser.RawConfigParser):
         on_disk.read(self.path)
         return not self._configparsers_equal(on_disk)
 
-    @profile
     def write(self):
         if not self.manage_repos:
             log.debug("Skipping write due to manage_repos setting: %s" %
@@ -786,7 +778,6 @@ class RepoFile(ConfigParser.RawConfigParser):
             tidy_writer.close()
             f.close()
 
-    @profile
     def render_to_string(self):
         string_io = StringIO.StringIO()
         tidy_writer = TidyWriter(string_io)
@@ -800,11 +791,9 @@ class RepoFile(ConfigParser.RawConfigParser):
         self.add_section(repo.id)
         self.update(repo)
 
-    @profile
     def delete(self, section):
         return self.remove_section(section)
 
-    @profile
     def update(self, repo):
         # Need to clear out the old section to allow unsetting options:
         # don't use remove section though, as that will reorder sections,
