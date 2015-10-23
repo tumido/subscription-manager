@@ -17,7 +17,7 @@ import logging
 
 from subscription_manager import base_action_client
 from subscription_manager import certlib
-from subscription_manager import repolib
+#from subscription_manager import repolib
 from subscription_manager.model.ent_cert import EntitlementDirEntitlementSource
 
 import subscription_manager.injection as inj
@@ -90,7 +90,7 @@ class ContentActionClient(base_action_client.BaseActionClient):
         for each plugin hook mapped to the 'update_content_hook' slot.
         """
 
-        yield repolib.RepoActionInvoker()
+#        yield repolib.RepoActionInvoker()
 
         plugin_manager = inj.require(inj.PLUGIN_MANAGER)
 
