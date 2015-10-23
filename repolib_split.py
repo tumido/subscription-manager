@@ -20,13 +20,17 @@ import sys
 
 sys.path.append('/usr/share/rhsm')
 
-from subscription_manager import injection as inj
 from subscription_manager.repolib import RepoActionInvoker
 from subscription_manager.certlib import Locker
 from subscription_manager.utils import chroot
 from subscription_manager.injectioninit import init_dep_injection
+from subscription_manager import injection as inj
 from subscription_manager import logutil
-from rhsm import connection
+from subscription_manager import lock
+from subscription_manager.certdirectory import EntitlementDirectory
+from subscription_manager.certdirectory import ProductDirectory
+from subscription_manager.identity import Identity
+from subscription_manager.cache import ReleaseStatusCache
 from rhsm import config
 
 
@@ -57,7 +61,16 @@ def update(cache_only):
     #cert_file = ConsumerIdentity.certpath()
     #key_file = ConsumerIdentity.keypath()
 
-    rl = RepoActionInvoker(cache_only=cache_only, locker=YumRepoLocker())
+    inj.provide(inj.ACTION_LOCK, lock.ActionLock)
+    inj.provide(inj.IDENTITY, Identity, singleton=True)
+    inj.provide(inj.ENT_DIR, EntitlementDirectory, singleton=True)
+    inj.provide(inj.PROD_DIR, ProductDirectory, singleton=True)
+    inj.provide(inj.RELEASE_STATUS_CACHE, ReleaseStatusCache,
+                singleton=False)
+
+    rl = RepoActionInvoker(cache_only=cache_only, apply_overrides=False)
+    #repos = rl.get_repos(apply_overrides=False)
+    #print repos
     report = rl.update()
     print report.repo_file.render_to_string()
 
@@ -89,7 +102,7 @@ def postconfig_hook():
 
     logutil.init_logger_for_yum()
 
-    init_dep_injection()
+#    init_dep_injection()
 
     # If a tool (it's, e.g., Mock) manages a chroot via 'yum --installroot',
     # we must update entitlements in that directory.
@@ -98,12 +111,11 @@ def postconfig_hook():
     cfg = config.initConfig()
     cache_only = not bool(cfg.get_int('rhsm', 'full_refresh_on_yum'))
 
-    try:
-        update(cache_only)
-    except Exception, e:
-        print str(e)
+    cache_only = True
+    update(cache_only)
 
 
+@profile
 def main():
     print postconfig_hook()
 
