@@ -14,9 +14,9 @@
 #
 
 from subscription_manager import base_plugin
-requires_api_version = "1.1"
+requires_api_version = "1.2"
 
-from subscription_manager import repolib
+from subscription_manager.plugin.yum import repolib
 
 
 class YumContentPlugin(base_plugin.SubManPlugin):
@@ -25,8 +25,21 @@ class YumContentPlugin(base_plugin.SubManPlugin):
     def update_content_hook(self, conduit):
         conduit.log.debug("YumRepoContentPlugin.update_content_hook")
 
-        action_invoker = repolib.RepoUpdateActionCommand()
+        action_invoker = repolib.RepoActionInvoker(ent_source=conduit.ent_source)
         conduit.log.debug("yum action_invoker=%s", action_invoker)
         report = action_invoker.perform()
         conduit.log.debug("report=%s", report)
         conduit.reports.add(report)
+
+    def configure_content_hook(self, conduit):
+        conduit.log.debug("YumRepoContentPlugin.configure_content_hook")
+
+        action_invoker = repolib.RepoActionInvoker(ent_source=conduit.ent_source)
+        conduit.log.debug("yum configure_content_hook action_invoker=%s", action_invoker)
+        conduit.log.debug("conduit.configure_info BEFORE=%s", conduit.configure_info)
+        result = action_invoker.configure(conduit.configure_info)
+        conduit.log.debug("yum configure_content_hook result=%s", result)
+        conduit.log.debug("conduit.configure_info AFTER=%s", conduit.configure_info)
+
+        # FIXME: pass the content config in to the conduit it, modify it, and return it
+        conduit.configure_info = result

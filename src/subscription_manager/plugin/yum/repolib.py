@@ -69,25 +69,30 @@ def manage_repos_enabled():
 
 class RepoActionInvoker(BaseActionInvoker):
     """Invoker for yum repo updating related actions."""
-    def __init__(self, cache_only=False, locker=None, apply_overrides=False):
+    def __init__(self, cache_only=False, locker=None,
+                 apply_overrides=False, ent_source=None):
         super(RepoActionInvoker, self).__init__(locker=locker)
         self.cache_only = cache_only
         self.apply_overrides = apply_overrides
         self.identity = inj.require(inj.IDENTITY)
+        self.ent_source = ent_source
 
     def _do_update(self):
         action = RepoUpdateActionCommand(cache_only=self.cache_only,
-                                         apply_overrides=self.apply_overrides)
+                                         apply_overrides=self.apply_overrides,
+                                         ent_source=self.ent_source)
         res = action.perform()
         return res
 
     def is_managed(self, repo):
-        action = RepoUpdateActionCommand(cache_only=self.cache_only)
+        action = RepoUpdateActionCommand(cache_only=self.cache_only,
+                                         ent_source=self.ent_source)
         return repo in [c.label for c in action.matching_content()]
 
     def get_repos(self, apply_overrides=True):
         action = RepoUpdateActionCommand(cache_only=self.cache_only,
-                                  apply_overrides=apply_overrides)
+                                         apply_overrides=apply_overrides,
+                                         ent_source=self.ent_source)
         repos = action.get_unique_content()
 
         current = set()
@@ -107,6 +112,24 @@ class RepoActionInvoker(BaseActionInvoker):
     def get_repo_file(self):
         repo_file = RepoFile()
         return repo_file.path
+
+    def configure(self, configured_infos):
+        log.debug("code to configure repos should move here out of managercli, etc")
+        # This could be just RepoFile munging, or it could be changing overrides...
+        configured_infos.update({'this is a content config thing': 'i like stuff, especially plugin stuff',
+                                 'magic_number': 'square root of four'})
+        log.debug("actionInvoker configured_infos=%s", configured_infos)
+
+        repo_file = RepoFile()
+        repo_file.read()
+        repos = []
+        for section in repo_file.sections():
+            repo = repo_file.section(section)
+            repos.append(repo)
+        configured_infos.update({'repos': repos})
+        log.debug("actionInvoker after adding repos configured_infos=%s", configured_infos)
+
+        return configured_infos
 
     @classmethod
     def delete_repo_file(cls):
@@ -209,14 +232,15 @@ class RepoUpdateActionCommand(object):
 
     Returns an RepoActionReport.
     """
-    def __init__(self, cache_only=False, apply_overrides=True):
+    def __init__(self, cache_only=False, apply_overrides=True,
+                 ent_source=None):
         self.identity = inj.require(inj.IDENTITY)
 
         # These should probably move closer their use
         self.ent_dir = inj.require(inj.ENT_DIR)
         self.prod_dir = inj.require(inj.PROD_DIR)
 
-        self.ent_source = ent_cert.EntitlementDirEntitlementSource()
+        self.ent_source = ent_source or ent_cert.EntitlementDirEntitlementSource()
 
         self.manage_repos = 1
         self.apply_overrides = apply_overrides
@@ -742,9 +766,6 @@ class RepoFile(ConfigParser.RawConfigParser):
         return self.path_exists(self.path)
 
     def read(self):
-        foo = GLib.KeyFile()
-        foo.load_from_file(self.path, GLib.KeyFileFlags.KEEP_COMMENTS)
-        groups = foo.get_groups()
         ConfigParser.RawConfigParser.read(self, self.path)
 
     def _configparsers_equal(self, otherparser):
