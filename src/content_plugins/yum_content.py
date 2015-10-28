@@ -27,7 +27,7 @@ class YumContentPlugin(base_plugin.SubManPlugin):
 
         action_invoker = repolib.RepoActionInvoker(ent_source=conduit.ent_source)
         conduit.log.debug("yum action_invoker=%s", action_invoker)
-        report = action_invoker.perform()
+        report = action_invoker.update()
         conduit.log.debug("report=%s", report)
         conduit.reports.add(report)
 
