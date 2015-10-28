@@ -40,7 +40,7 @@ from subscription_manager.base_plugin import SubManPlugin
 # API, the major version number must be incremented and the minor version number
 # reset to 0. If a change is made that doesn't break backwards compatibility,
 # then the minor number must be incremented.
-API_VERSION = "1.1"
+API_VERSION = "1.2"
 
 DEFAULT_SEARCH_PATH = "/usr/share/rhsm-plugins/"
 DEFAULT_CONF_PATH = "/etc/rhsm/pluginconf.d/"
@@ -345,6 +345,15 @@ class UpdateContentConduit(BaseConduit):
         super(UpdateContentConduit, self).__init__(clazz)
         self.reports = reports
         self.ent_source = ent_source
+
+
+class ConfigureContentConduit(BaseConduit):
+    slots = ['configure_content']
+
+    def __init__(self, clazz, ent_source):
+        super(ConfigureContentConduit, self).__init__(clazz)
+        self.ent_source = ent_source
+        self.configure_info = {'nothing here yet': 'nope'}
 
 
 class SubscriptionConduit(BaseConduit):
@@ -875,6 +884,7 @@ class PluginManager(BasePluginManager):
         return [BaseConduit, ProductConduit, ProductUpdateConduit,
                 RegistrationConduit, PostRegistrationConduit,
                 FactsConduit, SubscriptionConduit,
+                ConfigureContentConduit,
                 UpdateContentConduit,
                 PostSubscriptionConduit,
                 AutoAttachConduit, PostAutoAttachConduit]

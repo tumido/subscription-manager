@@ -1941,22 +1941,25 @@ class ReposCommand(CliCommand):
 
     def _do_command(self):
         # FIXME
-        return 0
+        #return 0
 
         self._validate_options()
         rc = 0
-        content_update_action = content_action_client.ContentUpdateActionClient()
-        content_config_action_client = content_action_client.ContentConfigActionClient()
+        content_action = content_action_client.ContentActionClient()
+#        content_update_action = content_action_client.ContentUpdateActionClient()
+#        content_config_action_client = content_action_client.ContentConfigActionClient()
 
         # TODO: replace with some version of 'is the yum plugin enabled'.
         # Need to do this for each content plugin? yum's setting is in rhsm.conf however
 
-        manage_any_repos = False
-        for content_source in content_config_action_client.content_sources():
-            if not content_source.manage_repos_enabled():
-                print _("Repositories disabled by configuration.")
-                continue
-            manage_any_repos = True
+        # FIXME:
+        manage_any_repos = True
+#        manage_any_repos = False
+#        for content_source in content_action.content_sources():
+#            if not content_source.manage_repos_enabled():
+#                print _("Repositories disabled by configuration.")
+#                continue
+#            manage_any_repos = True
 
         if not manage_any_repos:
             return rc
@@ -1971,18 +1974,51 @@ class ReposCommand(CliCommand):
 
         # specifically, yum repos, for now.
         #rl = RepoActionInvoker()
-        #repos = rl.get_repos()
+        # need a ContentId? with content source/plugin, and... file name? content type?
+        # repos = content_action.get_repos()
+        configured_infos = content_action.configure()
+        log.debug("configured_infos=%s", configured_infos)
+        # What's configure_infos look like?
+        # class ConfiguredContentInfo
+        #   content_type = 'yum'
+        #   repos = []
+        #
 
         if hasattr(self.options, 'repo_actions'):
-            rc = self._set_repo_status(repos, rl, self.options.repo_actions)
+            rcs = self.set_repos_statuses(configured_infos, content_action, self.options.repo_actions)
+            if any(rcs):
+                # FIXME..  return code for one content type of many failing?
+                rc = 199
 
         if self.options.list:
+            self.list_repos_for_content_configs(configured_infos, content_action)
+
         return rc
 
-    def list_repos(self, repos, content_config_action_client):
+    def set_repos_statuses(self, configured_infos, content_action, option_repo_actions):
+        rcs = []
+        #for configured_info in configured_infos:
+        for content_source, content_config in configured_infos.items():
+            repos = content_config.get('repos', [])
+            rc = self._set_repo_status(repos, content_action, option_repo_actions)
+            rcs.append(rc)
+        return rcs
+
+    def list_repos_for_content_configs(self, configured_infos, content_action):
+        for content_source, content_config in configured_infos.items():
+            self.list_repos_for_content_source(content_source, configured_infos)
+
+    def list_repos_for_content_source(self, content_source, configured_infos):
+        content_config = configured_infos[content_source]
+        repos = content_config.get('repos', [])
+        repo_file = content_config.get('repo_file', '/etc/yum.repos.d/redhat.repo')
+        self.list_repos(repos, repo_file)
+
+    def list_repos(self, repos, repo_file):
         if len(repos):
             # TODO: Perhaps this should be abstracted out as well...?
             def filter_repos(repo):
+                log.debug("filter_repos repo=%s", repo)
                 show_enabled = (self.options.list_enabled and repo["enabled"] != '0')
                 show_disabled = (self.options.list_disabled and repo["enabled"] == '0')
 
@@ -1992,10 +2028,11 @@ class ReposCommand(CliCommand):
 
             if len(repos):
                 print("+----------------------------------------------------------+")
-                print _("    Available Repositories in %s") % rl.get_repo_file()
+                print _("    Available Repositories in %s") % repo_file
                 print("+----------------------------------------------------------+")
 
                 for repo in repos:
+                    self.show_repo(repo)
             else:
                 print _("There were no available repositories matching the specified criteria.")
         else:
@@ -2008,8 +2045,7 @@ class ReposCommand(CliCommand):
                         repo["baseurl"],
                         repo["enabled"]) + "\n"
 
-
-    def _set_repo_status(self, repos, repo_action_invoker, repo_actions):
+    def _set_repo_status(self, repos, content_action, repo_actions):
         """
         Given a list of repo actions (tuple of enable/disable and
         repo ID), build the master list (without duplicates) to send to the
@@ -2050,18 +2086,24 @@ class ReposCommand(CliCommand):
                 cache.server_status = results
                 cache.write_cache()
 
-                repo_action_invoker.update()
+                content_action.update()
+                #repo_action_invoker.update()
             else:
                 # In the disconnected case we must modify the repo file directly.
                 changed_repos = [repo for repo in matches if repo['enabled'] != status]
                 for repo in changed_repos:
                     repo['enabled'] = status
-                if changed_repos:
-                    repo_file = RepoFile()
-                    repo_file.read()
-                    for repo in changed_repos:
-                        repo_file.update(repo)
-                    repo_file.write()
+                log.debug("changed_repos=%s", changed_repos)
+                # log.debug("
+#                if changed_repos:
+#                    content_action.configure(
+#                    for repo in changed_repos:
+#                        repos
+#                    repo_file = RepoFile()
+#                    repo_file.read()
+#                    for repo in changed_repos:
+#                        repo_file.update(repo)
+#                    repo_file.write()
 
         for repo in repos_to_modify:
             # Watchout for string comparison here:

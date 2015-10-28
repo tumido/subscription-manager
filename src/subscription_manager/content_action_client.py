@@ -17,7 +17,7 @@ import logging
 
 from subscription_manager import base_action_client
 from subscription_manager import certlib
-#from subscription_manager import repolib
+from subscription_manager import utils
 from subscription_manager.model.ent_cert import EntitlementDirEntitlementSource
 
 import subscription_manager.injection as inj
@@ -61,6 +61,17 @@ class ContentPluginActionCommand(object):
         return self.runner.conduit.reports
 
 
+class ContentPluginConfigureActionCommand(object):
+    def __init__(self, content_plugin_runner):
+        self.runner = content_plugin_runner
+
+    def perform(self):
+        # run the plugin hook...
+        self.runner.run()
+        # Actually a set of reports...
+        return self.runner.conduit.configure_info
+
+
 class ContentPluginActionInvoker(certlib.BaseActionInvoker):
     """ActionInvoker for ContentPluginActionCommands."""
     def __init__(self, content_plugin_runner):
@@ -80,8 +91,26 @@ class ContentPluginActionInvoker(certlib.BaseActionInvoker):
         action = ContentPluginActionCommand(self.runner)
         return action.perform()
 
+    def configure(self):
+        action = ContentPluginConfigureActionCommand(self.runner)
+        return action.perform()
+
+
+class ConfiguredContentInfo(object):
+    def __init__(self, content_type=None, repos=None):
+        self.content_type = content_type
+        self.repos = repos or []
+
+    def __repr__(self):
+        return "ConfiguredContentInfo(content_type=%s, repos=%s)" % (self.content_type,
+                                                                    self.repos)
+
 
 class ContentActionClient(base_action_client.BaseActionClient):
+
+    def __init__(self):
+        super(ContentActionClient, self).__init__()
+        self.configure_actions = self._get_configure_actions()
 
     def _get_libset(self):
         """Return a generator that creates a ContentPluginAction* for each update_content plugin.
@@ -89,8 +118,6 @@ class ContentActionClient(base_action_client.BaseActionClient):
         The iterable return includes the yum repo action invoker, and a ContentPluginActionInvoker
         for each plugin hook mapped to the 'update_content_hook' slot.
         """
-
-#        yield repolib.RepoActionInvoker()
 
         plugin_manager = inj.require(inj.PLUGIN_MANAGER)
 
@@ -107,3 +134,25 @@ class ContentActionClient(base_action_client.BaseActionClient):
                                              ent_source=ent_dir_ent_source):
             invoker = ContentPluginActionInvoker(runner)
             yield invoker
+
+    def _get_configure_actions(self):
+        log.debug("_get_configure_actions")
+        plugin_manager = inj.require(inj.PLUGIN_MANAGER)
+
+        ent_dir_ent_source = EntitlementDirEntitlementSource()
+
+        for runner in plugin_manager.runiter('configure_content',
+                                             ent_source=ent_dir_ent_source):
+            invoker = ContentPluginActionInvoker(runner)
+            log.debug("_get_configure_actions invoker=%s", invoker)
+            yield invoker
+
+    def configure(self, content_type=None):
+        #configure_infos = []
+        content_type = content_type or 'yum'
+        configured_infos = utils.DefaultDict(list)
+        for configure_action in self.configure_actions:
+            res = configure_action.configure()
+            configured_infos[content_type] = res
+
+        return configured_infos
