@@ -66,6 +66,17 @@ class OstreeContentUpdateActionCommand(object):
 
         return self.update_repo_config()
 
+    def configure(self, configured_infos=None):
+        ostree_repo_config = model.OstreeRepoConfig()
+
+        # populate config, handle exceptions
+        self.load_config(ostree_repo_config)
+
+        #new_remotes = model.OstreeRemotes()
+
+        configured_infos.update({'repos': ostree_repo_config.remotes})
+        return configured_infos
+
     def update_repo_config(self):
         ostree_repo_config = model.OstreeRepoConfig()
 
