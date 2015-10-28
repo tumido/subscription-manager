@@ -50,6 +50,7 @@ from subscription_manager import managerlib
 from subscription_manager.managerlib import valid_quantity, format_date
 from subscription_manager.release import ReleaseBackend
 #from subscription_manager.repolib import RepoActionInvoker, RepoFile, manage_repos_enabled
+from subscription_manager import content_action_client
 from subscription_manager.utils import parse_server_info, \
         parse_baseurl_info, format_baseurl, is_valid_server_info, \
         MissingCaCertException, get_client_versions, get_server_versions, \
@@ -1939,12 +1940,25 @@ class ReposCommand(CliCommand):
             self.options.list_disabled = True
 
     def _do_command(self):
+        # FIXME
         return 0
+
         self._validate_options()
         rc = 0
+        content_update_action = content_action_client.ContentUpdateActionClient()
+        content_config_action_client = content_action_client.ContentConfigActionClient()
+
         # TODO: replace with some version of 'is the yum plugin enabled'.
-        if not manage_repos_enabled():
-            print _("Repositories disabled by configuration.")
+        # Need to do this for each content plugin? yum's setting is in rhsm.conf however
+
+        manage_any_repos = False
+        for content_source in content_config_action_client.content_sources():
+            if not content_source.manage_repos_enabled():
+                print _("Repositories disabled by configuration.")
+                continue
+            manage_any_repos = True
+
+        if not manage_any_repos:
             return rc
 
         # Pull down any new entitlements and refresh the entitlements directory
@@ -1956,40 +1970,44 @@ class ReposCommand(CliCommand):
         self.use_overrides = self.cp.supports_resource('content_overrides')
 
         # specifically, yum repos, for now.
-        rl = RepoActionInvoker()
-        repos = rl.get_repos()
+        #rl = RepoActionInvoker()
+        #repos = rl.get_repos()
 
         if hasattr(self.options, 'repo_actions'):
             rc = self._set_repo_status(repos, rl, self.options.repo_actions)
 
         if self.options.list:
-            if len(repos):
-                # TODO: Perhaps this should be abstracted out as well...?
-                def filter_repos(repo):
-                    show_enabled = (self.options.list_enabled and repo["enabled"] != '0')
-                    show_disabled = (self.options.list_disabled and repo["enabled"] == '0')
-
-                    return show_enabled or show_disabled
-
-                repos = filter(filter_repos, repos)
-
-                if len(repos):
-                    print("+----------------------------------------------------------+")
-                    print _("    Available Repositories in %s") % rl.get_repo_file()
-                    print("+----------------------------------------------------------+")
-
-                    for repo in repos:
-                        print columnize(REPOS_LIST, _echo,
-                            repo.id,
-                            repo["name"],
-                            repo["baseurl"],
-                            repo["enabled"]) + "\n"
-                else:
-                    print _("There were no available repositories matching the specified criteria.")
-            else:
-                print _("This system has no repositories available through subscriptions.")
-
         return rc
+
+    def list_repos(self, repos, content_config_action_client):
+        if len(repos):
+            # TODO: Perhaps this should be abstracted out as well...?
+            def filter_repos(repo):
+                show_enabled = (self.options.list_enabled and repo["enabled"] != '0')
+                show_disabled = (self.options.list_disabled and repo["enabled"] == '0')
+
+                return show_enabled or show_disabled
+
+            repos = filter(filter_repos, repos)
+
+            if len(repos):
+                print("+----------------------------------------------------------+")
+                print _("    Available Repositories in %s") % rl.get_repo_file()
+                print("+----------------------------------------------------------+")
+
+                for repo in repos:
+            else:
+                print _("There were no available repositories matching the specified criteria.")
+        else:
+            print _("This system has no repositories available through subscriptions.")
+
+    def show_repo(self, repo):
+        print columnize(REPOS_LIST, _echo,
+                        repo.id,
+                        repo["name"],
+                        repo["baseurl"],
+                        repo["enabled"]) + "\n"
+
 
     def _set_repo_status(self, repos, repo_action_invoker, repo_actions):
         """
