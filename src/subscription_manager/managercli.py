@@ -2100,7 +2100,11 @@ class ReposCommand(CliCommand):
             cache = inj.require(inj.OVERRIDE_STATUS_CACHE)
 
             if self.is_registered() and self.use_overrides:
-                overrides = [{'contentLabel': repo.id, 'name': 'enabled', 'value': repos_to_modify[repo]} for repo in repos_to_modify]
+                overrides = [{'contentLabel': repo.id,
+                              'name': 'enabled',
+                              'value': repos_to_modify[repo]}
+                             for repo in repos_to_modify]
+
                 results = self.cp.setContentOverrides(self.identity.uuid, overrides)
 
                 cache = inj.require(inj.OVERRIDE_STATUS_CACHE)
@@ -2113,6 +2117,9 @@ class ReposCommand(CliCommand):
                 # call update() to 'apply' those changes (wish could for example, involve
                 # the configure_content hook changing consumer overrides, and needing
                 # the update() to realize it.
+                #
+                # Note content_action.update() updates all the content types, not just
+                # the ones we changed.
                 content_action.update()
                 #repo_action_invoker.update()
             else:
