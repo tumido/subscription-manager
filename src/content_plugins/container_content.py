@@ -43,23 +43,25 @@ class ContainerContentPlugin(base_plugin.SubManPlugin):
         conduit.log.info("Updating container content.")
         registry_hostnames = conduit.conf_string('main', 'registry_hostnames')
         conduit.log.info("registry hostnames = %s" % registry_hostnames)
-        cmd = ContainerContentUpdateActionCommand(
-            ent_source=conduit.ent_source,
-            registry_hostnames=registry_hostnames.split(','),
-            host_cert_dir=HOSTNAME_CERT_DIR)
+        cmd = ContainerContentUpdateActionCommand(ent_source=conduit.ent_source,
+                                                  registry_hostnames=registry_hostnames.split(','),
+                                                  host_cert_dir=HOSTNAME_CERT_DIR)
         report = cmd.perform()
         conduit.reports.add(report)
 
     def configure_content_hook(self, conduit):
-        conduit.log.debug("YumRepoContentPlugin.configure_content_hook")
+        conduit.log.debug("ContainerContentPlugin.configure_content_hook")
 
-        action_invoker = repolib.RepoActionInvoker(ent_source=conduit.ent_source)
-        conduit.log.debug("yum configure_content_hook action_invoker=%s", action_invoker)
-        conduit.log.debug("conduit.configure_info BEFORE=%s", conduit.content_config)
-        result = action_invoker.configure(conduit.content_config)
-        conduit.log.debug("yum configure_content_hook result=%s", result)
-        conduit.log.debug("conduit.configure_info AFTER=%s", conduit.content_config)
+        registry_hostnames = conduit.conf_string('main', 'registry_hostnames')
+        action_command = ContainerContentUpdateActionCommand(ent_source=conduit.ent_source,
+                                                             registry_hostnames=registry_hostnames.split(','),
+                                                             host_cert_dir=HOSTNAME_CERT_DIR,
+                                                             content_config=conduit.content_config)
 
-        # FIXME: pass the content config in to the conduit it, modify it, and return it
-        conduit.content_config = result
+        conduit.log.debug("container configure_content_hook action_command=%s", action_command)
+        conduit.log.debug("container conduit.configure_info BEFORE=%s", conduit.content_config)
 
+        result = action_command.configure()
+
+        conduit.log.debug("container configure_content_hook result=%s", result)
+        conduit.log.debug("container conduit.configure_info AFTER=%s", conduit.content_config)

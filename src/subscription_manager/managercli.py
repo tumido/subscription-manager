@@ -2025,6 +2025,7 @@ class ReposCommand(CliCommand):
             # TODO: Perhaps this should be abstracted out as well...?
             def filter_repos(repo):
                 log.debug("filter_repos repo=%s", repo)
+                #log.debug("filter_repos repo.items()=%s", repo.items())
                 show_enabled = (self.options.list_enabled and repo["enabled"] != '0')
                 show_disabled = (self.options.list_disabled and repo["enabled"] == '0')
 
@@ -2108,6 +2109,10 @@ class ReposCommand(CliCommand):
                 cache.server_status = results
                 cache.write_cache()
 
+                # TODO/FIXME: We may want to wait until all content_plugins run before
+                # call update() to 'apply' those changes (wish could for example, involve
+                # the configure_content hook changing consumer overrides, and needing
+                # the update() to realize it.
                 content_action.update()
                 #repo_action_invoker.update()
             else:
@@ -2116,7 +2121,11 @@ class ReposCommand(CliCommand):
                 for repo in changed_repos:
                     repo['enabled'] = status
                 log.debug("changed_repos=%s", changed_repos)
-                # log.debug("
+
+                # TODO/FIXME: Need a hook here to apply local changes (or expect
+                #             content plugins to do that themselves.
+
+# log.debug("
 #                if changed_repos:
 #                    content_action.configure(
 #                    for repo in changed_repos:

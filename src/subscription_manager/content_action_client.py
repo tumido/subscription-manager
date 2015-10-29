@@ -154,6 +154,7 @@ class ContentActionClient(base_action_client.BaseActionClient):
     def configure(self, content_type=None):
         #configure_infos = []
         content_type = content_type or 'yum'
+        res = None
         for configure_action in self.configure_actions:
             log.debug("running configure_action=%s configure()", configure_action)
             # We could just pass the subset of content config associated with the content types the

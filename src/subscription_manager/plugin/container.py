@@ -34,16 +34,66 @@ RH_CDN_REGEX = re.compile('^cdn\.(?:.*\.)?redhat\.com$')
 RH_CDN_CA = "/etc/rhsm/ca/redhat-entitlement-authority.pem"
 
 
+# TODO: Add a base 'Repo' class for repolib.Repo()/ContainerRepo() and perhaps ostree.model.OstreeRemotes
+#       to use
+class ContainerRepo(dict):
+    """A dict like objects used to carry the info used in ReposCommand.list_repos, etc"""
+    def __init__(self, repo_id, registry_hostname):
+        self.id = repo_id
+        self.registry_hostname = registry_hostname
+        self._order = []
+
+    def items(self):
+        """
+        Called when we fetch the items for this yum repo to write to disk.
+        """
+        # Skip anything set to 'None' or empty string, as this is likely
+        # not intended for a repo file. None can result here if the
+        # default is None, or the entitlement certificate did not have the
+        # value set.
+        #
+        # all values will be in _order, since the key has to have been set
+        # to get into our dict.
+        return tuple([(k, self[k]) for k in self._order if
+                     k in self and self[k]])
+
+    def __setitem__(self, key, value):
+        if key not in self._order:
+            self._order.append(key)
+        dict.__setitem__(self, key, value)
+
+    @classmethod
+    def from_ent_cert_content(cls, content, registry_hostname):
+        repo = cls(content.label, registry_hostname)
+        repo['name'] = content.name
+        if content.enabled:
+            repo['enabled'] = 1
+        else:
+            repo['enabled'] = 0
+
+        repo['baseurl'] = registry_hostname
+
+        # TODO: construct the rest of the repo, but we only need the
+        #       above for 'repos --list'
+        return repo
+
+    @property
+    def label_name_url_enabled(self):
+        return (self.id, self['name'], self['baseurl'], self['enabled'])
+
+
 class ContainerContentUpdateActionCommand(object):
     """
     UpdateActionCommand for Docker configuration.
 
     Return a ContainerContentUpdateReport.
     """
-    def __init__(self, ent_source, registry_hostnames, host_cert_dir):
+    def __init__(self, ent_source, registry_hostnames, host_cert_dir,
+                 content_config=None):
         self.ent_source = ent_source
         self.registry_hostnames = registry_hostnames
         self.host_cert_dir = host_cert_dir
+        self.content_config = content_config
 
     def perform(self):
 
@@ -61,9 +111,26 @@ class ContainerContentUpdateActionCommand(object):
 
         return report
 
+    def configure(self):
+        container_content_config = {'repo_file': self.host_cert_dir,
+                                    'repos': self._get_repos()}
+        self.content_config[CONTAINER_CONTENT_TYPE] = container_content_config
+        return self.content_config
+
+    def _get_repos(self):
+        # Whats the containerimage equilivent of a list of repos? The list of
+        # registries? The list of KeyPairs?
+        repos = []
+        content_sets = self._find_content()
+        for registry_hostname in self.registry_hostnames:
+            for content_set in content_sets:
+                repo = ContainerRepo.from_ent_cert_content(content_set, registry_hostname)
+                repos.append(repo)
+        return repos
+
     def _find_content(self):
         return find_content(self.ent_source,
-            content_type=CONTAINER_CONTENT_TYPE)
+                            content_type=CONTAINER_CONTENT_TYPE)
 
     def _get_unique_paths(self, content_sets):
         """
@@ -73,8 +140,7 @@ class ContainerContentUpdateActionCommand(object):
         # Identify all the unique certificates we need to copy:
         unique_cert_paths = set()
         for content in content_sets:
-            unique_cert_paths.add(
-                KeyPair(content.cert.path, content.cert.key_path()))
+            unique_cert_paths.add(KeyPair(content.cert.path, content.cert.key_path()))
         return unique_cert_paths
 
 

@@ -222,7 +222,7 @@ class OstreeRemote(object):
         """
 
         remote = cls()
-        remote.name = content.label
+        remote.name = content.name
         remote.label = content.label
         remote.url = content.url
 
