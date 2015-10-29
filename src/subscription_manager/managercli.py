@@ -1978,8 +1978,8 @@ class ReposCommand(CliCommand):
         #rl = RepoActionInvoker()
         # need a ContentId? with content source/plugin, and... file name? content type?
         # repos = content_action.get_repos()
-        configured_infos = content_action.configure()
-        log.debug("configured_infos=%s", configured_infos)
+        content_config = content_action.configure()
+        log.debug("content_config=%s", content_config)
         # What's configure_infos look like?
         # class ConfiguredContentInfo
         #   content_type = 'yum'
@@ -1987,36 +1987,40 @@ class ReposCommand(CliCommand):
         #
 
         if hasattr(self.options, 'repo_actions'):
-            rcs = self.set_repos_statuses(configured_infos, content_action, self.options.repo_actions)
+            rcs = self.set_repos_statuses(content_config, content_action, self.options.repo_actions)
             if any(rcs):
                 # FIXME..  return code for one content type of many failing?
                 rc = 199
 
         if self.options.list:
-            self.list_repos_for_content_configs(configured_infos, content_action)
+            self.list_repos_for_content_configs(content_config, content_action)
 
         return rc
 
-    def set_repos_statuses(self, configured_infos, content_action, option_repo_actions):
+    def set_repos_statuses(self, content_config, content_action, option_repo_actions):
         rcs = []
         #for configured_info in configured_infos:
-        for content_source, content_config in configured_infos.items():
-            repos = content_config.get('repos', [])
+        for content_type, per_content_type_content_config in content_config.items():
+            repos = per_content_type_content_config.get('repos', [])
             rc = self._set_repo_status(repos, content_action, option_repo_actions)
             rcs.append(rc)
         return rcs
 
-    def list_repos_for_content_configs(self, configured_infos, content_action):
-        for content_source, content_config in configured_infos.items():
-            self.list_repos_for_content_source(content_source, configured_infos)
+    def list_repos_for_content_configs(self, content_config, content_action):
+        for content_type, per_content_type_content_config in content_config.items():
+            log.debug("content_type=%s", content_type)
+            self.list_repos_for_content_type(content_type, per_content_type_content_config)
 
-    def list_repos_for_content_source(self, content_source, configured_infos):
-        content_config = configured_infos[content_source]
-        repos = content_config.get('repos', [])
-        repo_file = content_config.get('repo_file', '/etc/yum.repos.d/redhat.repo')
+    def list_repos_for_content_type(self, content_type, per_content_type_content_config):
+        #per_content_type_content_config = content_config[content_type]
+        log.debug("per_content_type_content_config=%s", per_content_type_content_config)
+        repos = per_content_type_content_config.get('repos', [])
+        repo_file = per_content_type_content_config.get('repo_file', '/etc/yum.repos.d/redhat.repo')
         self.list_repos(repos, repo_file)
 
     def list_repos(self, repos, repo_file):
+        log.debug("list_repos repos=%s", repos)
+        log.debug("list_repos type(repos)=%s", type(repos))
         if len(repos):
             # TODO: Perhaps this should be abstracted out as well...?
             def filter_repos(repo):
@@ -2041,11 +2045,27 @@ class ReposCommand(CliCommand):
             print _("This system has no repositories available through subscriptions.")
 
     def show_repo(self, repo):
+        # Note the objects representing what is actually in the per content type config use names
+        # and attributes that match the config file, as opposed to Content() objects that use the
+        # attribute names based on the certificate Content() objects (which are based on the Content
+        # DTO's used by candlepin.
+        #
+        # In other words, we really need a per content type repr for this. Or something
+        # that retures the right label/name/url/enabled strings for each type
+
+        # TODO: Letting the per content type config objects return something like
+        # {'id': self['id'], 'name': self.name, 'url': self['url'], 'enabled': self['enabled']}
+        # to use to map to the rows would be useful, and allow different row labels.
+        #
+        # Note: ostreeRemote seems to lose the 'name' field of the cert Content() object, and clobbers it
+        #       with the section label. Likely OstreeRemote.label should have been the section id and
+        #       OstreeRemote.name the human name.
+        # Another approach would be to bundle the original Content() object as an attr of the Repo()/OStreeRemote()
+        # and pull the human name from there. Possibly other fields as well, but the other fields can be
+        # modified in local content config and may not match (name could be as well, but it's presentation...)
+
         print columnize(REPOS_LIST, _echo,
-                        repo.id,
-                        repo["name"],
-                        repo["baseurl"],
-                        repo["enabled"]) + "\n"
+                        *repo.label_name_url_enabled) + "\n"
 
     def _set_repo_status(self, repos, content_action, repo_actions):
         """

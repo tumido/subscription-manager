@@ -14,7 +14,7 @@
 #
 
 from subscription_manager import base_plugin
-requires_api_version = "1.1"
+requires_api_version = "1.2"
 
 # install our helper modules here
 from subscription_manager.plugin.ostree import action_invoker
@@ -35,3 +35,20 @@ class OstreeContentPlugin(base_plugin.SubManPlugin):
 
         report = action_invoker.OstreeContentUpdateActionCommand(ent_source=conduit.ent_source).perform()
         conduit.reports.add(report)
+
+    def configure_content_hook(self, conduit):
+        conduit.log.debug("OstreeContentPlugin.configure_content_hook")
+
+        action_command = action_invoker.OstreeContentUpdateActionCommand(ent_source=conduit.ent_source,
+                                                                         content_config=conduit.content_config)
+
+        conduit.log.debug("ostree configure_content_hook action_command=%s", action_command)
+        conduit.log.debug("conduit.content_config BEFORE=%s", conduit.content_config)
+
+        result = action_command.configure()
+
+        conduit.log.debug("ostree configure_content_hook result=%s", result)
+        conduit.log.debug("conduit.content_config AFTER=%s", conduit.content_config)
+
+        # FIXME: pass the content config in to the conduit it, modify it, and return it
+        #conduit.content_config = result

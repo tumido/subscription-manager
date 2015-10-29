@@ -39,8 +39,9 @@ class OstreeContentUpdateActionCommand(object):
 
     Return a OstreeContentUpdateReport.
     """
-    def __init__(self, ent_source):
+    def __init__(self, ent_source, content_config=None):
         self.ent_source = ent_source
+        self.content_config = content_config
 
     def migrate_core_config(self):
         # starting state of ostree config
@@ -66,7 +67,19 @@ class OstreeContentUpdateActionCommand(object):
 
         return self.update_repo_config()
 
-    def configure(self, configured_infos=None):
+    def configure(self):
+        """Add ostree content info to self.content_config and apply any changes.
+
+        OstreeContentUpdateActionCommand is created with a content_config object that
+        represents the content configuration for all content_types and can be read/modified
+        by content_plugins including ostree_content.
+
+        This method can modify self.content_config. It should add the ostree remotes to
+        content_config['ostree']['repos'].
+        """
+
+        # TODO: best way to provide desired changes?
+        #      - seperate 'get_content_config' from 'update_content_config' ?
         ostree_repo_config = model.OstreeRepoConfig()
 
         # populate config, handle exceptions
@@ -74,8 +87,10 @@ class OstreeContentUpdateActionCommand(object):
 
         #new_remotes = model.OstreeRemotes()
 
-        configured_infos.update({'repos': ostree_repo_config.remotes})
-        return configured_infos
+        ostree_repos_config = {OSTREE_CONTENT_TYPE: {'repos': ostree_repo_config.remotes,
+                                                     'repo_file': ostree_repo_config.repo_file_path}}
+        self.content_config.update(ostree_repos_config)
+        return self.content_config
 
     def update_repo_config(self):
         ostree_repo_config = model.OstreeRepoConfig()

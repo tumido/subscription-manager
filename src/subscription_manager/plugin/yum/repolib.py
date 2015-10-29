@@ -44,10 +44,9 @@ log = logging.getLogger('rhsm-app.' + __name__)
 CFG = initConfig()
 
 ALLOWED_CONTENT_TYPES = ["yum"]
+YUM_CONTENT_TYPE = "yum"
 
 _ = gettext.gettext
-
-from gi.repository import GLib
 
 
 def manage_repos_enabled():
@@ -69,13 +68,18 @@ def manage_repos_enabled():
 
 class RepoActionInvoker(BaseActionInvoker):
     """Invoker for yum repo updating related actions."""
-    def __init__(self, cache_only=False, locker=None,
-                 apply_overrides=False, ent_source=None):
+    def __init__(self,
+                 cache_only=False,
+                 locker=None,
+                 apply_overrides=False,
+                 ent_source=None,
+                 content_config=None):
         super(RepoActionInvoker, self).__init__(locker=locker)
         self.cache_only = cache_only
         self.apply_overrides = apply_overrides
         self.identity = inj.require(inj.IDENTITY)
         self.ent_source = ent_source
+        self.content_config = content_config
 
     def _do_update(self):
         action = RepoUpdateActionCommand(cache_only=self.cache_only,
@@ -113,12 +117,15 @@ class RepoActionInvoker(BaseActionInvoker):
         repo_file = RepoFile()
         return repo_file.path
 
-    def configure(self, configured_infos):
+    def configure(self):
         log.debug("code to configure repos should move here out of managercli, etc")
         # This could be just RepoFile munging, or it could be changing overrides...
-        configured_infos.update({'this is a content config thing': 'i like stuff, especially plugin stuff',
-                                 'magic_number': 'square root of four'})
-        log.debug("actionInvoker configured_infos=%s", configured_infos)
+        yum_content_config = {'this is a content config thing':
+                              'i like stuff, especially plugin stuff',
+                              'magic_number': 'square root of four'}
+
+        log.debug("actionInvoker yum_config_content=%s", yum_content_config)
+        log.debug("actionInvoker self.content_config=%s", self.content_config)
 
         repo_file = RepoFile()
         repo_file.read()
@@ -126,10 +133,15 @@ class RepoActionInvoker(BaseActionInvoker):
         for section in repo_file.sections():
             repo = repo_file.section(section)
             repos.append(repo)
-        configured_infos.update({'repos': repos})
-        log.debug("actionInvoker after adding repos configured_infos=%s", configured_infos)
 
-        return configured_infos
+        # FIXME: append/add to any existing repo config (ie, another content plugin that may also
+        #        know how to setup yum repos.
+        yum_content_config['repos'] = repos
+        yum_content_config['repo_file'] = repo_file.path
+        self.content_config[YUM_CONTENT_TYPE].update(yum_content_config)
+        log.debug("actionInvoker after adding repos self.content_config=%s", self.content_config)
+
+        return self.content_config
 
     @classmethod
     def delete_repo_file(cls):
@@ -559,6 +571,20 @@ class Repo(dict):
         for k, (m, d) in self.PROPERTIES.items():
             if k not in self.keys():
                 self[k] = d
+
+    @property
+    def label(self):
+        # Repo objects have a .id and .name, Content() objects have a 'name' and a 'label',
+        # ostree remotes have just a 'name'
+        # For now, Repo.label gets Repo.id
+        return self.id
+
+    @property
+    def label_name_url_enabled(self):
+        return (self.label,
+                self.get('name', None),
+                self.get('baseurl', None),
+                self.get('enabled', None))
 
     @classmethod
     def from_ent_cert_content(cls, content, baseurl, ca_cert, release_source):

@@ -34,12 +34,16 @@ class YumContentPlugin(base_plugin.SubManPlugin):
     def configure_content_hook(self, conduit):
         conduit.log.debug("YumRepoContentPlugin.configure_content_hook")
 
-        action_invoker = repolib.RepoActionInvoker(ent_source=conduit.ent_source)
+        action_invoker = repolib.RepoActionInvoker(ent_source=conduit.ent_source,
+                                                   content_config=conduit.content_config)
+
         conduit.log.debug("yum configure_content_hook action_invoker=%s", action_invoker)
-        conduit.log.debug("conduit.configure_info BEFORE=%s", conduit.configure_info)
-        result = action_invoker.configure(conduit.configure_info)
+        conduit.log.debug("conduit.content_config BEFORE=%s", conduit.content_config)
+
+        result = action_invoker.configure()
+
         conduit.log.debug("yum configure_content_hook result=%s", result)
-        conduit.log.debug("conduit.configure_info AFTER=%s", conduit.configure_info)
+        conduit.log.debug("conduit.content_config AFTER=%s", conduit.content_config)
 
         # FIXME: pass the content config in to the conduit it, modify it, and return it
-        conduit.configure_info = result
+        #conduit.configure_info = result

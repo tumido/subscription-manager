@@ -350,10 +350,10 @@ class UpdateContentConduit(BaseConduit):
 class ConfigureContentConduit(BaseConduit):
     slots = ['configure_content']
 
-    def __init__(self, clazz, ent_source):
+    def __init__(self, clazz, ent_source, content_config):
         super(ConfigureContentConduit, self).__init__(clazz)
         self.ent_source = ent_source
-        self.configure_info = {'nothing here yet': 'nope'}
+        self.content_config = content_config
 
 
 class SubscriptionConduit(BaseConduit):

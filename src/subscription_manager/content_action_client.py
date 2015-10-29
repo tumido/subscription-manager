@@ -69,7 +69,7 @@ class ContentPluginConfigureActionCommand(object):
         # run the plugin hook...
         self.runner.run()
         # Actually a set of reports...
-        return self.runner.conduit.configure_info
+        return self.runner.conduit.content_config
 
 
 class ContentPluginActionInvoker(certlib.BaseActionInvoker):
@@ -91,7 +91,7 @@ class ContentPluginActionInvoker(certlib.BaseActionInvoker):
         action = ContentPluginActionCommand(self.runner)
         return action.perform()
 
-    def configure(self):
+    def configure(self, configured_infos=None):
         action = ContentPluginConfigureActionCommand(self.runner)
         return action.perform()
 
@@ -141,8 +141,12 @@ class ContentActionClient(base_action_client.BaseActionClient):
 
         ent_dir_ent_source = EntitlementDirEntitlementSource()
 
+        # new Empty Content config, plugins will eventually populate it, read it, modify it
+        content_config = utils.DefaultDict(dict)
+
         for runner in plugin_manager.runiter('configure_content',
-                                             ent_source=ent_dir_ent_source):
+                                             ent_source=ent_dir_ent_source,
+                                             content_config=content_config):
             invoker = ContentPluginActionInvoker(runner)
             log.debug("_get_configure_actions invoker=%s", invoker)
             yield invoker
@@ -150,9 +154,13 @@ class ContentActionClient(base_action_client.BaseActionClient):
     def configure(self, content_type=None):
         #configure_infos = []
         content_type = content_type or 'yum'
-        configured_infos = utils.DefaultDict(list)
         for configure_action in self.configure_actions:
+            log.debug("running configure_action=%s configure()", configure_action)
+            # We could just pass the subset of content config associated with the content types the
+            # plugin knows. But it seems more useful for each plugin to be able to see all of the existing
+            # content config.
             res = configure_action.configure()
-            configured_infos[content_type] = res
+            #content_config[content_type] = res
 
-        return configured_infos
+        log.debug("res=%s", res)
+        return res or None

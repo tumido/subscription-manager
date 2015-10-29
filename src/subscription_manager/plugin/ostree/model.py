@@ -85,10 +85,16 @@ class OstreeRemote(object):
 
     def __init__(self):
         self.data = {}
+        # If it's in the config, it's enabled...
+        # TODO: verify if that is still true.. ie, does ostree remote config support an enabled flag
+        self.data['enabled'] = 1
 
     # for remote_key in remote iterates over the config items
     def __iter__(self):
         return iter(self.data)
+
+    def __getitem__(self, key):
+        return self.data[key]
 
     @property
     def url(self):
@@ -146,6 +152,26 @@ class OstreeRemote(object):
     def proxy(self, value):
         self.data['proxy'] = value
 
+    @property
+    def label(self):
+        return self.name
+
+    @property
+    def enabled(self):
+        return self.data.get('enabled')
+
+    @enabled.setter
+    def enabled(self, value):
+        self.data['enabled'] = value
+
+    @property
+    def label_name_url_enabled(self):
+        """Return a tuple of label,name,url, enabled as used in 'repos --list' cli."""
+        return (self.label,
+                self.name,
+                self.url,
+                self.enabled)
+
     @classmethod
     def from_config_section(cls, section, items):
         """Create a OstreeRemote object from a repo config section name and map of items.
@@ -197,6 +223,7 @@ class OstreeRemote(object):
 
         remote = cls()
         remote.name = content.label
+        remote.label = content.label
         remote.url = content.url
 
         remote.gpg_verify = remote.map_gpg(content)
