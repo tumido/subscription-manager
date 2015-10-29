@@ -1061,12 +1061,6 @@ class RegisterCommand(UserPassCommand):
             else:
                 admin_cp = self.cp_provider.get_no_auth_cp()
 
-
-            log.debug("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX username=%s", self.username)
-            log.debug("\n\n\n\n\npassword=%s \n\n\n\n\n", self.password)
-
-
-            log.debug("admin_cp=%s", admin_cp)
             facts_dic = facts.get_facts()
 
             self.plugin_manager.run("pre_register_consumer", name=consumername,
@@ -1942,14 +1936,9 @@ class ReposCommand(CliCommand):
             self.options.list_disabled = True
 
     def _do_command(self):
-        # FIXME
-        #return 0
-
         self._validate_options()
         rc = 0
         content_action = content_action_client.ContentActionClient()
-#        content_update_action = content_action_client.ContentUpdateActionClient()
-#        content_config_action_client = content_action_client.ContentConfigActionClient()
 
         # TODO: replace with some version of 'is the yum plugin enabled'.
         # Need to do this for each content plugin? yum's setting is in rhsm.conf however
@@ -1974,13 +1963,10 @@ class ReposCommand(CliCommand):
 
         self.use_overrides = self.cp.supports_resource('content_overrides')
 
-        # specifically, yum repos, for now.
-        #rl = RepoActionInvoker()
-        # need a ContentId? with content source/plugin, and... file name? content type?
-        # repos = content_action.get_repos()
         content_config = content_action.configure()
         log.debug("content_config=%s", content_config)
-        # What's configure_infos look like?
+
+        # TODO: What's configure_infos look like?
         # class ConfiguredContentInfo
         #   content_type = 'yum'
         #   repos = []
@@ -1999,7 +1985,6 @@ class ReposCommand(CliCommand):
 
     def set_repos_statuses(self, content_config, content_action, option_repo_actions):
         rcs = []
-        #for configured_info in configured_infos:
         for content_type, per_content_type_content_config in content_config.items():
             repos = per_content_type_content_config.get('repos', [])
             rc = self._set_repo_status(repos, content_action, option_repo_actions)
@@ -2008,24 +1993,30 @@ class ReposCommand(CliCommand):
 
     def list_repos_for_content_configs(self, content_config, content_action):
         for content_type, per_content_type_content_config in content_config.items():
+
             log.debug("content_type=%s", content_type)
+
             self.list_repos_for_content_type(content_type, per_content_type_content_config)
 
     def list_repos_for_content_type(self, content_type, per_content_type_content_config):
-        #per_content_type_content_config = content_config[content_type]
+
         log.debug("per_content_type_content_config=%s", per_content_type_content_config)
+
         repos = per_content_type_content_config.get('repos', [])
         repo_file = per_content_type_content_config.get('repo_file', '/etc/yum.repos.d/redhat.repo')
         self.list_repos(repos, repo_file)
 
     def list_repos(self, repos, repo_file):
+
         log.debug("list_repos repos=%s", repos)
         log.debug("list_repos type(repos)=%s", type(repos))
+
         if len(repos):
             # TODO: Perhaps this should be abstracted out as well...?
             def filter_repos(repo):
+
                 log.debug("filter_repos repo=%s", repo)
-                #log.debug("filter_repos repo.items()=%s", repo.items())
+
                 show_enabled = (self.options.list_enabled and repo["enabled"] != '0')
                 show_disabled = (self.options.list_disabled and repo["enabled"] == '0')
 
@@ -2121,27 +2112,16 @@ class ReposCommand(CliCommand):
                 # Note content_action.update() updates all the content types, not just
                 # the ones we changed.
                 content_action.update()
-                #repo_action_invoker.update()
             else:
                 # In the disconnected case we must modify the repo file directly.
                 changed_repos = [repo for repo in matches if repo['enabled'] != status]
                 for repo in changed_repos:
                     repo['enabled'] = status
+
                 log.debug("changed_repos=%s", changed_repos)
 
                 # TODO/FIXME: Need a hook here to apply local changes (or expect
                 #             content plugins to do that themselves.
-
-# log.debug("
-#                if changed_repos:
-#                    content_action.configure(
-#                    for repo in changed_repos:
-#                        repos
-#                    repo_file = RepoFile()
-#                    repo_file.read()
-#                    for repo in changed_repos:
-#                        repo_file.update(repo)
-#                    repo_file.write()
 
         for repo in repos_to_modify:
             # Watchout for string comparison here:
