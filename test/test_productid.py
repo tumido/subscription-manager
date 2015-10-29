@@ -9,7 +9,6 @@ import yum
 import stubs
 from subscription_manager import productid
 from subscription_manager import certdirectory
-#from subscription_manager.plugin.yum impor
 
 from rhsm.certificate2 import Product
 
