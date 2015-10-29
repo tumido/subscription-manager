@@ -55,7 +55,8 @@ from subscription_manager.utils import parse_server_info, \
         parse_baseurl_info, format_baseurl, is_valid_server_info, \
         MissingCaCertException, get_client_versions, get_server_versions, \
         restart_virt_who, get_terminal_width, print_error, \
-        ProductCertificateFilter, EntitlementCertificateFilter
+        ProductCertificateFilter, EntitlementCertificateFilter, \
+        manage_repos_enabled
 from subscription_manager.overrides import Overrides, Override
 from subscription_manager.exceptions import ExceptionMapper
 from subscription_manager.printing_utils import columnize, format_name, _none_wrap, _echo
@@ -1945,12 +1946,9 @@ class ReposCommand(CliCommand):
 
         # FIXME:
         manage_any_repos = True
-#        manage_any_repos = False
-#        for content_source in content_action.content_sources():
-#            if not content_source.manage_repos_enabled():
-#                print _("Repositories disabled by configuration.")
-#                continue
-#            manage_any_repos = True
+        if not manage_repos_enabled():
+            print _("Repositories disabled by configuration.")
+            manage_any_repos = False
 
         if not manage_any_repos:
             return rc

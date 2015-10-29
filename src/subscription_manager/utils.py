@@ -13,6 +13,7 @@
 # in this software or its documentation.
 #
 
+from ConfigParser import Error as ConfigParserError
 import collections
 import gettext
 import logging
@@ -42,9 +43,11 @@ import subscription_manager.version
 import rhsm.version
 from rhsm.connection import UEPConnection, RestlibException, GoneException
 from rhsm.config import DEFAULT_PORT, DEFAULT_PREFIX, DEFAULT_HOSTNAME, \
-    DEFAULT_CDN_HOSTNAME, DEFAULT_CDN_PORT, DEFAULT_CDN_PREFIX
+    DEFAULT_CDN_HOSTNAME, DEFAULT_CDN_PORT, DEFAULT_CDN_PREFIX, initConfig
 
 log = logging.getLogger('rhsm-app.' + __name__)
+
+CFG = initConfig()
 
 _ = lambda x: gettext.ldgettext("rhsm", x)
 
@@ -492,3 +495,20 @@ def print_error(message):
 
     sys.stderr.write(message)
     sys.stderr.write("\n")
+
+
+def manage_repos_enabled():
+    manage_repos = True
+    try:
+        manage_repos = CFG.get_int('rhsm', 'manage_repos')
+    except ValueError, e:
+        log.exception(e)
+        return True
+    except ConfigParserError, e:
+        log.exception(e)
+        return True
+
+    if manage_repos is None:
+        return True
+
+    return bool(manage_repos)
