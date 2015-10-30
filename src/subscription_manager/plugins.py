@@ -331,6 +331,15 @@ class FactsConduit(BaseConduit):
         self.facts = facts
 
 
+# content plugin hooks. Use for supporting new content types
+# by providing a hook to call them when entitlement changes.
+
+# TODO: We may need a CleanupContentConduit/cleanup_content hook
+#       so we can do things like delete redhat.repo or remove
+#       /etc/docker/certificate links, etc.
+#
+# TODO: Add a model/abc/base class for content_config
+
 class UpdateContentConduit(BaseConduit):
     """Conduit for updating content."""
     slots = ['update_content']
