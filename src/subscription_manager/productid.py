@@ -611,7 +611,7 @@ class ProductManager:
     # We should only delete productcerts if there are no
     # packages from that repo installed (not "active")
     # and we have the product cert installed.
-    def update_removed(self, active, temp_disabled_repos=None):
+    def update_removed(self, active, repos_whitelist=None):
         """remove product certs for inactive products
 
         For each installed product cert, check to see if we still have
@@ -630,10 +630,14 @@ class ProductManager:
         Args:
             active: a set of repo name strings of the repos that installed
                     packages were installed from
+            repos_whitelist: a set of repo name strings that of repos in an
+                             unknown state, that we should not delete product
+                             ids tied to them. The main use case is temporarily
+                             disabled repos (yum --disablerepo="*", etc).
         Side effects:
             deletes certs that need to be deleted
         """
-        temp_disabled_repos = temp_disabled_repos or []
+        repos_whitelist = repos_whitelist or []
         certs_to_delete = []
 
         log.debug("Checking for product certs to remove. Active include: %s",
@@ -688,7 +692,7 @@ class ProductManager:
 
                 # If product id maps to a repo that we know is only temporarily
                 # disabled, don't delete it.
-                if repo in temp_disabled_repos:
+                if repo in repos_whitelist:
                     log.warn("%s is disabled via yum cmdline. Not deleting product cert %s", repo, prod_hash)
                     delete_product_cert = False
 

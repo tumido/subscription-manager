@@ -33,6 +33,7 @@ plugin_type = (TYPE_CORE,)
 
 log = logging.getLogger('rhsm-app.' + __name__)
 
+
 def posttrans_hook(conduit):
     """
     Update product ID certificates.
@@ -66,9 +67,12 @@ class YumProductManager(ProductManager):
         ProductManager.__init__(self)
 
     def update_all(self):
-        return self.update(self.get_enabled(),
+        enabled = self.get_enabled()
+        repos_whitelist = self.get_repos_whitelist(enabled)
+        return self.update(enabled,
                            self.get_active(),
-                           self.check_version_tracks_repos())
+                           self.check_version_tracks_repos(),
+                           repos_whitelist)
 
     def get_enabled(self):
         """find yum repos that are enabled"""
@@ -143,6 +147,10 @@ class YumProductManager(ProductManager):
             active.add(repo)
 
         return active
+
+    def get_repos_whitelist(self):
+        whitelist = []
+        whitelist += self.find_temp_disabled_repos(
 
     def check_version_tracks_repos(self):
         major, minor, micro = yum.__version_info__

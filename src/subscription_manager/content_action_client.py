@@ -151,9 +151,8 @@ class ContentActionClient(base_action_client.BaseActionClient):
             log.debug("_get_configure_actions invoker=%s", invoker)
             yield invoker
 
-    def configure(self, content_type=None):
+    def configure(self):
         #configure_infos = []
-        content_type = content_type or 'yum'
         res = None
         for configure_action in self.configure_actions:
             log.debug("running configure_action=%s configure()", configure_action)
