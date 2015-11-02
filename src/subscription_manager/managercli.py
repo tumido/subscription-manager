@@ -57,7 +57,7 @@ from subscription_manager.utils import parse_server_info, \
         restart_virt_who, get_terminal_width, print_error, \
         ProductCertificateFilter, EntitlementCertificateFilter, \
         manage_repos_enabled
-from subscription_manager.overrides import Overrides, Override
+from subscription_manager import overrides
 from subscription_manager.exceptions import ExceptionMapper
 from subscription_manager.printing_utils import columnize, format_name, _none_wrap, _echo
 
@@ -2083,43 +2083,50 @@ class ReposCommand(CliCommand):
             for repo in matches:
                 repos_to_modify[repo] = status
 
-        if repos_to_modify:
-            # The cache should be primed at this point by the
-            # repo_action_invoker.get_repos()
+        # if we are modifing any repos
+        # if registered
+        # if server supports overrides
+        # built a list of overrides
+        # send to server
+        # manually poke at the cache??
+        # pull down new ent certs and regen config
+
+        if not repos_to_modify:
+            rc = 1
+            return rc
+
+        # The cache should be primed at this point by the
+        # repo_action_invoker.get_repos()
+        cache = inj.require(inj.OVERRIDE_STATUS_CACHE)
+
+        if self.is_registered() and self.use_overrides:
+            override_list = overrides.OverrideList.from_repos_to_modify(repos_to_modify)
+            results = self.cp.setContentOverrides(self.identity.uuid, override_list)
+
             cache = inj.require(inj.OVERRIDE_STATUS_CACHE)
 
-            if self.is_registered() and self.use_overrides:
-                overrides = [{'contentLabel': repo.id,
-                              'name': 'enabled',
-                              'value': repos_to_modify[repo]}
-                             for repo in repos_to_modify]
+            # Update the cache with the returned JSON
+            cache.server_status = results
+            cache.write_cache()
 
-                results = self.cp.setContentOverrides(self.identity.uuid, overrides)
+            # TODO/FIXME: We may want to wait until all content_plugins run before
+            # call update() to 'apply' those changes (wish could for example, involve
+            # the configure_content hook changing consumer overrides, and needing
+            # the update() to realize it.
+            #
+            # Note content_action.update() updates all the content types, not just
+            # the ones we changed.
+            content_action.update()
+        else:
+            # In the disconnected case we must modify the repo file directly.
+            changed_repos = [repo for repo in matches if repo['enabled'] != status]
+            for repo in changed_repos:
+                repo['enabled'] = status
 
-                cache = inj.require(inj.OVERRIDE_STATUS_CACHE)
+            log.debug("changed_repos=%s", changed_repos)
 
-                # Update the cache with the returned JSON
-                cache.server_status = results
-                cache.write_cache()
-
-                # TODO/FIXME: We may want to wait until all content_plugins run before
-                # call update() to 'apply' those changes (wish could for example, involve
-                # the configure_content hook changing consumer overrides, and needing
-                # the update() to realize it.
-                #
-                # Note content_action.update() updates all the content types, not just
-                # the ones we changed.
-                content_action.update()
-            else:
-                # In the disconnected case we must modify the repo file directly.
-                changed_repos = [repo for repo in matches if repo['enabled'] != status]
-                for repo in changed_repos:
-                    repo['enabled'] = status
-
-                log.debug("changed_repos=%s", changed_repos)
-
-                # TODO/FIXME: Need a hook here to apply local changes (or expect
-                #             content plugins to do that themselves.
+            # TODO/FIXME: Need a hook here to apply local changes (or expect
+            #             content plugins to do that themselves.
 
         for repo in repos_to_modify:
             # Watchout for string comparison here:
@@ -2577,24 +2584,30 @@ class OverrideCommand(CliCommand):
         # make sure the EntitlementDirectory singleton is refreshed
         self._request_validity_check()
 
-        overrides = Overrides()
+        content_action = content_action_client.ContentActionClient()
+
+        overrides_obj = overrides.Overrides()
 
         if not manage_repos_enabled():
             print _("Repositories disabled by configuration.")
 
         if self.options.list:
-            results = overrides.get_overrides(self.identity.uuid)
-            if results:
-                self._list(results, self.options.repos)
-            else:
-                print _("This system does not have any content overrides applied to it.")
+            self._list(overrides_obj, self.options.repos)
             return
 
+        # self.options.additions is dict, {'
+        print 'self.options.additions'
+        import pprint
+        pprint.pprint(self.options.additions)
         if self.options.additions:
-            repo_ids = [repo.id for repo in overrides.repo_lib.get_repos(apply_overrides=False)]
-            to_add = [Override(repo, name, value) for repo in self.options.repos for name, value in self.options.additions.items()]
+            local_repo_ids = [repo['label'] for repo in content_action.configure()['repos']]
+            repos_to_modify = [(repo, name, value)
+                               for repo in self.options.repos
+                               for name, value in self.options.additions.items()]
+
             try:
-                results = overrides.add_overrides(self.identity.uuid, to_add)
+                results = overrides_obj.sync_to_server(self.identity.uuid, repos_to_modify)
+                #results = overrides_obj.add_overrides(self.identity.uuid, to_add)
             except connection.RestlibException, ex:
                 if ex.code == 400:
                     # black listed overrides specified.
@@ -2605,21 +2618,27 @@ class OverrideCommand(CliCommand):
 
             # Print out warning messages if the specified repo does not exist in the repo file.
             for repo in self.options.repos:
-                if repo not in repo_ids:
+                if repo not in local_repo_ids:
                     print _("Repository '%s' does not currently exist, but the override has been added.") % repo
 
         if self.options.removals:
-            to_remove = [Override(repo, item) for repo in self.options.repos for item in self.options.removals]
+            to_remove = [overrides.Override(repo, item)
+                         for repo in self.options.repos
+                            for item in self.options.removals]
             results = overrides.remove_overrides(self.identity.uuid, to_remove)
         if self.options.remove_all:
+            # overrides_list = overrides.OverrideList.from_repos_to_remove_all(self.options.repos)
             results = overrides.remove_all_overrides(self.identity.uuid, self.options.repos)
 
         # Update the cache and refresh the repo file.
         overrides.update(results)
 
-    def _list(self, all_overrides, specific_repos):
+    def _list(self, overrides_obj, specific_repos):
+        if not overrides_obj:
+            print _("This system does not have any content overrides applied to it.")
+
         overrides = {}
-        for override in all_overrides:
+        for override in overrides_obj:
             repo = override.repo_id
             name = override.name
             value = override.value

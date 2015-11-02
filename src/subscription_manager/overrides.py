@@ -72,6 +72,38 @@ class Overrides(object):
     def _getuep(self):
         return self.cp_provider.get_consumer_auth_cp()
 
+    def sync_to_server(self, consumer_uuid, override_list):
+        res = self._getuep().setContentOverrides(consumer_uuid, override_list)
+        return res
+
+
+class OverrideList(object):
+    def __init__(self, overrides=None):
+        self._overrides = overrides or []
+
+    @classmethod
+    def from_repos_to_change_enabled(cls, repos_to_modify):
+        overrides = [Override(repo_id, 'enabled', status)
+                     for repo_id, status in repos_to_modify]
+        override_list = cls(overrides=overrides)
+        return override_list
+
+    @classmethod
+    def from_repos_to_modify(cls, repos_to_modify):
+        overrides = [Override(repo_id, name, status)
+                     for repo_id, name, status in repos_to_modify]
+        override_list = cls(overrides=overrides)
+        return override_list
+
+    def __iter__(self):
+        return iter(self._overrides)
+
+    def __len__(self):
+        return len(self._overrides)
+
+    def __getitem__(self, key):
+        return self._overrides[key]
+
 
 class Override(object):
     def __init__(self, repo_id, name, value=None):

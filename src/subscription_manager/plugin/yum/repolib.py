@@ -584,6 +584,7 @@ class Repo(dict):
         the release version string.
         """
         repo = cls(content.label)
+        repo['label'] = content.label
 
         repo['name'] = content.name
 
