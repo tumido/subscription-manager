@@ -194,6 +194,7 @@ class OstreeRemote(object):
 
         # the section name takes precendence over a 'name' in the items
         remote.name = OstreeRemote.name_from_section(section)
+        remote['label'] = remote.name
         return remote
 
     @staticmethod

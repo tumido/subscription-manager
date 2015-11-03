@@ -2586,7 +2586,7 @@ class OverrideCommand(CliCommand):
 
         content_action = content_action_client.ContentActionClient()
 
-        overrides_obj = overrides.Overrides()
+        overrides_obj = overrides.Overrides(self.identity.uuid)
 
         if not manage_repos_enabled():
             print _("Repositories disabled by configuration.")
@@ -2599,15 +2599,31 @@ class OverrideCommand(CliCommand):
         print 'self.options.additions'
         import pprint
         pprint.pprint(self.options.additions)
+
         if self.options.additions:
-            local_repo_ids = [repo['label'] for repo in content_action.configure()['repos']]
+            content_config = content_action.configure()
+            #pprint.pprint(content_config)
+            content_types = content_config.keys()
+            local_repo_ids = []
+            for content_type in content_types:
+                repos_per_type = content_config[content_type]['repos']
+                for repo_per_type in repos_per_type:
+                    print repo_per_type
+                    if 'label' in repo_per_type:
+                        local_repo_ids.append(repo_per_type['label'])
+            #repos = [content_config[content_type]['repos']
+            #         for content_type in content_types
+            #         for repo in ]
+            #local_repo_ids = [repo['label'] for repo in content_config['yum']['repos']]
+            pprint.pprint(local_repo_ids)
+
             repos_to_modify = [(repo, name, value)
                                for repo in self.options.repos
                                for name, value in self.options.additions.items()]
+            override_list = overrides.OverrideList.from_repos_to_modify(repos_to_modify)
 
             try:
-                results = overrides_obj.sync_to_server(self.identity.uuid, repos_to_modify)
-                #results = overrides_obj.add_overrides(self.identity.uuid, to_add)
+                results = overrides_obj.sync_to_server(override_list)
             except connection.RestlibException, ex:
                 if ex.code == 400:
                     # black listed overrides specified.
@@ -2625,20 +2641,21 @@ class OverrideCommand(CliCommand):
             to_remove = [overrides.Override(repo, item)
                          for repo in self.options.repos
                             for item in self.options.removals]
-            results = overrides.remove_overrides(self.identity.uuid, to_remove)
+            results = overrides_obj.remove_overrides(to_remove)
+
         if self.options.remove_all:
             # overrides_list = overrides.OverrideList.from_repos_to_remove_all(self.options.repos)
-            results = overrides.remove_all_overrides(self.identity.uuid, self.options.repos)
+            results = overrides_obj.remove_all_overrides(self.options.repos)
 
         # Update the cache and refresh the repo file.
-        overrides.update(results)
+        overrides_obj.update(results)
 
     def _list(self, overrides_obj, specific_repos):
         if not overrides_obj:
             print _("This system does not have any content overrides applied to it.")
 
         overrides = {}
-        for override in overrides_obj:
+        for override in overrides_obj.get_overrides():
             repo = override.repo_id
             name = override.name
             value = override.value
