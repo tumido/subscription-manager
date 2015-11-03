@@ -162,5 +162,5 @@ class ContentActionClient(base_action_client.BaseActionClient):
             res = configure_action.configure()
             #content_config[content_type] = res
 
-        log.debug("res=%s", res)
+#        log.debug("res=%s", res)
         return res or None

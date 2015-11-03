@@ -87,6 +87,7 @@ class OstreeContentUpdateActionCommand(object):
 
         #new_remotes = model.OstreeRemotes()
 
+        log.debug("ostree_repo_config.remotes %s", ostree_repo_config.remotes)
         ostree_repos_config = {OSTREE_CONTENT_TYPE: {'repos': ostree_repo_config.remotes,
                                                      'repo_file': ostree_repo_config.repo_file_path}}
         self.content_config.update(ostree_repos_config)

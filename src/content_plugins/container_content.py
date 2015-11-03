@@ -59,9 +59,10 @@ class ContainerContentPlugin(base_plugin.SubManPlugin):
                                                              content_config=conduit.content_config)
 
         conduit.log.debug("container configure_content_hook action_command=%s", action_command)
-        conduit.log.debug("container conduit.configure_info BEFORE=%s", conduit.content_config)
+        #conduit.log.debug("container conduit.configure_info BEFORE=%s", conduit.content_config)
 
-        result = action_command.configure()
+        #result = action_command.configure()
+        action_command.configure()
 
-        conduit.log.debug("container configure_content_hook result=%s", result)
-        conduit.log.debug("container conduit.configure_info AFTER=%s", conduit.content_config)
+#        conduit.log.debug("container configure_content_hook result=%s", result)
+#        conduit.log.debug("container conduit.configure_info AFTER=%s", conduit.content_config)

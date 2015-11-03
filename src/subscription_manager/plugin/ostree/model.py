@@ -154,7 +154,11 @@ class OstreeRemote(object):
 
     @property
     def label(self):
-        return self.name
+        return self.data.get('label')
+
+    @label.setter
+    def label(self, value):
+        self.data['label'] = value
 
     @property
     def enabled(self):
@@ -187,19 +191,28 @@ class OstreeRemote(object):
         """
         remote = cls()
 
+#        import pdb; pdb.set_trace()
+
         # transmogrify names
         for key in items:
             # replace key name with mapping name, defaulting to key name
             remote.data[cls.items_to_data.get(key, key)] = items[key]
 
         # the section name takes precendence over a 'name' in the items
-        remote.name = OstreeRemote.name_from_section(section)
-        remote['label'] = remote.name
+        remote.label = OstreeRemote.label_from_section(section)
+
+        # Populating remote.name with the closest info we have based on just
+        # the ostree repo config. This is not the name from the original Content
+        # object from candlepin.
+        remote.name = remote.label
+
+        log.debug("ostreeRemote.from_config_section section=%s items=%s", section, items)
+        log.debug("ostreeRemote.from_config_section remote=%s", remote)
         return remote
 
     @staticmethod
-    def name_from_section(section):
-        """Parse the remote name from the name of the config file section.
+    def label_from_section(section):
+        """Parse the remote label from the name of the config file section.
 
         ie, 'remote "awesome-os-7-ostree"' -> "awesome-os-7-ostree".
         """
@@ -216,14 +229,18 @@ class OstreeRemote(object):
         """Create a OstreeRemote object based on a model.Content object.
 
         This maps:
-            Content.label -> OstreeRemote.name
+            Content.label -> OstreeRemote.label
             Content.url -> OstreeRemote.url
+            Content.name -> OstreeRemove.name (unused(
 
         OstreeRemote.branches is always None for now.
         """
 
         remote = cls()
+
+        # Note remote.name is not persisted to the ostree repo config file.
         remote.name = content.name
+
         remote.label = content.label
         remote.url = content.url
 
@@ -236,6 +253,8 @@ class OstreeRemote(object):
         # NOTE: The tls-ca-path info is not in the Content,
         #       but local system configuration.
 
+        log.debug("COntent=%s", content)
+        log.debug("Remote=%s", remote)
         return remote
 
     @staticmethod
@@ -271,8 +290,8 @@ class OstreeRemote(object):
 
     def __repr__(self):
         r = super(OstreeRemote, self).__repr__()
-        template = "%s\n (name=%s\n url=%s\n gpg_verify=%s\n tls_client_cert_path=%s\n tls_client_key_path=%s\n proxy=%s)"
-        return template % (r, self.name, self.url, self.gpg_verify,
+        template = "%s\n (label=%s\n name=%s\n url=%s\n gpg_verify=%s\n tls_client_cert_path=%s\n tls_client_key_path=%s\n proxy=%s)"
+        return template % (r, self.label, self.name, self.url, self.gpg_verify,
                self.tls_client_cert_path, self.tls_client_key_path, self.proxy)
 
     def report(self):
@@ -313,7 +332,7 @@ class OstreeRemotes(object):
             remotes.add(remote)
         return remotes
 
-    def __str__(self):
+    def __repr__(self):
         s = "\n%s\n" % self.__class__
         for remote in self.data:
             s = s + " %s\n" % repr(remote)
@@ -375,9 +394,9 @@ class OstreeConfigFileWriter(object):
 class OstreeOriginUpdater(object):
     """
     Determines the currently deployed osname and SHA256.origin file,
-    and update the remote name to point to what is subscribed.
+    and update the remote label to point to what is subscribed.
 
-    In the event that our repo config carries multiple remote names,
+    In the event that our repo config carries multiple remote labels,
     we currently select the first.
     """
     # TODO: solidify what should happen if there are multiple repos in config.
@@ -406,7 +425,7 @@ class OstreeOriginUpdater(object):
 
     def _get_new_refspec(self, old_refspec):
         """
-        Attempt to figure out what new refspec to use. Compare the remote names
+        Attempt to figure out what new refspec to use. Compare the remote label
         we know about to the first portion of the ref. If a match is found, we
         know to update that remote. If no match is found, we just leave the
         origin as it is and log the situation.
@@ -416,8 +435,8 @@ class OstreeOriginUpdater(object):
         log.debug("First portion of previous ref: %s" % ref_matcher)
         for r in self.repo_config.remotes:
             # TODO: Should this be startswith instead of == ?
-            if r.name == ref_matcher:
-                return r.name
+            if r.label == ref_matcher:
+                return r.label
         return None
 
     def _remove_unconfigured_flag(self, origin_cfg):
@@ -464,7 +483,7 @@ class OstreeOriginUpdater(object):
         # Note any changes to origin_cfg here are not saved until later.
         origin_cfg = self._remove_unconfigured_flag(origin_cfg)
 
-        if len(self.repo_config.remotes):
+        if len(self.repo_config.remotes) > 1:
             log.warn("Multiple remotes configured in %s." % self.repo_config)
 
         new_remote = self._get_new_refspec(old_refspec)
@@ -477,16 +496,16 @@ class OstreeOriginUpdater(object):
             #       respect of
             #       "atomic-host-install:atomic-host/10.0/x86_64/standard" with
             #       remotes "atomic-host-blah-beta" and
-            #       "atomic-host-super-preview". Have to update respec with a name
+            #       "atomic-host-super-preview". Have to update respec with a label
             #       matching at least one of the remotes, so we pick the first one.
             #       This will need to be replaced with a more precise method.
-            #       Note this also applies for the case of no matching remote names
+            #       Note this also applies for the case of no matching remote labels
             #       and only one remote, which will be the common case for a fresh
             #       install.
             if len(self.repo_config.remotes):
-                new_remote = sorted([x.name for x in self.repo_config.remotes])[0]
+                new_remote = sorted([x.label for x in self.repo_config.remotes])[0]
                 log.warn("No remotes that match refspec for deployed origin found, so "
-                        "choosing the first remote names sorted: %s" % new_remote)
+                        "choosing the first remote label sorted: %s" % new_remote)
             else:
                 # No remotes,
                 log.debug("No ostree remote urls found in content.")
@@ -575,6 +594,9 @@ class OstreeConfig(object):
         # Wait for load() to load repo file since we
         # create these without a backing store as well.
         self.repo_file_store = None
+        log.debug("self.repo_file_path=%s", self.repo_file_path)
+        log.debug("repo_file_path=%s", repo_file_path)
+        log.debug("default_repo_file_path=%s", self.default_repo_file_path)
 
     def _init_store(self):
         return OstreeConfigFileStore(self.repo_file_path)

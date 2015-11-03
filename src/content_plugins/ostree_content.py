@@ -43,12 +43,12 @@ class OstreeContentPlugin(base_plugin.SubManPlugin):
                                                                          content_config=conduit.content_config)
 
         conduit.log.debug("ostree configure_content_hook action_command=%s", action_command)
-        conduit.log.debug("conduit.content_config BEFORE=%s", conduit.content_config)
+        #conduit.log.debug("conduit.content_config BEFORE=%s", conduit.content_config)
 
-        result = action_command.configure()
+        action_command.configure()
 
-        conduit.log.debug("ostree configure_content_hook result=%s", result)
-        conduit.log.debug("conduit.content_config AFTER=%s", conduit.content_config)
+        #conduit.log.debug("ostree configure_content_hook result=%s", result)
+        conduit.log.debug("conduit.content_config['ostree'] AFTER=%s", conduit.content_config['ostree'])
 
         # FIXME: pass the content config in to the conduit it, modify it, and return it
         #conduit.content_config = result

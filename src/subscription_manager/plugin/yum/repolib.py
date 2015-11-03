@@ -107,7 +107,7 @@ class RepoActionInvoker(BaseActionInvoker):
         yum_content_config = {}
 
         log.debug("actionInvoker yum_config_content=%s", yum_content_config)
-        log.debug("actionInvoker self.content_config=%s", self.content_config)
+        #log.debug("actionInvoker self.content_config=%s", self.content_config)
 
         # FIXME: This is local config only, without overrides applied.
         repo_file = RepoFile()
@@ -123,7 +123,7 @@ class RepoActionInvoker(BaseActionInvoker):
         yum_content_config['repo_file'] = repo_file.path
         self.content_config[YUM_CONTENT_TYPE].update(yum_content_config)
 
-        log.debug("actionInvoker after adding repos self.content_config=%s", self.content_config)
+        #log.debug("actionInvoker after adding repos self.content_config=%s", self.content_config)
 
         return self.content_config
 

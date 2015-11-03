@@ -1962,7 +1962,7 @@ class ReposCommand(CliCommand):
         self.use_overrides = self.cp.supports_resource('content_overrides')
 
         content_config = content_action.configure()
-        log.debug("content_config=%s", content_config)
+        #log.debug("content_config=%s", content_config)
 
         # TODO: What's configure_infos look like?
         # class ConfiguredContentInfo
@@ -1998,7 +1998,7 @@ class ReposCommand(CliCommand):
 
     def list_repos_for_content_type(self, content_type, per_content_type_content_config):
 
-        log.debug("per_content_type_content_config=%s", per_content_type_content_config)
+        #log.debug("per_content_type_content_config=%s", per_content_type_content_config)
 
         repos = per_content_type_content_config.get('repos', [])
         repo_file = per_content_type_content_config.get('repo_file', '/etc/yum.repos.d/redhat.repo')
@@ -2006,14 +2006,14 @@ class ReposCommand(CliCommand):
 
     def list_repos(self, repos, repo_file):
 
-        log.debug("list_repos repos=%s", repos)
-        log.debug("list_repos type(repos)=%s", type(repos))
+        #log.debug("list_repos repos=%s", repos)
+        #log.debug("list_repos type(repos)=%s", type(repos))
 
         if len(repos):
             # TODO: Perhaps this should be abstracted out as well...?
             def filter_repos(repo):
 
-                log.debug("filter_repos repo=%s", repo)
+                #log.debug("filter_repos repo=%s", repo)
 
                 show_enabled = (self.options.list_enabled and repo["enabled"] != '0')
                 show_disabled = (self.options.list_disabled and repo["enabled"] == '0')
@@ -2603,18 +2603,15 @@ class OverrideCommand(CliCommand):
         if self.options.additions:
             content_config = content_action.configure()
             #pprint.pprint(content_config)
+
+            # FIXME: this should be a model.ContentConfig method
             content_types = content_config.keys()
             local_repo_ids = []
             for content_type in content_types:
                 repos_per_type = content_config[content_type]['repos']
                 for repo_per_type in repos_per_type:
-                    print repo_per_type
                     if 'label' in repo_per_type:
                         local_repo_ids.append(repo_per_type['label'])
-            #repos = [content_config[content_type]['repos']
-            #         for content_type in content_types
-            #         for repo in ]
-            #local_repo_ids = [repo['label'] for repo in content_config['yum']['repos']]
             pprint.pprint(local_repo_ids)
 
             repos_to_modify = [(repo, name, value)

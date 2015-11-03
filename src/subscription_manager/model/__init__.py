@@ -40,6 +40,12 @@ class Content(object):
         self.enabled = enabled
         self.metadata_expire = metadata_expire
 
+    def __repr__(self):
+        r = "Content(content_type=%s, name=%s, label=%s, url=%s, gpg=%s,\n"
+        r += "tags=%s, cert=%s, enabled=%s, metadata_expire=%s)"
+        return r % (self.content_type, self.name, self.label, self.url, self.gpg,
+                    self.tags, self.cert, self.enabled, self.metadata_expire)
+
 
 class Entitlement(object):
     """Represent an entitlement.
