@@ -30,6 +30,8 @@ class Overrides(object):
 
         self.cache = inj.require(inj.OVERRIDE_STATUS_CACHE)
 
+        # add and require a WrittenOverrideCache()
+
         # FIXME: cache_only?
         self.content_action = ContentActionClient()
 
@@ -42,9 +44,20 @@ class Overrides(object):
         log.debug("get_overrides %s", res)
         return res
 
+    def update(self, overrides):
+        # huh? why is this explicitly adding things to the cache?
+        self.cache.server_status = [override for override in overrides]
+        self.cache.write_cache()
+        # Why does updating content overrides update content_action instead
+        # of vice versa?
+        self.content_action.update()
+
     def add_overrides(self, overrides):
         return self._build_from_dict(self._getuep().setContentOverrides(self.consumer_uuid,
                                                                  self._add(overrides)))
+
+    def _add(self, overrides):
+        return [override for override in overrides]
 
     def remove_overrides(self, overrides):
         return self._delete_overrides(self.consumer_uuid, self._remove(overrides))
@@ -52,16 +65,9 @@ class Overrides(object):
     def remove_all_overrides(self, repos):
         return self._delete_overrides(self.consumer_uuid, self._remove_all(repos))
 
-    def update(self, overrides):
-        self.cache.server_status = [override for override in overrides]
-        self.cache.write_cache()
-        self.content_action.update()
-
     def _delete_overrides(self, override_data):
+        # delete overrides always takes a list of overrides
         return self._build_from_dict(self._getuep().deleteContentOverrides(self.consumer_uuid, override_data))
-
-    def _add(self, overrides):
-        return [override for override in overrides]
 
     def _remove(self, overrides):
         return [{'contentLabel': override.repo_id, 'name': override.name} for override in overrides]

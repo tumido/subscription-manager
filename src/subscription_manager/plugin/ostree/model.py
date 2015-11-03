@@ -88,6 +88,7 @@ class OstreeRemote(object):
         # If it's in the config, it's enabled...
         # TODO: verify if that is still true.. ie, does ostree remote config support an enabled flag
         self.data['enabled'] = 1
+        self.built_from = None
 
     # for remote_key in remote iterates over the config items
     def __iter__(self):
@@ -191,8 +192,6 @@ class OstreeRemote(object):
         """
         remote = cls()
 
-#        import pdb; pdb.set_trace()
-
         # transmogrify names
         for key in items:
             # replace key name with mapping name, defaulting to key name
@@ -205,6 +204,7 @@ class OstreeRemote(object):
         # the ostree repo config. This is not the name from the original Content
         # object from candlepin.
         remote.name = remote.label
+        remote.built_from = 'config_section'
 
         log.debug("ostreeRemote.from_config_section section=%s items=%s", section, items)
         log.debug("ostreeRemote.from_config_section remote=%s", remote)
@@ -253,9 +253,17 @@ class OstreeRemote(object):
         # NOTE: The tls-ca-path info is not in the Content,
         #       but local system configuration.
 
+        remote.built_from = "ent_cert_content"
         log.debug("COntent=%s", content)
         log.debug("Remote=%s", remote)
         return remote
+
+    def apply_overrides(self, overrides):
+        log.debug("overrides=%s", overrides)
+        remote_overrides = overrides.get(self.label, {})
+        for name, value in remote_overrides.items():
+            self.data[name] = value
+            log.debug("applying override %s=%s", name, value)
 
     @staticmethod
     def map_gpg(content):
@@ -290,9 +298,10 @@ class OstreeRemote(object):
 
     def __repr__(self):
         r = super(OstreeRemote, self).__repr__()
-        template = "%s\n (label=%s\n name=%s\n url=%s\n gpg_verify=%s\n tls_client_cert_path=%s\n tls_client_key_path=%s\n proxy=%s)"
+        template = "%s\n (label=%s\n name=%s\n url=%s\n gpg_verify=%s\n "
+        template += "tls_client_cert_path=%s\n tls_client_key_path=%s\n proxy=%s\n built_from=%s)"
         return template % (r, self.label, self.name, self.url, self.gpg_verify,
-               self.tls_client_cert_path, self.tls_client_key_path, self.proxy)
+               self.tls_client_cert_path, self.tls_client_key_path, self.proxy, self.built_from)
 
     def report(self):
         return self.report_template.format(self=self)
@@ -535,9 +544,10 @@ class OstreeOriginUpdater(object):
 
 
 class OstreeConfigUpdatesBuilder(object):
-    def __init__(self, ostree_config, contents):
+    def __init__(self, ostree_config, contents, overrides=None):
         self.orig_ostree_config = ostree_config
         self.contents = contents
+        self.overrides = overrides
 
     def build(self):
         """Figure out what the new config should be and return a OstreeConfigUpdates.
@@ -552,6 +562,9 @@ class OstreeConfigUpdatesBuilder(object):
         content_to_remote = {}
         for content in self.contents:
             remote = OstreeRemote.from_ent_cert_content(content)
+
+            remote.apply_overrides(self.overrides)
+
             new_remotes.add(remote)
 
             # track for reports
