@@ -215,6 +215,53 @@ class YumReleaseverSource(object):
         return self._expansion
 
 
+# TODO: this is what overrides.Overrides() intended?
+class RepoOverrides(dict):
+    """Map contentLabel -> (key, value)"""
+    def __init__(self, cache_only=None):
+        super(RepoOverrides, self).__init__()
+
+        self.cp_provider = inj.require(inj.CP_PROVIDER)
+        self.uep = self.cp_provider.get_consumer_auth_cp()
+        self.identity = inj.require(inj.IDENTITY)
+
+        self.cache_only = cache_only or False
+
+        self.override_supported = False
+        if self.identity.is_valid() and self.uep:
+            self.override_supported = self.uep.supports_resources('content_overrides')
+
+        if not self.override_supported:
+            return
+
+        # NOTE: if anything in the RepoActionInvoker init blocks, and it
+        #       could, yum could still block. The closest thing to an
+        #       event loop we have is the while True: sleep() in lock.py:Lock.acquire()
+
+        # Only attempt to update the overrides if they are supported
+        # by the server.
+        self.written_overrides._read_cache()
+
+        try:
+            override_cache = inj.require(inj.OVERRIDE_STATUS_CACHE)
+        except KeyError:
+            override_cache = OverrideStatusCache()
+
+        if self.cache_only:
+            status = override_cache._read_cache()
+        else:
+            status = override_cache.load_status(self.uep, self.identity.uuid)
+
+        for item in status or []:
+            # Don't iterate through the list
+            content_label, name, value = (item['contentLabel'],
+                                          item['name'],
+                                          item['value'])
+            if content_label not in self:
+                self[content_label] = {}
+            self[content_label][name] = value
+
+
 class RepoUpdateActionCommand(object):
     """UpdateAction for yum repos.
 
@@ -260,35 +307,6 @@ class RepoUpdateActionCommand(object):
 
         if not apply_overrides:
             return
-
-        self.cp_provider = inj.require(inj.CP_PROVIDER)
-        self.uep = self.cp_provider.get_consumer_auth_cp()
-        self.override_supported = bool(self.identity.is_valid() and self.uep and self.uep.supports_resource('content_overrides'))
-
-        # NOTE: if anything in the RepoActionInvoker init blocks, and it
-        #       could, yum could still block. The closest thing to an
-        #       event loop we have is the while True: sleep() in lock.py:Lock.acquire()
-
-        # Only attempt to update the overrides if they are supported
-        # by the server.
-        if self.override_supported:
-            self.written_overrides._read_cache()
-
-            try:
-                override_cache = inj.require(inj.OVERRIDE_STATUS_CACHE)
-            except KeyError:
-                override_cache = OverrideStatusCache()
-
-            if cache_only:
-                status = override_cache._read_cache()
-            else:
-                status = override_cache.load_status(self.uep, self.identity.uuid)
-
-            for item in status or []:
-                # Don't iterate through the list
-                if item['contentLabel'] not in self.overrides:
-                    self.overrides[item['contentLabel']] = {}
-                self.overrides[item['contentLabel']][item['name']] = item['value']
 
     def perform(self):
         # Load the RepoFile from disk, this contains all our managed yum repo sections:
