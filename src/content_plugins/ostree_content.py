@@ -33,14 +33,16 @@ class OstreeContentPlugin(base_plugin.SubManPlugin):
         """
         conduit.log.info("ostree update_content_hook plugin.")
 
-        report = action_invoker.OstreeContentUpdateActionCommand(ent_source=conduit.ent_source).perform()
+        report = action_invoker.OstreeContentUpdateActionCommand(ent_source=conduit.ent_source,
+                                                                 repo_overrides=conduit.overrides).perform()
         conduit.reports.add(report)
 
     def configure_content_hook(self, conduit):
         conduit.log.debug("OstreeContentPlugin.configure_content_hook")
 
         action_command = action_invoker.OstreeContentUpdateActionCommand(ent_source=conduit.ent_source,
-                                                                         content_config=conduit.content_config)
+                                                                         content_config=conduit.content_config,
+                                                                         repo_overrides=conduit.overrides)
 
         conduit.log.debug("ostree configure_content_hook action_command=%s", action_command)
         #conduit.log.debug("conduit.content_config BEFORE=%s", conduit.content_config)

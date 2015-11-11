@@ -39,9 +39,11 @@ class OstreeContentUpdateActionCommand(object):
 
     Return a OstreeContentUpdateReport.
     """
-    def __init__(self, ent_source, content_config=None):
+    def __init__(self, ent_source, content_config=None,
+                 repo_overrides=None):
         self.ent_source = ent_source
         self.content_config = content_config
+        self.overrides = repo_overrides
 
     def migrate_core_config(self):
         # starting state of ostree config
@@ -55,7 +57,8 @@ class OstreeContentUpdateActionCommand(object):
 
         # empty the remote list
         self.update_config(ostree_core_config,
-                           contents=[])
+                           contents=[],
+                           overrides=self.overrides)
 
         return ostree_core_config
 
@@ -105,7 +108,8 @@ class OstreeContentUpdateActionCommand(object):
 
         # update repo configs
         report = self.update_config(ostree_repo_config,
-                                     contents=entitled_contents)
+                                     contents=entitled_contents,
+                                    overrides=self.overrides)
 
         # reload the new config, so we have fresh remotes, etc
         self.load_config(ostree_repo_config)
@@ -117,14 +121,15 @@ class OstreeContentUpdateActionCommand(object):
         log.debug("Ostree update report: %s" % report)
         return report
 
-    def update_config(self, ostree_config, contents):
+    def update_config(self, ostree_config, contents, overrides):
         """Update the remotes configured in a OstreeConfig."""
 
         report = OstreeContentUpdateActionReport()
 
         updates_builder = \
             model.OstreeConfigUpdatesBuilder(ostree_config,
-                                             contents=contents)
+                                             contents=contents,
+                                             overrides=overrides)
         updates = updates_builder.build()
 
         for remote in updates.orig.remotes:

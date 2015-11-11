@@ -18,6 +18,7 @@ import logging
 from subscription_manager import base_action_client
 from subscription_manager import certlib
 from subscription_manager import utils
+from subscription_manager import overrides
 from subscription_manager.model.ent_cert import EntitlementDirEntitlementSource
 
 import subscription_manager.injection as inj
@@ -103,7 +104,7 @@ class ConfiguredContentInfo(object):
 
     def __repr__(self):
         return "ConfiguredContentInfo(content_type=%s, repos=%s)" % (self.content_type,
-                                                                    self.repos)
+                                                                     self.repos)
 
 
 class ContentActionClient(base_action_client.BaseActionClient):
@@ -111,6 +112,7 @@ class ContentActionClient(base_action_client.BaseActionClient):
     def __init__(self):
         super(ContentActionClient, self).__init__()
         self.configure_actions = self._get_configure_actions()
+        self.repo_overrides = overrides.RepoOverrides()
 
     def _get_libset(self):
         """Return a generator that creates a ContentPluginAction* for each update_content plugin.
@@ -131,7 +133,8 @@ class ContentActionClient(base_action_client.BaseActionClient):
 
         for runner in plugin_manager.runiter('update_content',
                                              reports=content_plugins_reports,
-                                             ent_source=ent_dir_ent_source):
+                                             ent_source=ent_dir_ent_source,
+                                             overrides=self.repo_overrides):
             invoker = ContentPluginActionInvoker(runner)
             yield invoker
 
@@ -146,7 +149,8 @@ class ContentActionClient(base_action_client.BaseActionClient):
 
         for runner in plugin_manager.runiter('configure_content',
                                              ent_source=ent_dir_ent_source,
-                                             content_config=content_config):
+                                             content_config=content_config,
+                                             overrides=self.repo_overrides):
             invoker = ContentPluginActionInvoker(runner)
             log.debug("_get_configure_actions invoker=%s", invoker)
             yield invoker

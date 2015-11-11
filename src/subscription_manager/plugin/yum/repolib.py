@@ -26,7 +26,10 @@ import string
 import StringIO
 import subscription_manager.injection as inj
 
-from subscription_manager.cache import OverrideStatusCache, WrittenOverrideCache
+# TODO: remove
+from subscription_manager.cache import WrittenOverrideCache
+#from subscription_manager import overrides
+
 from subscription_manager import utils
 from subscription_manager import model
 from subscription_manager.model import ent_cert
@@ -55,18 +58,21 @@ class RepoActionInvoker(BaseActionInvoker):
                  locker=None,
                  apply_overrides=False,
                  ent_source=None,
-                 content_config=None):
+                 content_config=None,
+                 overrides=None):
         super(RepoActionInvoker, self).__init__(locker=locker)
         self.cache_only = cache_only
         self.apply_overrides = apply_overrides
         self.identity = inj.require(inj.IDENTITY)
         self.ent_source = ent_source
         self.content_config = content_config
+        self.overrides = overrides
 
     def _do_update(self):
         action = RepoUpdateActionCommand(cache_only=self.cache_only,
                                          apply_overrides=self.apply_overrides,
-                                         ent_source=self.ent_source)
+                                         ent_source=self.ent_source,
+                                         repo_overrides=self.overrides)
         res = action.perform()
         return res
 
@@ -78,7 +84,8 @@ class RepoActionInvoker(BaseActionInvoker):
     def get_repos(self, apply_overrides=True):
         action = RepoUpdateActionCommand(cache_only=self.cache_only,
                                          apply_overrides=apply_overrides,
-                                         ent_source=self.ent_source)
+                                         ent_source=self.ent_source,
+                                         repo_overrides=self.overrides)
         repos = action.get_unique_content()
 
         current = set()
@@ -215,53 +222,6 @@ class YumReleaseverSource(object):
         return self._expansion
 
 
-# TODO: this is what overrides.Overrides() intended?
-class RepoOverrides(dict):
-    """Map contentLabel -> (key, value)"""
-    def __init__(self, cache_only=None):
-        super(RepoOverrides, self).__init__()
-
-        self.cp_provider = inj.require(inj.CP_PROVIDER)
-        self.uep = self.cp_provider.get_consumer_auth_cp()
-        self.identity = inj.require(inj.IDENTITY)
-
-        self.cache_only = cache_only or False
-
-        self.override_supported = False
-        if self.identity.is_valid() and self.uep:
-            self.override_supported = self.uep.supports_resources('content_overrides')
-
-        if not self.override_supported:
-            return
-
-        # NOTE: if anything in the RepoActionInvoker init blocks, and it
-        #       could, yum could still block. The closest thing to an
-        #       event loop we have is the while True: sleep() in lock.py:Lock.acquire()
-
-        # Only attempt to update the overrides if they are supported
-        # by the server.
-        self.written_overrides._read_cache()
-
-        try:
-            override_cache = inj.require(inj.OVERRIDE_STATUS_CACHE)
-        except KeyError:
-            override_cache = OverrideStatusCache()
-
-        if self.cache_only:
-            status = override_cache._read_cache()
-        else:
-            status = override_cache.load_status(self.uep, self.identity.uuid)
-
-        for item in status or []:
-            # Don't iterate through the list
-            content_label, name, value = (item['contentLabel'],
-                                          item['name'],
-                                          item['value'])
-            if content_label not in self:
-                self[content_label] = {}
-            self[content_label][name] = value
-
-
 class RepoUpdateActionCommand(object):
     """UpdateAction for yum repos.
 
@@ -276,7 +236,7 @@ class RepoUpdateActionCommand(object):
     Returns an RepoActionReport.
     """
     def __init__(self, cache_only=False, apply_overrides=True,
-                 ent_source=None):
+                 ent_source=None, repo_overrides=None):
         self.identity = inj.require(inj.IDENTITY)
 
         # These should probably move closer their use
@@ -292,8 +252,10 @@ class RepoUpdateActionCommand(object):
         self.override_supported = False
 
         self.release = None
-        self.overrides = {}
-        self.written_overrides = WrittenOverrideCache()
+        #self.overrides = overrides.RepoOverrides()
+        log.debug("repo_overrides=%s", repo_overrides)
+        self.overrides = repo_overrides or {}
+        log.debug("self.overrides=%s", self.overrides)
 
         # FIXME: empty report at the moment, should be changed to include
         # info about updated repos
@@ -355,8 +317,8 @@ class RepoUpdateActionCommand(object):
         repo_file.write()
         if self.override_supported:
             # Update with the values we just wrote
-            self.written_overrides.overrides = self.overrides
-            self.written_overrides.write_cache()
+            self.overrides.written_overrides.overrides = self.overrides
+            self.overrides.written_overrides.write_cache()
         #log.info("repos updated: %s" % self.report)
         self.report.repo_file = repo_file
 
@@ -423,7 +385,7 @@ class RepoUpdateActionCommand(object):
         return key in self.overrides.get(repo.id, {})
 
     def _was_overridden(self, repo, key, value):
-        written_value = self.written_overrides.overrides.get(repo.id, {}).get(key)
+        written_value = self.overrides.written_overrides.overrides.get(repo.id, {}).get(key)
         # Compare values as strings to avoid casting problems from io
         return written_value is not None and value is not None and str(written_value) == str(value)
 

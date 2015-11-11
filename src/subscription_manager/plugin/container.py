@@ -89,11 +89,12 @@ class ContainerContentUpdateActionCommand(object):
     Return a ContainerContentUpdateReport.
     """
     def __init__(self, ent_source, registry_hostnames, host_cert_dir,
-                 content_config=None):
+                 content_config=None, overrides=None):
         self.ent_source = ent_source
         self.registry_hostnames = registry_hostnames
         self.host_cert_dir = host_cert_dir
         self.content_config = content_config
+        self.overrides = overrides or {}
 
     def perform(self):
 

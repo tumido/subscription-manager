@@ -25,7 +25,8 @@ class YumContentPlugin(base_plugin.SubManPlugin):
     def update_content_hook(self, conduit):
         conduit.log.debug("YumRepoContentPlugin.update_content_hook")
 
-        action_invoker = repolib.RepoActionInvoker(ent_source=conduit.ent_source)
+        action_invoker = repolib.RepoActionInvoker(ent_source=conduit.ent_source,
+                                                   overrides=conduit.overrides)
         conduit.log.debug("yum action_invoker=%s", action_invoker)
         report = action_invoker.update()
         #conduit.log.debug("report=%s", report)
