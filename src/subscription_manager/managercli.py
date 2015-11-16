@@ -1974,7 +1974,7 @@ class ReposCommand(CliCommand):
             rcs = self.set_repos_statuses(content_config, content_action, self.options.repo_actions)
             if any(rcs):
                 # FIXME..  return code for one content type of many failing?
-                rc = 199
+                rc = 198
 
         if self.options.list:
             self.list_repos_for_content_configs(content_config, content_action)
@@ -1991,9 +1991,7 @@ class ReposCommand(CliCommand):
 
     def list_repos_for_content_configs(self, content_config, content_action):
         for content_type, per_content_type_content_config in content_config.items():
-
             log.debug("content_type=%s", content_type)
-
             self.list_repos_for_content_type(content_type, per_content_type_content_config)
 
     def list_repos_for_content_type(self, content_type, per_content_type_content_config):
@@ -2064,6 +2062,8 @@ class ReposCommand(CliCommand):
         server.
         """
         rc = 0
+        # (status, repoid, was_action_successful, msg)
+        repo_action_results = {}
 
         # Maintain a dict of repo to enabled/disabled status. This allows us
         # to remove dupes and send only the last action specified by the user
@@ -2071,17 +2071,24 @@ class ReposCommand(CliCommand):
         # arguments in order.
         repos_to_modify = {}
 
-        for (status, repoid) in repo_actions:
-            matches = set([repo for repo in repos if fnmatch.fnmatch(repo.id, repoid)])
-            if not matches:
-                rc = 1
-                print _("Error: %s is not a valid repository ID. "
-                        "Use --list option to see valid repositories.") % repoid
+        matches = set([])
 
+        log.debug("_set_repo_status repos=%s", repos)
+        log.debug("_set_repo_status content_action=%s", content_action)
+        log.debug("_set_repo_status repo_actions=%s", repo_actions)
+
+        for (status, repoid) in repo_actions:
+            matches = set([repo.id for repo in repos if fnmatch.fnmatch(repo.id, repoid)])
+            if not matches:
+                # We don't neccasarily need to match all repo names
+                continue
+
+            import pprint
+            log.debug("matches %s", pprint.pformat(matches))
             # Overwrite repo if it's already in the dict, we want the last
             # match to be the one sent to server.
-            for repo in matches:
-                repos_to_modify[repo] = status
+            for repo_id in matches:
+                repos_to_modify[repo_id] = status
 
         # if we are modifing any repos
         # if registered
@@ -2091,6 +2098,7 @@ class ReposCommand(CliCommand):
         # manually poke at the cache??
         # pull down new ent certs and regen config
 
+        log.debug("repos_to_modify=%s", repos_to_modify)
         if not repos_to_modify:
             rc = 1
             return rc
@@ -2100,8 +2108,9 @@ class ReposCommand(CliCommand):
         cache = inj.require(inj.OVERRIDE_STATUS_CACHE)
 
         if self.is_registered() and self.use_overrides:
-            override_list = overrides.OverrideList.from_repos_to_modify(repos_to_modify)
-            results = self.cp.setContentOverrides(self.identity.uuid, override_list)
+            #override_list = overrides.OverrideList.from_repos_to_modify(repos_to_modify)
+            override_list = overrides.OverrideList.from_repos_to_change_enabled(repos_to_modify)
+            results = self.cp.setContentOverrides(self.identity.uuid, override_list.serializable())
 
             cache = inj.require(inj.OVERRIDE_STATUS_CACHE)
 
@@ -2131,9 +2140,9 @@ class ReposCommand(CliCommand):
         for repo in repos_to_modify:
             # Watchout for string comparison here:
             if repos_to_modify[repo] == "1":
-                print _("Repository '%s' is enabled for this system.") % repo.id
+                print _("Repository '%s' is enabled for this system.") % repo
             else:
-                print _("Repository '%s' is disabled for this system.") % repo.id
+                print _("Repository '%s' is disabled for this system.") % repo
         return rc
 
 

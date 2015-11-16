@@ -72,6 +72,8 @@ class RepoOverrides(dict):
                 self[content_label] = {}
             self[content_label][name] = value
 
+        log.debug("RepoOverrides.written_overrides=%s", self.written_overrides)
+
 
 class Overrides(object):
     def __init__(self, consumer_uuid):
@@ -148,12 +150,13 @@ class OverrideList(object):
     @classmethod
     def from_repos_to_change_enabled(cls, repos_to_modify):
         overrides = [Override(repo_id, 'enabled', status)
-                     for repo_id, status in repos_to_modify]
+                     for repo_id, status in repos_to_modify.items()]
         override_list = cls(overrides=overrides)
         return override_list
 
     @classmethod
     def from_repos_to_modify(cls, repos_to_modify):
+        log.debug("repos_to_modify: %s", repos_to_modify)
         overrides = [Override(repo_id, name, status)
                      for repo_id, name, status in repos_to_modify]
         override_list = cls(overrides=overrides)

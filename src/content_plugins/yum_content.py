@@ -28,6 +28,7 @@ class YumContentPlugin(base_plugin.SubManPlugin):
         action_invoker = repolib.RepoActionInvoker(ent_source=conduit.ent_source,
                                                    overrides=conduit.overrides)
         conduit.log.debug("yum action_invoker=%s", action_invoker)
+        conduit.log.debug("yum update_content_hook conduit.overrides=%s", conduit.overrides)
         report = action_invoker.update()
         #conduit.log.debug("report=%s", report)
         conduit.reports.add(report)
@@ -36,9 +37,10 @@ class YumContentPlugin(base_plugin.SubManPlugin):
         conduit.log.debug("YumRepoContentPlugin.configure_content_hook")
 
         action_invoker = repolib.RepoActionInvoker(ent_source=conduit.ent_source,
-                                                   content_config=conduit.content_config)
+                                                   content_config=conduit.content_config,
+                                                   overrides=conduit.overrides)
 
-        conduit.log.debug("yum configure_content_hook action_invoker=%s", action_invoker)
+        conduit.log.debug("yum update_content_hook conduit.overrides=%s", conduit.overrides)
         #conduit.log.debug("conduit.content_config BEFORE=%s", conduit.content_config)
 
         #result = action_invoker.configure()

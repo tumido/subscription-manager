@@ -45,7 +45,8 @@ class ContainerContentPlugin(base_plugin.SubManPlugin):
         conduit.log.info("registry hostnames = %s" % registry_hostnames)
         cmd = ContainerContentUpdateActionCommand(ent_source=conduit.ent_source,
                                                   registry_hostnames=registry_hostnames.split(','),
-                                                  host_cert_dir=HOSTNAME_CERT_DIR)
+                                                  host_cert_dir=HOSTNAME_CERT_DIR,
+                                                  overrides=conduit.overrides)
         report = cmd.perform()
         conduit.reports.add(report)
 
@@ -56,7 +57,8 @@ class ContainerContentPlugin(base_plugin.SubManPlugin):
         action_command = ContainerContentUpdateActionCommand(ent_source=conduit.ent_source,
                                                              registry_hostnames=registry_hostnames.split(','),
                                                              host_cert_dir=HOSTNAME_CERT_DIR,
-                                                             content_config=conduit.content_config)
+                                                             content_config=conduit.content_config,
+                                                             overrides=conduit.overrides)
 
         conduit.log.debug("container configure_content_hook action_command=%s", action_command)
         #conduit.log.debug("container conduit.configure_info BEFORE=%s", conduit.content_config)

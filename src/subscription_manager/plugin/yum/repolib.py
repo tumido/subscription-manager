@@ -67,6 +67,7 @@ class RepoActionInvoker(BaseActionInvoker):
         self.ent_source = ent_source
         self.content_config = content_config
         self.overrides = overrides
+        log.debug("RepoActionInvoker self.overrides=%s", self.overrides)
 
     def _do_update(self):
         action = RepoUpdateActionCommand(cache_only=self.cache_only,
@@ -254,7 +255,7 @@ class RepoUpdateActionCommand(object):
         self.release = None
         #self.overrides = overrides.RepoOverrides()
         log.debug("repo_overrides=%s", repo_overrides)
-        self.overrides = repo_overrides or {}
+        self.overrides = repo_overrides
         log.debug("self.overrides=%s", self.overrides)
 
         # FIXME: empty report at the moment, should be changed to include
@@ -385,6 +386,8 @@ class RepoUpdateActionCommand(object):
         return key in self.overrides.get(repo.id, {})
 
     def _was_overridden(self, repo, key, value):
+        #log.debug("_was_overridden self.overrides=%s", self.overrides)
+        #log.debug(type(self.overrides))
         written_value = self.overrides.written_overrides.overrides.get(repo.id, {}).get(key)
         # Compare values as strings to avoid casting problems from io
         return written_value is not None and value is not None and str(written_value) == str(value)

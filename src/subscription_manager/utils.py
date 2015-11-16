@@ -107,18 +107,15 @@ def url_base_join(base, url):
 
     # I don't really understand this. Why does joining something
     # potentially non-empty and "" return ""? -akl
-    log.debug("base=|%s|, url=|%s|", base, url)
     if len(url) == 0:
         return url
     elif '://' in url:
-        log.debug("looks like a full url url=%s", url)
         return url
     else:
         if (base and (not base.endswith('/'))):
             base = base + '/'
         if (url and (url.startswith('/'))):
             url = url.lstrip('/')
-        log.debug("urllib.basejoin(base=%s, url=%s)", base, url)
         return urllib.basejoin(base, url)
 
 
