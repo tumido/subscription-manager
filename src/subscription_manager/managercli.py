@@ -1991,6 +1991,15 @@ class ReposCommand(CliCommand):
             cert_action_client.update()
             self._request_validity_check()
 
+        # Test our connection
+        try:
+            self.cp.ping()
+        except socket.error as e:
+            # bz 1176219
+            if str(e)[-3:] in ['407']:
+                log.warning('Proxy Authentication failed')
+                sys.stderr.write('Proxy Authentication failed, using cached information')
+
         self.use_overrides = self.cp.supports_resource('content_overrides')
 
         # specifically, yum repos, for now.
