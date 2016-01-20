@@ -114,6 +114,10 @@ class Hardware:
         self.testing = testing or False
 
         self.no_dmi_arches = ['s390x', 'ppc64', 'ppc64le', 'ppc']
+
+        # ppc64 LPAR has it's virt.uuid in /proc/devicetree
+        self.devicetree_vm_uuid_arches = ['ppc64', 'ppc64le']
+
         # we need this so we can decide which of the
         # arch specific code bases to follow
         self.arch = self.get_arch()
@@ -788,7 +792,32 @@ class Hardware:
             # if host_type is not defined, do nothing (#768397)
             pass
 
+        # ie, ppc64/ppc64le
+        print self.arch
+        print self.devicetree_vm_uuid_arches
+        if self.arch in self.devicetree_vm_uuid_arches:
+            virt_dict.update(self._get_devicetree_vm_uuid())
+
         self.allhw.update(virt_dict)
+        return virt_dict
+
+    def _get_devicetree_vm_uuid(self):
+        """Collect the virt.uuid fact from device-tree/vm,uuid
+
+        For ppc64/ppc64le systems running KVM or PowerKVM, the
+        virt uuid is found in /proc/device-tree/vm,uuid.
+
+        (In contrast to use of DMI on x86_64)."""
+
+        virt_dict = {}
+
+        vm_uuid_path = "%s/proc/device-tree/vm,uuid" % self.prefix
+
+        with open(vm_uuid_path) as fo:
+            contents = fo.read()
+            vm_uuid = contents.strip()
+            virt_dict['virt.uuid'] = vm_uuid
+
         return virt_dict
 
     def _get_output(self, cmd):
@@ -827,12 +856,15 @@ class Hardware:
             log.warn(_("Error finding UUID: %s"), e)
             return  # nothing more to do
 
-        #most virt platforms record UUID via DMI/SMBIOS info.
+        # most virt platforms record UUID via DMI/SMBIOS info.
         if 'dmi.system.uuid' in self.allhw:
             self.allhw['virt.uuid'] = self.allhw['dmi.system.uuid']
 
-        #potentially override DMI-determined UUID with
-        #what is on the file system (xen para-virt)
+        # For ppc64, virt uuid is in /proc/device-tree/vm,uuid
+        # just the uuid in txt, one line
+
+        # potentially override DMI-determined UUID with
+        # what is on the file system (xen para-virt)
         try:
             uuid_file = open('/sys/hypervisor/uuid', 'r')
             uuid = uuid_file.read()
