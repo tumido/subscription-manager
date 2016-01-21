@@ -394,9 +394,11 @@ class Hardware:
         proc_cpuinfo = {}
         fact_namespace = 'proc_cpuinfo'
 
-        # FIXME: This is still pretty ugly for what seems so simple.
-        uname_machine = self.unameinfo['uname.machine']
-        proc_cpuinfo_source = cpuinfo.SystemCpuInfoFactory.from_uname_machine(uname_machine)
+        log.debug("pre factory")
+        #uname_machine = self.unameinfo['uname.machine']
+        proc_cpuinfo_source = cpuinfo.SystemCpuInfoFactory.from_uname_machine(self.arch,
+                                                                              prefix=self.prefix)
+        log.debug("proc_cpuinfo_source %s", proc_cpuinfo_source)
 
         for key, value in proc_cpuinfo_source.cpu_info.common.items():
             proc_cpuinfo['%s.common.%s' % (fact_namespace, key)] = value
@@ -866,7 +868,7 @@ class Hardware:
             except Exception, e:
                 log.warn("%s" % hardware_method)
                 log.warn("Hardware detection failed: %s" % e)
-
+                raise
         #we need to know the DMI info and VirtInfo before determining UUID.
         #Thus, we can't figure it out within the main data collection loop.
         if self.allhw.get('virt.is_guest'):
