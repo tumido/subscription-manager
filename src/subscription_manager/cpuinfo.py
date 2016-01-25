@@ -342,6 +342,10 @@ Hardware    : APM X-Gene Mustang board
 class BaseCpuInfo(object):
     @classmethod
     def from_proc_cpuinfo_string(cls, proc_cpuinfo_string):
+        """Return a BaseCpuInfo subclass based on proc_cpuinfo_string.
+
+        proc_cpuinfo_string is the string resulting from reading
+        the entire contents of /proc/cpuinfo."""
         cpu_info = cls()
         cpu_info._parse(proc_cpuinfo_string)
 
@@ -414,26 +418,19 @@ class X86_64CpuInfo(BaseCpuInfo):
 
     def _parse(self, cpuinfo_data):
         # ordered list
-        #kv_list = self._key_value_list(cpuinfo_data)
         kv_iter = split_key_value_generator(cpuinfo_data, line_splitter)
 
         processors = []
         all_fields = set()
         for processor_stanza in split_kv_list_by_field(kv_iter, 'processor'):
             proc_dict = self.processor_stanza_to_processor_data(processor_stanza)
-            #pp(proc_dict)
             processors.append(proc_dict)
-            #log.debug("proc_dict %s", proc_dict)
             # keep track of fields as we see them
             all_fields = accumulate_fields(all_fields, proc_dict.keys())
 
-#        log.debug("processors %s", processors)
         self.cpu_info.common = find_shared_key_value_pairs(all_fields, processors)
         self.cpu_info.processors = processors
         self.cpu_info.cpuinfo_data = cpuinfo_data
-#        log.debug("self.cpu_info %s", self.cpu_info)
-#        log.debug("self.cpu_info.common %s", self.cpu_info.common)
-#        log.debug("self.cpu_info.cpuinfo_data %s", self.cpu_info.cpuinfo_data)
 
     def processor_stanza_to_processor_data(self, stanza):
         "Take a list of k,v tuples, sluggify name, and add to a dict."
@@ -457,7 +454,6 @@ class Ppc64CpuInfo(BaseCpuInfo):
         # Treat the rest of the info as shared between all of the processor entries
         self.cpu_info.common = {fact_sluggify(k): v for k, v in kv_iter}
         self.cpu_info.cpuinfo_data = cpuinfo_data
-        print "fooooo", self.cpu_info.common
 
     def _not_timebase_key(self, item):
         return item[0] != 'timebase'
