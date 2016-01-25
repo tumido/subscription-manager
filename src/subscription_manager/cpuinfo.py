@@ -290,26 +290,33 @@ def find_shared_key_value_pairs(all_fields, processors):
 
     # remove fields that can't be smashed to one value
     common_cpu_info = dict([(x, smashed[x].pop()) for x in smashed if len(smashed[x]) == 1])
-    log.debug("common_cpu_info=%s", common_cpu_info)
     return common_cpu_info
 
 
 def split_kv_list_by_field(kv_list, field):
-    current_cpu = None
+    """Split the iterable kv_list into chunks by field.
+
+    For a list with repeating stanzas in it, this will
+    return a generate that will return each chunk.
+
+    For something like /proc/cpuinfo, called with
+    field 'processor', each stanza is a different cpu.
+    """
+    current_stanza = None
     for key, value in kv_list:
-        if key == 'processor':
-            if current_cpu:
-                yield current_cpu
-            current_cpu = [(key, value)]
+        if key == field:
+            if current_stanza:
+                yield current_stanza
+            current_stanza = [(key, value)]
             continue
 
         # if we have garbage in and no start to processor info
-        if current_cpu:
-            current_cpu.append((key, value))
+        if current_stanza:
+            current_stanza.append((key, value))
 
     # end of kv_list
-    if current_cpu:
-        yield current_cpu
+    if current_stanza:
+        yield current_stanza
 
 """
 Processor   : AArch64 Processor rev 0 (aarch64)
