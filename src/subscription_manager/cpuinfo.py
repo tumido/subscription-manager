@@ -107,56 +107,7 @@ import os
 log = logging.getLogger('rhsm-app.' + __name__)
 
 
-# represent the data in /proc/cpuinfo, which may include multiple processors
-class CpuinfoModel(object):
-    def __init__(self, cpuinfo_data=None):
-        # The contents of /proc/cpuinfo
-        self.cpuinfo_data = cpuinfo_data
-
-        # A iterable of CpuInfoModels, one for each processor in cpuinfo
-        self.processors = []
-
-        # prologues or footnotes not associated with a particular processor
-        self.other = []
-
-        # If were going to pretend all the cpus are the same,
-        # what do they all have in common.
-        self.common = {}
-
-        # model name    : Intel(R) Core(TM) i5 CPU       M 560  @ 2.67GHz
-        self._model_name = None
-
-        # a model number
-        # "45" for intel processor example above
-        self._model = None
-
-    @property
-    def count(self):
-        return len(self.processors)
-
-    @property
-    def model_name(self):
-        return self._model_name
-
-    @property
-    def model(self):
-        return self._model
-
-    def __str__(self):
-        lines = []
-        lines.append("Processor count: %s" % self.count)
-        lines.append('model_name: %s' % self.model_name)
-        lines.append("")
-        for k in sorted(self.common.keys()):
-            lines.append("%s: %s" % (k, self.common[k]))
-        lines.append("")
-        for k, v in self.other:
-            lines.append("%s: %s" % (k, v))
-        lines.append("")
-        return "\n".join(lines)
-
-
-class AbstractCpuFields(object):
+class DefaultCpuFields(object):
     """Maps generic cpuinfo fields to the corresponding field from ProcessorModel.
 
     For, a cpu MODEL (a number or string that the cpu vendor assigns to that model of
@@ -184,6 +135,69 @@ class Ppc64Fields(object):
     MODEL_NAME = 'machine'
 
 
+# represent the data in /proc/cpuinfo, which may include multiple processors
+class CpuinfoModel(object):
+    fields_class = DefaultCpuFields
+
+    def __init__(self, cpuinfo_data=None):
+        # The contents of /proc/cpuinfo
+        self.cpuinfo_data = cpuinfo_data
+
+        # A iterable of CpuInfoModels, one for each processor in cpuinfo
+        self.processors = []
+
+        # prologues or footnotes not associated with a particular processor
+        self.other = []
+
+        # If were going to pretend all the cpus are the same,
+        # what do they all have in common.
+        self.common = {}
+
+        # model name    : Intel(R) Core(TM) i5 CPU       M 560  @ 2.67GHz
+        self._model_name = None
+
+        # a model number
+        # "45" for intel processor example above
+        self._model = None
+
+    @property
+    def count(self):
+        return len(self.processors)
+
+    @property
+    def model_name(self):
+        if self._model_name:
+            return self._model_name
+
+        if not self.common:
+            return None
+
+        return self.common.get(self.fields_class.MODEL_NAME, None)
+
+    @property
+    def model(self):
+        if self._model:
+            return self._model
+
+        if not self.common:
+            return None
+
+        return self.common.get(self.fields_class.MODEL, None)
+
+    def __str__(self):
+        lines = []
+        lines.append("Processor count: %s" % self.count)
+        lines.append('model_name: %s' % self.model_name)
+        lines.append("")
+        for k in sorted(self.common.keys()):
+            lines.append("%s: %s" % (k, self.common[k]))
+        lines.append("")
+        for k, v in self.other:
+            lines.append("%s: %s" % (k, v))
+        lines.append("")
+        return "\n".join(lines)
+
+
 class Aarch64ProcessorModel(dict):
     "The info corresponding to the info about each aarch64 processor entry in cpuinfo"
     pass
@@ -204,41 +218,19 @@ class Ppc64ProcessorModel(dict):
 
 
 class X86_64CpuinfoModel(CpuinfoModel):
-    pass
+    """The model for all the cpuinfo data for all processors on the machine.
+
+    ie, all the data in /proc/cpuinfo field as opposed to X86_64ProcessModel which
+    is the info for 1 processor."""
+    fields_class = X86_64Fields
 
 
 class Ppc64CpuinfoModel(CpuinfoModel):
-    @property
-    def model_name(self):
-        print Ppc64Fields.MODEL_NAME, self.common
-        return self.common.get(Ppc64Fields.MODEL_NAME, None)
-
-    @property
-    def model(self):
-        print Ppc64Fields.MODEL, self.common
-        return self.common.get(Ppc64Fields.MODEL, None)
+    fields_class = Ppc64Fields
 
 
 class Aarch64CpuinfoModel(CpuinfoModel):
-    @property
-    def model_name(self):
-        if self._model_name:
-            return self._model_name
-
-        if not self.common:
-            return None
-
-        return self.common.get(Aarch64Fields.MODEL, None)
-
-    @property
-    def model(self):
-        if self._model:
-            return self._model
-
-        if not self.common:
-            return None
-
-        return self.common.get(Aarch64Fields.MODEL_NAME, None)
+    fields_class = Aarch64Fields
 
 
 def fact_sluggify(key):
@@ -278,6 +270,29 @@ def line_splitter(line):
     return None
 
 
+def accumulate_fields(fields_accum, fields):
+    for field in fields:
+        fields_accum.add(field)
+    return fields_accum
+
+
+def find_shared_key_value_pairs(all_fields, processors):
+    # smashem, last one wins
+    smashed = collections.defaultdict(set)
+
+    # build a dict of fieldname -> list of all the different values
+    # so we can dump the variant ones.
+    for field in all_fields:
+        for k, v in [(field, processor.get(field)) for processor in processors]:
+            if v is None:
+                continue
+            smashed[k].add(v)
+
+    # remove fields that can't be smashed to one value
+    common_cpu_info = dict([(x, smashed[x].pop()) for x in smashed if len(smashed[x]) == 1])
+    log.debug("common_cpu_info=%s", common_cpu_info)
+    return common_cpu_info
+
 """
 Processor   : AArch64 Processor rev 0 (aarch64)
 processor   : 0
@@ -316,7 +331,8 @@ class Aarch64CpuInfo(object):
         # Yes, there is a 'Processor' field and a 'processor' field, so
         # if 'Processor' exists, we use it as the model name
         kv_list = self._cap_processor_to_model_name_filter(kv_list)
-        slugged_kv_list = self._fact_sluggify_item_filter(kv_list)
+        slugged_kv_list = [fact_sluggify_item(item) for item in kv_list]
+        #slugged_kv_list = self._fact_sluggify_item_filter(kv_list)
         # kind of duplicated
         self.cpu_info.common = self.gather_cpu_info_model(slugged_kv_list)
         self.cpu_info.processors = self.gather_processor_list(slugged_kv_list)
@@ -370,6 +386,7 @@ class X86_64CpuInfo(object):
     @classmethod
     def from_proc_cpuinfo_string(cls, proc_cpuinfo_string):
         x86_64_cpu_info = cls()
+        print "string: ", proc_cpuinfo_string
         x86_64_cpu_info._parse(proc_cpuinfo_string)
 
         return x86_64_cpu_info
@@ -385,38 +402,17 @@ class X86_64CpuInfo(object):
             proc_dict = self.processor_stanza_to_processor_data(processor_stanza)
             #pp(proc_dict)
             processors.append(proc_dict)
-            log.debug("proc_dict %s", proc_dict)
+            #log.debug("proc_dict %s", proc_dict)
             # keep track of fields as we see them
-            all_fields = self._track_fields(all_fields, proc_dict.keys())
+            all_fields = accumulate_fields(all_fields, proc_dict.keys())
 
 #        log.debug("processors %s", processors)
-        self.cpu_info.common = self.find_shared_key_value_pairs(all_fields, processors)
+        self.cpu_info.common = find_shared_key_value_pairs(all_fields, processors)
         self.cpu_info.processors = processors
         self.cpu_info.cpuinfo_data = cpuinfo_data
 #        log.debug("self.cpu_info %s", self.cpu_info)
 #        log.debug("self.cpu_info.common %s", self.cpu_info.common)
 #        log.debug("self.cpu_info.cpuinfo_data %s", self.cpu_info.cpuinfo_data)
-
-    def _track_fields(self, fields_accum, fields):
-        for field in fields:
-            fields_accum.add(field)
-        return fields_accum
-
-    def find_shared_key_value_pairs(self, all_fields, processors):
-        # smashem, last one wins
-        smashed = collections.defaultdict(set)
-
-        # build a dict of fieldname -> list of all the different values
-        # so we can dump the variant ones.
-        for field in all_fields:
-            for k, v in [(field, processor.get(field)) for processor in processors]:
-                if v is None:
-                    continue
-                smashed[k].add(v)
-
-        # remove fields that can't be smashed to one value
-        common_cpu_info = dict([(x, smashed[x].pop()) for x in smashed if len(smashed[x]) == 1])
-        return common_cpu_info
 
     def processor_stanza_to_processor_data(self, stanza):
         "Take a list of k,v tuples, sluggify name, and add to a dict."
