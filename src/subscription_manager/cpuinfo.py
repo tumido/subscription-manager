@@ -293,6 +293,24 @@ def find_shared_key_value_pairs(all_fields, processors):
     log.debug("common_cpu_info=%s", common_cpu_info)
     return common_cpu_info
 
+
+def split_kv_list_by_field(kv_list, field):
+    current_cpu = None
+    for key, value in kv_list:
+        if key == 'processor':
+            if current_cpu:
+                yield current_cpu
+            current_cpu = [(key, value)]
+            continue
+
+        # if we have garbage in and no start to processor info
+        if current_cpu:
+            current_cpu.append((key, value))
+
+    # end of kv_list
+    if current_cpu:
+        yield current_cpu
+
 """
 Processor   : AArch64 Processor rev 0 (aarch64)
 processor   : 0
@@ -314,25 +332,27 @@ Hardware    : APM X-Gene Mustang board
 """
 
 
-class Aarch64CpuInfo(object):
+class BaseCpuInfo(object):
+    @classmethod
+    def from_proc_cpuinfo_string(cls, proc_cpuinfo_string):
+        cpu_info = cls()
+        cpu_info._parse(proc_cpuinfo_string)
+
+        return cpu_info
+
+
+class Aarch64CpuInfo(BaseCpuInfo):
     def __init__(self):
         self.cpu_info = Aarch64CpuinfoModel()
 
-    @classmethod
-    def from_proc_cpuinfo_string(cls, proc_cpuinfo_string):
-        aarch64_cpu_info = cls()
-        aarch64_cpu_info._parse(proc_cpuinfo_string)
-
-        return aarch64_cpu_info
-
     def _parse(self, cpuinfo_data):
         raw_kv_iter = split_key_value_generator(cpuinfo_data, line_splitter)
-        #kv_list = [x for x in kv_iter]
-        # Yes, there is a 'Processor' field and a 'processor' field, so
-        # if 'Processor' exists, we use it as the model name
-        #kv_list = self._cap_processor_to_model_name_filter(kv_list)
+
+        # Yes, there is a 'Processor' field and multiple lower case 'processor'
+        # fields.
         kv_iter = (self._capital_processor_to_model_name(item)
                    for item in raw_kv_iter)
+
         slugged_kv_list = [fact_sluggify_item(item) for item in kv_iter]
 
         # kind of duplicated
@@ -343,13 +363,13 @@ class Aarch64CpuInfo(object):
         self.cpu_info.other = self.gather_cpu_info_other(slugged_kv_list)
 
     def _capital_processor_to_model_name(self, item):
+        """Use the uppercase Processor field value as the model name.
+
+        For aarch64, the 'Processor' field is the closest to model name,
+        so we sub it in now."""
         if item[0] == 'Processor':
             item[0] = "model_name"
         return item
-
-    #def _cap_processor_to_model_name_filter(self, kv_list):
-    #    return [self._cap_processor_to_model_name(item)
-    #            for item in kv_list]
 
     def gather_processor_list(self, kv_list):
         processor_list = []
@@ -381,17 +401,9 @@ class Aarch64CpuInfo(object):
         return cpu_data
 
 
-class X86_64CpuInfo(object):
+class X86_64CpuInfo(BaseCpuInfo):
     def __init__(self):
         self.cpu_info = X86_64CpuinfoModel()
-
-    @classmethod
-    def from_proc_cpuinfo_string(cls, proc_cpuinfo_string):
-        x86_64_cpu_info = cls()
-        print "string: ", proc_cpuinfo_string
-        x86_64_cpu_info._parse(proc_cpuinfo_string)
-
-        return x86_64_cpu_info
 
     def _parse(self, cpuinfo_data):
         # ordered list
@@ -400,7 +412,7 @@ class X86_64CpuInfo(object):
 
         processors = []
         all_fields = set()
-        for processor_stanza in self._split_by_processor(kv_iter):
+        for processor_stanza in split_kv_list_by_field(kv_iter, 'processor'):
             proc_dict = self.processor_stanza_to_processor_data(processor_stanza)
             #pp(proc_dict)
             processors.append(proc_dict)
@@ -422,40 +434,16 @@ class X86_64CpuInfo(object):
         cpu_data.update(dict([fact_sluggify_item(item) for item in stanza]))
         return cpu_data
 
-    def _split_by_processor(self, kv_list):
-        current_cpu = None
-        for key, value in kv_list:
-            if key == 'processor':
-                if current_cpu:
-                    yield current_cpu
-                current_cpu = [(key, value)]
-                continue
 
-            # if we have garbage in and no start to processor info
-            if current_cpu:
-                current_cpu.append((key, value))
-
-        # end of kv_list
-        if current_cpu:
-            yield current_cpu
-
-
-class Ppc64CpuInfo(X86_64CpuInfo):
+class Ppc64CpuInfo(BaseCpuInfo):
     def __init__(self):
         self.cpu_info = Ppc64CpuinfoModel()
-
-    @classmethod
-    def from_proc_cpuinfo_string(cls, proc_cpuinfo_string):
-        cpu_info = cls()
-        cpu_info._parse(proc_cpuinfo_string)
-
-        return cpu_info
 
     def _parse(self, cpuinfo_data):
         kv_iter = split_key_value_generator(cpuinfo_data, line_splitter)
 
         processor_iter = itertools.takewhile(self._not_timebase_key, kv_iter)
-        for processor_stanza in self._split_by_processor(processor_iter):
+        for processor_stanza in split_kv_list_by_field(processor_iter, 'processor'):
             proc_dict = Ppc64ProcessorModel.from_stanza(processor_stanza)
             self.cpu_info.processors.append(proc_dict)
 
