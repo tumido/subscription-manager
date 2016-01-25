@@ -326,13 +326,15 @@ class Aarch64CpuInfo(object):
         return aarch64_cpu_info
 
     def _parse(self, cpuinfo_data):
-        kv_iter = split_key_value_generator(cpuinfo_data, line_splitter)
-        kv_list = [x for x in kv_iter]
+        raw_kv_iter = split_key_value_generator(cpuinfo_data, line_splitter)
+        #kv_list = [x for x in kv_iter]
         # Yes, there is a 'Processor' field and a 'processor' field, so
         # if 'Processor' exists, we use it as the model name
-        kv_list = self._cap_processor_to_model_name_filter(kv_list)
-        slugged_kv_list = [fact_sluggify_item(item) for item in kv_list]
-        #slugged_kv_list = self._fact_sluggify_item_filter(kv_list)
+        #kv_list = self._cap_processor_to_model_name_filter(kv_list)
+        kv_iter = (self._capital_processor_to_model_name(item)
+                   for item in raw_kv_iter)
+        slugged_kv_list = [fact_sluggify_item(item) for item in kv_iter]
+
         # kind of duplicated
         self.cpu_info.common = self.gather_cpu_info_model(slugged_kv_list)
         self.cpu_info.processors = self.gather_processor_list(slugged_kv_list)
@@ -340,14 +342,14 @@ class Aarch64CpuInfo(object):
         # For now, 'hardware' is per
         self.cpu_info.other = self.gather_cpu_info_other(slugged_kv_list)
 
-    def _cap_processor_to_model_name(self, item):
+    def _capital_processor_to_model_name(self, item):
         if item[0] == 'Processor':
             item[0] = "model_name"
         return item
 
-    def _cap_processor_to_model_name_filter(self, kv_list):
-        return [self._cap_processor_to_model_name(item)
-                for item in kv_list]
+    #def _cap_processor_to_model_name_filter(self, kv_list):
+    #    return [self._cap_processor_to_model_name(item)
+    #            for item in kv_list]
 
     def gather_processor_list(self, kv_list):
         processor_list = []
