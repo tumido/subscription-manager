@@ -18,7 +18,6 @@ class BaseCpuInfo(fixture.SubManFixture):
     cpuinfo_class = None
 
     def _test(self, name):
-        #x86_64-dell_e4310
         cpud = self._load_cpuinfo(name)
         exp = self.expected[name]
 
@@ -27,10 +26,9 @@ class BaseCpuInfo(fixture.SubManFixture):
         if 'cpu_count' in exp:
             self.assertEquals(exp['cpu_count'], len(x.cpu_info.processors))
         if 'model' in exp:
-            print x.cpu_info
-            print "x.cpu_info.prcerssors[0]", x.cpu_info.processors[0]
-            print 'x.cpu_info.model', x.cpu_info.model
             self.assertEquals(exp['model'], x.cpu_info.model)
+        if 'machine' in exp:
+            self.assertEquals(exp['machine'], x.cpu_info.common['machine'])
 
     def _load_cpuinfo(self, name):
         f = open(os.path.join(cpu_data_dir, name), 'r')
@@ -83,6 +81,19 @@ class TestPpc64CpuInfo(BaseCpuInfo):
 
     def test_ppc64_power8_16cpu_kvm(self):
         self._test('ppc64-power8-16cpu-kvm')
+
+
+class TestPpc64leCpuInfo(BaseCpuInfo):
+    cpuinfo_class = cpuinfo.Ppc64CpuInfo
+    expected = {'ppc64le-power8-16cpu-lpar':
+                {'cpu_count': 16,
+                 'platform': 'pSeries',
+                 'model': 'IBM,8247-22L',
+                 'machine': 'CHRP IBM,8247-22L'}
+              }
+
+    def test_ppc64le_power8_16cpu_lpar(self):
+        self._test('ppc64le-power8-16cpu-lpar')
 
 
 class TestAarch64CpuInfo(BaseCpuInfo):

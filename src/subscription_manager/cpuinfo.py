@@ -452,6 +452,7 @@ class Ppc64CpuInfo(BaseCpuInfo):
             self.cpu_info.processors.append(proc_dict)
 
         # Treat the rest of the info as shared between all of the processor entries
+        # kv_iter is the rest of cpuinfo that isn't processor stanzas
         self.cpu_info.common = {fact_sluggify(k): v for k, v in kv_iter}
         self.cpu_info.cpuinfo_data = cpuinfo_data
 
@@ -462,7 +463,8 @@ class Ppc64CpuInfo(BaseCpuInfo):
 class SystemCpuInfoFactory(object):
     uname_to_cpuinfo = {'x86_64': X86_64CpuInfo,
                         'aarch64': Aarch64CpuInfo,
-                        'ppc64': Ppc64CpuInfo}
+                        'ppc64': Ppc64CpuInfo,
+                        'ppc64le': Ppc64CpuInfo}
     proc_cpuinfo_path = '/proc/cpuinfo'
 
     @classmethod
@@ -480,12 +482,10 @@ class SystemCpuInfoFactory(object):
 
     @classmethod
     def open_proc_cpuinfo(cls, prefix=None):
-        print 'opc', prefix
         proc_cpuinfo_path = cls.proc_cpuinfo_path
         if prefix:
             proc_cpuinfo_path = os.path.join(prefix, cls.proc_cpuinfo_path[1:])
         proc_cpuinfo_buf = ''
-        print 'sdfsdf', proc_cpuinfo_path
         with open(proc_cpuinfo_path, 'r') as proc_cpuinfo_f:
             proc_cpuinfo_buf = proc_cpuinfo_f.read()
         return proc_cpuinfo_buf
