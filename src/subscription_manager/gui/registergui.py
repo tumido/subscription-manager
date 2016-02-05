@@ -1992,6 +1992,14 @@ class AsyncBackend(object):
         except Exception:
             self.queue.put((callback, None, sys.exc_info()))
 
+    def _unregister_consumer(self, consumer_uuid, callback):
+        try:
+            cp = self.backend.cp_provider.get_consumer_auth_cp()
+            managerlib.unregister(cp, consumer_uuid)
+            self.queue.put((callback, None, None))
+        except Exception:
+            self.queue.put((callback, None, sys.exc_info()))
+
     def get_owner_list(self, username, callback):
         ga_GObject.idle_add(self._watch_thread)
         threading.Thread(target=self._get_owner_list,
@@ -2032,6 +2040,12 @@ class AsyncBackend(object):
         threading.Thread(target=self._refresh,
                          name="RefreshThread",
                          args=(callback,)).start()
+
+    def unregister_consumer(self, consumer_uuid, callback):
+        ga_GObject.idle_add(self._watch_thread)
+        threading.Thread(target=self._unregister_consumer,
+                         name="UnregisterThread",
+                         args=(consumer_uuid, callback)).start()
 
 
 # TODO: make this a more informative 'summary' page.
