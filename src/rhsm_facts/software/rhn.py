@@ -13,10 +13,22 @@
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation.
 
+import logging
 import sys
+
+from rhsm_facts import exceptions
+
+log = logging.getLogger('rhsm-app.' + __name__)
+
+
+class RhnSoftwareCollectorError(exceptions.FactCollectorError):
+    pass
 
 
 class RhnClassicCheck(object):
+    def __init__(self):
+        self.data = self.is_registered_with_classic()
+
     def is_registered_with_classic(self):
         """Check if system is currently registered to RHN "classic".
 
@@ -30,4 +42,18 @@ class RhnClassicCheck(object):
         except ImportError:
             return False
 
-        return up2dateAuth.getSystemId() is not None
+        is_registered = up2dateAuth.getSystemId() is not None
+        # 'software.rhn.is_registered' ?
+        return {'rhn.is_registered': is_registered}
+
+
+class RHN(object):
+    def collect(self, collected_facts):
+        try:
+            rhn = RhnClassicCheck()
+        except Exception, e:
+            log.exception(e)
+            raise RhnSoftwareCollectorError(e)
+
+        collected_facts.update(rhn.data)
+        return collected_facts

@@ -10,6 +10,10 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
+# TODO: replace all this with . and relative imports
+from rhsm_facts.software import rhn
+from rhsm_facts.software import uname
+from rhsm_facts.software import distribution
 
 CERT_VERSION = "3.2"
 
@@ -23,8 +27,15 @@ class SoftwareCollector(object):
 
         # Set the preferred entitlement certificate version:
         new_facts.update({"system.certificate_version": CERT_VERSION})
-
         collected_facts.update(new_facts)
 
-        # TODO: add rhn check
+        rhn_facts = rhn.RHN().collect(collected_facts)
+        collected_facts.update(rhn_facts)
+
+        uname_facts = uname.Uname().collect(collected_facts)
+        collected_facts.update(uname_facts)
+
+        distribution_facts = distribution.Distribution().collect(collected_facts)
+        collected_facts.update(distribution_facts)
+
         return collected_facts

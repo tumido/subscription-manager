@@ -1,9 +1,7 @@
 #
 # Module to probe Hardware info from the system
 #
-# Copyright (c) 2010 Red Hat, Inc.
-#
-# Authors: Pradeep Kilambi <pkilambi@redhat.com>
+# Copyright (c) 2010-2016 Red Hat, Inc.
 #
 # This software is licensed to you under the GNU General Public License,
 # version 2 (GPLv2). There is NO WARRANTY for this software, express or
@@ -23,7 +21,6 @@ import gettext
 import logging
 import os
 import platform
-import re
 from subprocess import PIPE, Popen
 import sys
 
@@ -75,26 +72,6 @@ class Hardware:
         self.arch = self.get_arch()
 
         self.platform_specific_info_provider = self.get_platform_specific_info_provider()
-
-    def get_uname_info(self):
-
-        uname_data = os.uname()
-        uname_keys = ('uname.sysname', 'uname.nodename', 'uname.release',
-                      'uname.version', 'uname.machine')
-        self.unameinfo = dict(zip(uname_keys, uname_data))
-        self.allhw.update(self.unameinfo)
-        return self.unameinfo
-
-    def get_release_info(self):
-        distro_keys = ('distribution.name', 'distribution.version',
-                       'distribution.id', 'distribution.version.modifier')
-        self.releaseinfo = dict(filter(lambda (key, value): value,
-            zip(distro_keys, self.get_distribution())))
-        self.allhw.update(self.releaseinfo)
-        return self.releaseinfo
-
-    def _open_release(self, filename):
-        return open(filename, 'r')
 
     # Determine which rough arch we are, so we know where to
     # look for hardware info. Also support a test mode that
@@ -148,65 +125,6 @@ class Hardware:
             platform_info = self.platform_specific_info_provider(self.allhw).info
 
         self.allhw.update(platform_info)
-
-    # this version os very RHEL/Fedora specific...
-    def get_distribution(self):
-
-        version = 'Unknown'
-        distname = 'Unknown'
-        dist_id = 'Unknown'
-        version_modifier = ''
-
-        if os.path.exists('/etc/os-release'):
-            f = open('/etc/os-release', 'r')
-            os_release = f.readlines()
-            f.close()
-            data = {'PRETTY_NAME': 'Unknown',
-                    'NAME': distname,
-                    'ID': 'Unknown',
-                    'VERSION': dist_id,
-                    'VERSION_ID': version,
-                    'CPE_NAME': 'Unknown'}
-            for line in os_release:
-                split = map(lambda piece: piece.strip('"\n '), line.split('='))
-                if len(split) != 2:
-                    continue
-                data[split[0]] = split[1]
-
-            version = data['VERSION_ID']
-            distname = data['NAME']
-            dist_id = data['VERSION']
-            dist_id_search = re.search('\((.*?)\)', dist_id)
-            if dist_id_search:
-                dist_id = dist_id_search.group(1)
-            # Split on ':' that is not preceded by '\'
-            vers_mod_data = re.split('(?<!\\\):', data['CPE_NAME'])
-            if len(vers_mod_data) >= 6:
-                version_modifier = vers_mod_data[5].lower().replace('\\:', ':')
-
-        elif os.path.exists('/etc/redhat-release'):
-            # from platform.py from python2.
-            _lsb_release_version = re.compile(r'(.+)'
-                                              ' release '
-                                              '([\d.]+)'
-                                              '\s*(?!\()(\S*)\s*'
-                                              '[^(]*(?:\((.+)\))?')
-            f = self._open_release('/etc/redhat-release')
-            firstline = f.readline()
-            f.close()
-
-            m = _lsb_release_version.match(firstline)
-
-            if m is not None:
-                (distname, version, tmp_modifier, dist_id) = tuple(m.groups())
-                if tmp_modifier:
-                    version_modifier = tmp_modifier.lower()
-
-        elif hasattr(platform, 'linux_distribution'):
-            (distname, version, dist_id) = platform.linux_distribution()
-            version_modifier = 'Unknown'
-
-        return distname, version, dist_id, version_modifier
 
     def get_ls_cpu_info(self):
         # if we have `lscpu`, let's use it for facts as well, under
