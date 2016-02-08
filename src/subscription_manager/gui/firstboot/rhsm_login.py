@@ -120,6 +120,7 @@ class moduleClass(module.Module, object):
             self.interface = interface
 
         self.register_widget.emit('proceed')
+        log.debug('APPLY!!!!!!!!!!!!!!')
 
         # This is always "fail" until we get to the done screen
         return self.page_status
@@ -160,12 +161,16 @@ class moduleClass(module.Module, object):
         # Note, even if we are standalone firstboot mode (no rhn modules),
         # we may still have RHN installed, and possibly configured.
         self._read_rhn_proxy_settings()
-        if self.register_widget.info.get_property('first-run'):
-            self.register_widget.initialize()
-        elif self.register_widget.info.registered_before_firstboot:
+        if not self.register_widget.info.registered_before_firstboot and \
+           not self.register_widget.info.first_run:
             self.register_widget.clear_screens()
             self.register_widget.populate_screens()
-            self.register_widget.change_screen(registergui.CHOOSE_SERVER_PAGE)
+            self.register_widget.change_screen(registergui.CREDENTIALS_PAGE)
+            self.register_widget.info = registergui.RegisterInfo()
+            self.register_widget.info.first_run = False
+            self.register_widget.info.registered_before_firstboot = False
+        else:
+            self.register_widget.initialize()
 
     def needsNetwork(self):
         """
@@ -348,6 +353,7 @@ class moduleClass(module.Module, object):
         # do nothing here if we haven't set a ref to self.interface
         # yet. See bz#863572
         # EL5:
+        log.debug('NAVIGATION BEING CHANGED')
         if self._is_compat:
             self.compat_parent.backButton.set_sensitive(sensitive)
             self.compat_parent.nextButton.set_sensitive(sensitive)

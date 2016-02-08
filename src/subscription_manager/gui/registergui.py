@@ -174,6 +174,11 @@ class RegisterInfo(ga_GObject.GObject):
 
     register_status = ga_GObject.property(type=str, default='')
 
+    # Did we enter into our firstboot module already registered
+    registered_before_firstboot = ga_GObject.property(type=bool, default=False)
+
+    first_run = ga_GObject.property(type=bool, default=True)
+
     # TODO: make a gobj prop as well, with custom set/get, so we can be notified
     @property
     def identity(self):
@@ -408,6 +413,12 @@ class RegisterWidget(widgets.SubmanBaseWidget):
             return False
 
         if self.info.identity.is_valid():
+            log.debug('VALID!!!!!!!!!!!!!!!!!!!!!!!!!!')
+            if self.info.get_property('first-run'):
+                if gui_utils.get_running_as_firstboot():
+                    log.debug('REGISTERED BEFORE FIRSTBOOT')
+                    self.info.set_property('registered-before-firstboot', True)
+                self.info.set_property('first-run', False)
             self.emit('register-finished')
             msg = _("System '%s' successfully registered.\n") % self.info.identity.name
             self.info.set_property('register-status', msg.rstrip())
@@ -420,6 +431,7 @@ class RegisterWidget(widgets.SubmanBaseWidget):
             return False
         msg = _("This system is currently not registered.")
         self.info.set_property('register-status', msg)
+        self.info.set_property('first-run', False)
         self.current_screen.stay()
         self.register_widget.show_all()
         return False
@@ -626,6 +638,8 @@ class RegisterWidget(widgets.SubmanBaseWidget):
             self.progress_label.set_markup(_("<b>Registering</b>"))
         elif state == RegisterState.SUBSCRIBING:
             self.progress_label.set_markup(_("<b>Attaching</b>"))
+        elif state == RegisterState.UNREGISTERING:
+            self.progress_label.set_markup(_("<b>Resetting</b>"))
 
     # Various bits for starting/stopping the timer used to pulse the progress bar
 
@@ -1003,12 +1017,11 @@ class PerformRegisterScreen(NoGuiScreen):
         return
 
     def pre(self):
-        log.debug('PERFORMING REGISTER')
         msg = _("Registering to owner: %s environment: %s") % \
                  (self.info.get_property('owner-key'),
                   self.info.get_property('environment'))
         self.info.set_property('register-status', msg)
-
+        self.set_property('ready', False)
         self.async.register_consumer(self.info.get_property('consumername'),
                                      self.facts,
                                      self.info.get_property('owner-key'),
@@ -1495,6 +1508,7 @@ class CredentialsScreen(Screen):
             self.skip_auto_bind.set_active(self.info.get_property('skip-auto-bind'))
 
     def pre(self):
+
         self.info.set_property('details-label-txt', self.pre_message)
         self.account_login.grab_focus()
         self.pre_done()
@@ -1690,6 +1704,7 @@ class ChooseServerScreen(Screen):
         pass
 
     def apply(self):
+        log.debug('CHOOSE SERVER APPLY!!!!!!!!!!!!!!!!!!!!')
         self.stay()
         server = self.server_entry.get_text()
 
@@ -1730,10 +1745,12 @@ class ChooseServerScreen(Screen):
         self.info.set_property('prefix', prefix)
 
         if self.activation_key_checkbox.get_active():
+            log.debug('ACTIVATION_PAGE')
             self.emit('move-to-screen', ACTIVATION_KEY_PAGE)
             return True
 
         else:
+            log.debug('CRED_PAGE!')
             self.emit('move-to-screen', CREDENTIALS_PAGE)
             return True
 
