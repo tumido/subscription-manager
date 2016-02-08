@@ -1003,6 +1003,7 @@ class PerformRegisterScreen(NoGuiScreen):
         return
 
     def pre(self):
+        log.debug('PERFORMING REGISTER')
         msg = _("Registering to owner: %s environment: %s") % \
                  (self.info.get_property('owner-key'),
                   self.info.get_property('environment'))
