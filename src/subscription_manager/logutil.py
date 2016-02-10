@@ -9,7 +9,7 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import ConfigParser
+from six.moves import configparser
 import logging
 import logging.handlers
 import logging.config
@@ -116,12 +116,12 @@ def file_config(logging_config):
         logging.config.fileConfig(logging_config,
                                   defaults={'logfilepath': LOGFILE_PATH},
                                   disable_existing_loggers=False)
-    except ConfigParser.Error, e:
+    except configparser.Error as e:
         # If the log config file doesn't exist, or is empty, we end up
-        # with ConfigParser errors.
+        # with configparse/ConfigParser errors.
 
         # TODO: fallback default logger?
-        print e
+        print(e)
 
 
 def init_logger():

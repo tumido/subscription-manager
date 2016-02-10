@@ -17,21 +17,27 @@
 # in this software or its documentation.
 #
 
-import commands
-import ethtool
 import gettext
 import logging
 import os
 import platform
 import re
 import socket
+import subprocess
 import sys
 
-from rhsm.facts import cpuinfo
+from . import cpuinfo
 
 _ = gettext.gettext
 
 log = logging.getLogger(__name__)
+
+# No python3 version of python-ethtool
+ethtool = None
+try:
+    import ethtool
+except ImportError as e:
+    log.debug("'ethtool' module failed to import.")
 
 
 class ClassicCheck:
@@ -240,7 +246,8 @@ class Hardware(object):
                     nkey = '.'.join(["memory", key.lower()])
                     meminfo[nkey] = "%s" % int(value)
         except Exception as e:
-            print _("Error reading system memory information:"), e
+            log.exception(e)
+            log.warn("Problem reading system memory information:", e)
         return meminfo
 
     def count_cpumask_entries(self, cpu, field):
@@ -548,30 +555,42 @@ class Hardware(object):
         if not os.access('/usr/bin/lscpu', os.R_OK):
             return
 
-        lscpuinfo = {}
-        # let us specify a test dir of /sys info for testing
+        ls_cpu_info = {}
+
+        # copy of parent env
+        parent_env = dict(os.environ)
+
+        # Add LC_ALL to env to avoid translated lscpu output.
         # If the user env sets LC_ALL, it overrides a LANG here, so
         # use LC_ALL here. See rhbz#1225435
-        ls_cpu_path = 'LC_ALL=en_US.UTF-8 /usr/bin/lscpu'
-        ls_cpu_cmd = ls_cpu_path
+        ls_cpu_env = parent_env.update({'LC_ALL': 'en_US.UTF-8'})
+        ls_cpu_cmd = ['/usr/bin/lscpu']
 
+        # let us specify a test dir of /sys info for testing
         if self.testing:
-            ls_cpu_cmd = "%s -s %s" % (ls_cpu_cmd, self.prefix)
+            ls_cpu_cmd = ls_cpu_cmd + ["-s", "%s" % (ls_cpu_cmd, self.prefix)]
         try:
-            cpudata = commands.getstatusoutput(ls_cpu_cmd)[-1].split('\n')
-            for info in cpudata:
+            ls_cpu_out = subprocess.check_output(ls_cpu_cmd, env=ls_cpu_env)
+        except subprocess.CalledProcessError as e:
+            log.exception(e)
+            log.warn('Error with lscpu (%s) subprocess  information: %s',
+                     ' '.join(ls_cpu_cmd), e)
+
+        # TODO: move cpuinfo's fact_sluggify/line_splitter/etc to util module and use here
+        try:
+            cpu_data = ls_cpu_out.strip().split('\n')
+            for info in cpu_data:
                 try:
                     key, value = info.split(":")
                     nkey = '.'.join(["lscpu", key.lower().strip().replace(" ", "_")])
-                    self.lscpuinfo[nkey] = "%s" % value.strip()
+                    ls_cpu_info[nkey] = "%s" % value.strip()
                 except ValueError:
                     # sometimes lscpu outputs weird things. Or fails.
-                    #
-                    pass
+                    log.warn("Parsing of lscpu output failed")
         except Exception as e:
             log.warn('Error reading system CPU information: %s', e)
 
-        return lscpuinfo
+        return ls_cpu_info
 
     def get_network_info(self):
         netinfo = {}
@@ -605,6 +624,11 @@ class Hardware(object):
 
     def get_network_interfaces(self):
         netinfdict = {}
+
+        # No ethtool module for python3
+        if not ethtool:
+            return netinfdict
+
         old_ipv4_metakeys = ['ipv4_address', 'ipv4_netmask', 'ipv4_broadcast']
         ipv4_metakeys = ['address', 'netmask', 'broadcast']
         ipv6_metakeys = ['address', 'netmask']
@@ -692,8 +716,9 @@ class Hardware(object):
                     key = '.'.join(['net.interface', info.device, "permanent_mac_address"])
                     netinfdict[key] = permanent_mac_addr
 
-        except Exception:
-            print _("Error reading network interface information:"), sys.exc_type
+        except Exception as e:
+            log.exception(e)
+            log.warn("Problem reading network interface information: %s", e)
         return netinfdict
 
     # from rhn-client-tools  hardware.py
@@ -737,11 +762,11 @@ class Hardware(object):
         return all_hw_info
 
 
-if __name__ == '__main__':
-    _LIBPATH = "/usr/share/rhsm"
+def main():
     # add to the path if need be
-    if _LIBPATH not in sys.path:
-        sys.path.append(_LIBPATH)
+    RHSM_PATH = "/usr/share/rhsm"
+    if RHSM_PATH not in sys.path:
+        sys.path.append(RHSM_PATH)
 
     from subscription_manager import logutil
     logutil.init_logger()
@@ -757,10 +782,10 @@ if __name__ == '__main__':
     # anything else
     if len(sys.argv) > 2:
         for hkey, hvalue in sorted(hw_dict.items()):
-            print "'%s' : '%s'" % (hkey, hvalue)
+            print("'%s' : '%s'" % (hkey, hvalue))
 
     if not hw.testing:
-        sys.exit(0)
+        return 0
 
     # verify the cpu socket info collection we use for rhel5 matches lscpu
     cpu_items = [('cpu.core(s)_per_socket', 'lscpu.core(s)_per_socket'),
@@ -777,8 +802,6 @@ if __name__ == '__main__':
         value_0 = int(hw_dict.get(cpu_item[0], -1))
         value_1 = int(hw_dict.get(cpu_item[1], -1))
 
-        #print "%s/%s: %s %s" % (cpu_item[0], cpu_item[1], value_0, value_1)
-
         if value_0 != value_1 and ((value_0 != -1) and (value_1 != -1)):
             failed_list.append((cpu_item[0], cpu_item[1], value_0, value_1))
 
@@ -786,13 +809,17 @@ if __name__ == '__main__':
     missing_set = set(must_haves).difference(set(hw_dict))
 
     if failed:
-        print "cpu detection error"
+        print("cpu detection error")
     for failed in failed_list:
-        print "The values %s %s do not match (|%s| != |%s|)" % (failed[0], failed[1],
-                                                                failed[2], failed[3])
+        print("The values %s %s do not match (|%s| != |%s|)" % (failed[0], failed[1],
+                                                                failed[2], failed[3]))
     if missing_set:
         for missing in missing_set:
-            print "cpu info fact: %s was missing" % missing
+            print("cpu info fact: %s was missing" % missing)
 
     if failed:
-        sys.exit(1)
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())
