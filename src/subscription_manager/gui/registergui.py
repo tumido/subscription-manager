@@ -2032,7 +2032,7 @@ class AsyncBackend(object):
         suitable_slas = {}
 
         # eek, in a thread
-        action_client = ActionClient(facts=facts)
+        action_client = ActionClient()
         action_client.update()
 
         for sla in available_slas:
