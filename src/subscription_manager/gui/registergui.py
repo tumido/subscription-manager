@@ -1890,15 +1890,21 @@ class AsyncBackend(object):
         try:
             # We've got several steps here that all happen in this thread
             #
-            # get installed prods
-            # get facts (local collection or facts dbus service)
-            # run pre_register plugin
-            # ACTUALLY REGISTER
-            # run post_register plugin
+            # Behing a 'gather system info' screen?
+            #  get installed prods
+            #  get facts (local collection or facts dbus service)
+            #
+            # run pre_register plugin (in main?)
+            # ACTUALLY REGISTER (the network call)
+            # run post_register plugin (in main?)
+            #
+            # persist identity
+            #  # These could move to call back
             # reload identity
             # persist new installed products info ?
             # persist facts cache (for now)
             # persist new consumer cert
+            # # already branch to make this a seperate page/thread
             # update package profile (ie, read rpmdb, slow...)
             #   which can make a package profile upload request
             # restart virt-who   (wat?)
@@ -1920,6 +1926,12 @@ class AsyncBackend(object):
             # TODO: not sure why we pass in a facts.Facts, and call it's
             #       get_facts() three times. The two bracketing plugin calls
             #       are meant to be able to enhance/tweak facts
+
+            # TODO: We end up calling plugins from threads, which is a little weird.
+            #       Seems like a reasonable place to go back to main thread, run the
+            #       plugin, run the network request in a thread, come back to main, run post
+            #       plugin, etc.
+
             self.plugin_manager.run("pre_register_consumer", name=name,
                                     facts=facts_dict)
 
@@ -1943,6 +1955,7 @@ class AsyncBackend(object):
 
             # In practice, the only time this condition should be true is
             # when we are working with activation keys.  See BZ #888790.
+            # This can go away if we aren't doing more calls
             if not self.backend.cp_provider.get_basic_auth_cp().username and \
                 not self.backend.cp_provider.get_basic_auth_cp().password:
                 # Write the identity cert to disk
