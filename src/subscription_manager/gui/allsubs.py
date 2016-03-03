@@ -70,6 +70,10 @@ class AllSubscriptionsTab(widgets.SubscriptionManagerTab):
 
         self.async_bind = async.AsyncBind(self.backend.certlib)
 
+        self.async_everything = async.AsyncEverything()
+        self.async_everything.sleep(how_long=5)
+        self.async_everything.run()
+
         today = datetime.date.today()
         self.date_picker = widgets.DatePicker(today)
         self.date_picker_hbox.add(self.date_picker)
@@ -350,6 +354,9 @@ class AllSubscriptionsTab(widgets.SubscriptionManagerTab):
         Reload the subscriptions from the server when the Search button
         is clicked.
         """
+        log.debug("sssssssssssssllllp")
+        self.async_everything.sleep(how_long=5)
+
         if not self.date_picker.date_entry_validate():
             return
         try:

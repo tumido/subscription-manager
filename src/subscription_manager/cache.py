@@ -131,6 +131,19 @@ class CacheManager(object):
             # a new as if it didn't exist
             pass
 
+    def sync(self, uep, consumer_uuid):
+        """Uses _sync_with_server to update info to candlepin."""
+
+        try:
+            self._sync_with_server(uep, consumer_uuid)
+        except connection.RestlibException, re:
+            raise re
+        except Exception, e:
+            log.error("Error updating system data on the server")
+            log.exception(e)
+            raise Exception(_("Error updating system data on the server, see /var/log/rhsm/rhsm.log "
+                              "for more details."))
+
     def update_check(self, uep, consumer_uuid, force=False):
         """
         Check if data has changed, and push an update if so.
@@ -154,19 +167,13 @@ class CacheManager(object):
         log.debug("Checking current system info against cache: %s" % self.CACHE_FILE)
         if self.has_changed() or force:
             log.debug("System data has changed, updating server.")
-            try:
-                self._sync_with_server(uep, consumer_uuid)
-                self.write_cache()
-                # Return the number of 'updates' we did, assuming updating all
-                # packages at once is one update.
-                return 1
-            except connection.RestlibException, re:
-                raise re
-            except Exception, e:
-                log.error("Error updating system data on the server")
-                log.exception(e)
-                raise Exception(_("Error updating system data on the server, see /var/log/rhsm/rhsm.log "
-                        "for more details."))
+
+            self.sync(uep, consumer_uuid)
+
+            self.write_cache()
+            # Return the number of 'updates' we did, assuming updating all
+            # packages at once is one update.
+            return 1
         else:
             log.debug("No changes.")
             return 0  # No updates performed.
