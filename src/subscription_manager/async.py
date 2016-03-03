@@ -123,6 +123,8 @@ class QueueConsumer(object):
         self.queue = queue
         self._idle_callback_id = None
         self._consuming = False
+        self.log = logging.getLogger(__name__ + '.' +
+                                     self.__class__.__name__)
 
     def queue_get_idle_handler(self):
         """Called from mainloop to poll results queue for new results.
@@ -135,7 +137,7 @@ class QueueConsumer(object):
         # Everything in here runs in the main thread.
         try:
             queue_item = self.queue.get(block=False)
-            log.debug("got a queue_item in idle_callback qi=%s", queue_item)
+            self.log.debug("got a queue_item in idle_callback")
             self.queue.task_done()
             self._process_queue_item(queue_item)
         except Queue.Empty:
@@ -151,8 +153,8 @@ class QueueConsumer(object):
             self._idle_callback_id = None
             return False
         except Exception, e:
-            log.debug("idle_callback exception")
-            log.exception(e)
+            self.log.debug("idle_callback exception")
+            self.log.exception(e)
             raise
 
         #self._consuming = False
@@ -173,7 +175,6 @@ class QueueConsumer(object):
         """Call for each item getting from the queue.
 
         This should call self.queue.task_done or super()'s."""
-        #self.queue.task_done()
         pass
 
 
@@ -188,22 +189,22 @@ class TaskQueueConsumer(QueueConsumer):
         """queue_item is a Task object to have a thread created for and run."""
 
         task = queue_item
-        log.debug("About to spin off a thread for task=%s", task)
+        # self.log.debug("About to spin off a thread for task=%s", task)
         threading.Thread(target=self._target_method,
                          args=(task.func, task.func_args, task.success_callback, task.error_callback),
                          name=task.thread_name).start()
 
-        log.debug("hopefully started a thread for task=%s", task)
+        # self.log.debug("hopefully started a thread for task=%s", task)
 
     def _target_method(self, func, func_args, success_callback, error_callback):
         try:
             retval = func(*func_args)
-            log.debug("success_callback=%s, retval=%s", success_callback, retval)
+            self.log.debug("success_callback=%s, retval=%s", success_callback, retval)
             # FIXME: add to queue from main thread via idle_callback
             self.result_queue.put_idle((success_callback, retval, None))
         except Exception, e:
-            log.exception(e)
-            log.debug("busted in target_method")
+            self.log.exception(e)
+            self.log.debug("busted in target_method")
             self.result_queue.put_idle((error_callback, None, sys.exc_info()))
 
     def wait_completion(self):
@@ -214,9 +215,10 @@ class ResultsQueueConsumer(QueueConsumer):
     """Consumers results, and idle_adds the callback and data to mainloop."""
 
     def _process_queue_item(self, queue_item):
-        log.debug("queue_item=%s", queue_item)
         (callback, retval, error) = queue_item
-        log.debug("ResultsQueueConsumer._process_queue_item cb=%s retval=%s error=%s", callback, retval, error)
+        self.log.debug("cb=%s", callback)
+        self.log.debug("retval=%s", retval)
+        self.log.debug("error=%s", error)
         ga_GObject.idle_add(callback, retval, error)
 
 
@@ -226,17 +228,19 @@ class Tasks(object):
         self.result_queue = ResultQueue()
         self.task_queue_consumer = TaskQueueConsumer(self.task_queue, self.result_queue)
         self.result_queue_consumer = ResultsQueueConsumer(self.result_queue)
-        log.debug("Tasks init")
+        self.log = logging.getLogger(__name__ + '.' +
+                                     self.__class__.__name__)
+
+        self.log.debug("Tasks init")
 
     def add(self, task):
         """task is a Task. Add to queue and start consuming."""
         self.task_queue.put(task)
         self.task_queue_consumer.consume()
-        log.debug("added task %s", task)
+        self.log.debug("added task (to become thread=%s)", task.thread_name)
 
     # TODO: start from AsyncEverything.run or a idle callback version of it
     def run(self):
-        log.debug("runnnnnnnnnnnnnnn")
         self.task_queue_consumer.consume()
         self.result_queue_consumer.consume()
 
@@ -248,43 +252,59 @@ class AsyncEverything(object):
     It also requires that the mainloop runs at some point."""
 
     def __init__(self):
-        log.debug("AsyncEverything init")
+        self.log = logging.getLogger(__name__ + '.' +
+                                     self.__class__.__name__)
+        self.log.debug("AsyncEverything init")
         self.tasks = Tasks()
 
     @main_idle_add
     def run(self):
         self.tasks.run()
 
+    # TODO: we'll want to be able to pass in callbacks as args, so likely
+    #       add a decorator to do that.
     def _success_callback(self, retval, error):
         if error:
-            log.debug("weird...")
+            self.log.debug("weird...")
             raise Exception('Ugh, that is totally weird')
 
-        log.debug("_success_callback retval=%s", retval)
+        self.log.debug("_success_callback retval=%s", retval)
 
     def _error_callback(self, retval, error):
         if not error:
-            log.debug("This is the error_callback, why is there no error? retval=%s error=%s", retval, error)
+            self.log.debug("This is the error_callback, why is there no error? retval=%s error=%s", retval, error)
             raise Exception('We were hoping, even wishing for an error')
 
-        log.debug("_error_callback retval=%s", retval)
+        self.log.debug("_error_callback retval=%s", retval)
 
     def _sleep(self, how_long):
         """An example of a method that ends up being the threads target."""
 
-        log.debug("sooooooooooooo sleeeepy")
+        self.log.debug("sooooooooooooo sleeeepy")
         time.sleep(how_long)
-        log.debug("better now")
+        self.log.debug("better now")
+
         return 'slept for %s seconds' % how_long
 
     def sleep(self, how_long):
         """An example of a method that becomes a Task.
 
         It sets up the target code, args, callbacks, and thread name."""
-        log.debug("AsyncEverything.sleep")
+        self.log.debug("AsyncEverything.sleep")
         task = Task(self._sleep, (how_long,), self._success_callback,
                     self._error_callback, 'SleepThread')
-        log.debug("task=%s", task)
+        self.log.debug("task=%s", task)
+        self.tasks.add(task)
+
+    def _throw_an_exception(self):
+        self.log.debug("Throwing an exception because you asked for it.")
+        raise Exception('base exception with no useful info.')
+
+    def throw_an_exception(self):
+        task = Task(self._throw_an_exception, (),
+                    self._success_callback,
+                    self._error_callback,
+                    'ThrowAnExceptionThread')
         self.tasks.add(task)
 
 

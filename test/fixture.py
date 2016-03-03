@@ -115,6 +115,9 @@ class SubManFixture(unittest.TestCase):
         id_mock.name = 'fixture_identity_mock_name'
         id_mock.cert_dir_path = "/not/a/real/path/to/pki/consumer/"
 
+        self.log = logging.getLogger(__name__ + '.' +
+                                     self.__class__.__name__)
+
         # Don't really care about date ranges here:
         self.mock_calc = NonCallableMock()
         self.mock_calc.calculate.return_value = None
@@ -164,21 +167,21 @@ class SubManFixture(unittest.TestCase):
         self.stub_facts = stubs.StubFacts()
         inj.provide(inj.FACTS, self.stub_facts)
 
-        self.dbus_patcher = patch('subscription_manager.managercli.CliCommand._request_validity_check')
-        self.dbus_patcher.start()
+        #self.dbus_patcher = patch('subscription_manager.managercli.CliCommand._request_validity_check')
+        #self.dbus_patcher.start()
         # No tests should be trying to connect to any configure or test server
         # so really, everything needs this mock. May need to be in __init__, or
         # better, all test classes need to use SubManFixture
-        self.is_valid_server_patcher = patch("subscription_manager.managercli.is_valid_server_info")
-        is_valid_server_mock = self.is_valid_server_patcher.start()
-        is_valid_server_mock.return_value = True
+        #self.is_valid_server_patcher = patch("subscription_manager.managercli.is_valid_server_info")
+        #is_valid_server_mock = self.is_valid_server_patcher.start()
+        #is_valid_server_mock.return_value = True
 
         self.files_to_cleanup = []
 
     def tearDown(self):
-        self.dbus_patcher.stop()
+        #self.dbus_patcher.stop()
         self.mock_repofile_path_exists_patcher.stop()
-        self.is_valid_server_patcher.stop()
+        #self.is_valid_server_patcher.stop()
 
         for f in self.files_to_cleanup:
             # Assuming these are tempfile.NamedTemporaryFile, created with

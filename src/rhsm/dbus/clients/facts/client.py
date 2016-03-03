@@ -24,6 +24,7 @@ import dbus
 from rhsm.dbus.common import gi_kluge
 gi_kluge.kluge_it()
 
+import slip.dbus
 import slip.dbus.polkit
 
 # TODO: This is very glib2/dbus-python based. That is likely a requirement

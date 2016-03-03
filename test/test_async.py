@@ -40,6 +40,86 @@ class ListPoolsStubUEP(stubs.StubUEP):
         return []
 
 
+class TestAsyncEverything(fixture.SubManFixture):
+    def setUp(self):
+        self.callbacks = []
+        super(TestAsyncEverything, self).setUp()
+
+        self.mainloop = ga_GObject.MainLoop()
+
+    def setup_failsafe(self):
+        ga_GObject.timeout_add(3000, self.quit_on_fail)
+        ga_GObject.timeout_add(1000, self.idle_callback)
+
+    def idle_callback(self, *args):
+        # hit the refresh a few times, out stubbed
+        # refresh doesn't really do anything though
+        if len(self.callbacks) > 2:
+            self.mainloop.quit()
+        return True
+
+    def test_add_task(self):
+
+        self.setup_failsafe()
+
+        ae = async.AsyncEverything()
+        ae._success_callback = self.success_callback
+        ae._error_callback = self.error_callback
+        naptime = 1
+        ae.sleep(naptime)
+
+        ae.run()
+        self.mainloop.run()
+
+    def test_empty_queues(self):
+        self.setup_failsafe()
+
+        # add no tasks
+        ae = async.AsyncEverything()
+        ae.run()
+        self.mainloop.run()
+
+    def test_exception_in_task_method(self):
+        self.setup_failsafe()
+
+        ae = async.AsyncEverything()
+        ae._success_callback = self.success_callback
+        # use callback that asserts
+
+        def error_callback(retval, error):
+            self.log.debug(type(error[0]))
+            self.log.debug('message=%s', error[1].message)
+            self.assertTrue(isinstance(error[0], Exception))
+            self.assertEquals('base exception with no usefgul info.', error[1].message)
+            raise error[1]
+            #self.mainloop.quit()
+
+        ae._error_callback = error_callback
+
+        ae.throw_an_exception()
+        ae.run()
+        self.mainloop.run()
+
+    def error_callback(self, retval, error):
+        self.log.debug("retval=%s", retval)
+        self.log.debug("error=%s", error)
+        self.callbacks.append(retval)
+        self.mainloop.quit()
+
+    def success_callback(self, retval, error):
+        self.log.debug("retval=%s", retval)
+        self.log.debug("error=%s", error)
+        self.callbacks.append(retval)
+        self.mainloop.quit()
+
+    def stub_success_callback(self, retval, error):
+        self.log.debug("stub_success. This is not expected to be called.")
+
+    def quit_on_fail(self):
+        self.log.debug('failed, timeout')
+        self.mainloop.quit()
+
+
 class TestAsyncPool(fixture.SubManFixture):
     def setUp(self):
         self.callbacks = []
@@ -63,7 +143,7 @@ class TestAsyncPool(fixture.SubManFixture):
         inj.provide(inj.CERT_SORTER, stubs.StubCertSorter())
 
         self.pool_stash = \
-                managerlib.PoolStash(facts=self.stub_facts)
+                managerlib.PoolStash()
 
         self.ap = async.AsyncPool(self.pool_stash)
 
