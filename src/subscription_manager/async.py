@@ -71,12 +71,46 @@ class Task(object):
             (self.func, self.func_args, self.success_callback, self.error_callback, self.thread_name)
 
 
-class TaskQueue(Queue.Queue):
+class IdleQueue(Queue.Queue):
+    def _put_idle_callback(self, item):
+        self.put(item)
+        return False
+
+    def put_idle(self, item):
+        """Put an item into queue from _put_idle_callback in main thread."""
+        ga_GObject.idle_add(self._put_idle_callback, item)
+
+
+class TaskQueue(IdleQueue):
     pass
 
 
-class ResultQueue(Queue.Queue):
+class ResultQueue(IdleQueue):
     pass
+
+
+def main_idle_add(func):
+    """Decorator method which ensures every call of the decorated function to be
+       executed in the context of Gobject main loop even if called from a non-main
+       thread. The new method does not wait for the callback to finish.
+
+       The return of the method is also ignored. Use callbacks if needed.
+       The value returned is the id of the added idle handler.
+    """
+
+    def _idle_method(args, kwargs):
+        """This method contains the code for the main loop to execute.
+        """
+        func(*args, **kwargs)
+        return False
+
+    def _call_method(*args, **kwargs):
+        """The new body for the decorated method.
+        """
+        idle_handler_id = ga_GObject.idle_add(_idle_method, args, kwargs)
+        return idle_handler_id
+
+    return _call_method
 
 
 class TaskWorkerThread(threading.Thread):
@@ -88,14 +122,17 @@ class QueueConsumer(object):
     def __init__(self, queue):
         self.queue = queue
         self._idle_callback_id = None
-        self._expecting = False
+        self._consuming = False
 
-    def idle_callback(self):
+    def queue_get_idle_handler(self):
         """Called from mainloop to poll results queue for new results.
 
         Then idle_adds the results callback and/or error to the main thread main loop
         via self._process_callback."""
-        log.debug("idle hands, etc")
+
+        #log.debug("idle hands, etc")
+
+        # Everything in here runs in the main thread.
         try:
             queue_item = self.queue.get(block=False)
             log.debug("got a queue_item in idle_callback qi=%s", queue_item)
@@ -105,9 +142,11 @@ class QueueConsumer(object):
             # ??? Does Queue.task_done() need to be called on empty queue?
             # we were setup with a idle_callback, but so far the queue is empty, but
             # keep trying
-            if self._expecting:
+            if self._consuming:
+                #log.debug("queue is empty, but we are consume...")
                 return True
 
+            #log.debug("queue is empty, and we are not expecting to consumer, so stop.")
             # remove the callback on empty
             self._idle_callback_id = None
             return False
@@ -116,7 +155,7 @@ class QueueConsumer(object):
             log.exception(e)
             raise
 
-        self._expecting = False
+        #self._consuming = False
         return True
 
     def consume(self):
@@ -124,14 +163,18 @@ class QueueConsumer(object):
 
         When the queue is empty, the idle_callback returns
         True, but it always returns true, unless self."""
-        self._expecting = True
+        self._consuming = True
         if not self._idle_callback_id:
-            self._idle_callback_id = ga_GObject.idle_add(self.idle_callback)
+            self._idle_callback_id = ga_GObject.idle_add(self.queue_get_idle_handler)
 
         return self._idle_callback_id
 
     def _process_queue_item(self, queue_item):
-        raise NotImplementedError
+        """Call for each item getting from the queue.
+
+        This should call self.queue.task_done or super()'s."""
+        #self.queue.task_done()
+        pass
 
 
 class TaskQueueConsumer(QueueConsumer):
@@ -156,11 +199,12 @@ class TaskQueueConsumer(QueueConsumer):
         try:
             retval = func(*func_args)
             log.debug("success_callback=%s, retval=%s", success_callback, retval)
-            self.result_queue.put((success_callback, retval, None))
+            # FIXME: add to queue from main thread via idle_callback
+            self.result_queue.put_idle((success_callback, retval, None))
         except Exception, e:
             log.exception(e)
             log.debug("busted in target_method")
-            self.result_queue.put((error_callback, None, sys.exc_info()))
+            self.result_queue.put_idle((error_callback, None, sys.exc_info()))
 
     def wait_completion(self):
         self.queue.join()
@@ -185,11 +229,12 @@ class Tasks(object):
         log.debug("Tasks init")
 
     def add(self, task):
-        """task is a tuple of func, args, kwargs."""
+        """task is a Task. Add to queue and start consuming."""
         self.task_queue.put(task)
         self.task_queue_consumer.consume()
         log.debug("added task %s", task)
 
+    # TODO: start from AsyncEverything.run or a idle callback version of it
     def run(self):
         log.debug("runnnnnnnnnnnnnnn")
         self.task_queue_consumer.consume()
@@ -197,10 +242,16 @@ class Tasks(object):
 
 
 class AsyncEverything(object):
+    """Base class for async handling of tasks.
+
+    You must create this class from the main thread.
+    It also requires that the mainloop runs at some point."""
+
     def __init__(self):
         log.debug("AsyncEverything init")
         self.tasks = Tasks()
 
+    @main_idle_add
     def run(self):
         self.tasks.run()
 
@@ -219,12 +270,17 @@ class AsyncEverything(object):
         log.debug("_error_callback retval=%s", retval)
 
     def _sleep(self, how_long):
+        """An example of a method that ends up being the threads target."""
+
         log.debug("sooooooooooooo sleeeepy")
         time.sleep(how_long)
         log.debug("better now")
         return 'slept for %s seconds' % how_long
 
     def sleep(self, how_long):
+        """An example of a method that becomes a Task.
+
+        It sets up the target code, args, callbacks, and thread name."""
         log.debug("AsyncEverything.sleep")
         task = Task(self._sleep, (how_long,), self._success_callback,
                     self._error_callback, 'SleepThread')
