@@ -277,6 +277,19 @@ class AsyncEverything(object):
 
         self.log.debug("_error_callback retval=%s", retval)
 
+    def add_task(self, target_method,
+                 target_args=None, success_callback=None, error_callback=None, thread_name=None):
+        # empty args tuple by default
+        target_args = target_args or ()
+        success_callback = success_callback or self._success_callback
+        error_callback = error_callback or self._error_callback
+
+        task = Task(target_method, target_args,
+                    success_callback, error_callback,
+                    thread_name)
+        self.log.debug("add_task task=%s", task)
+        self.tasks.add(task)
+
     def _sleep(self, how_long):
         """An example of a method that ends up being the threads target."""
 
@@ -291,21 +304,15 @@ class AsyncEverything(object):
 
         It sets up the target code, args, callbacks, and thread name."""
         self.log.debug("AsyncEverything.sleep")
-        task = Task(self._sleep, (how_long,), self._success_callback,
-                    self._error_callback, 'SleepThread')
-        self.log.debug("task=%s", task)
-        self.tasks.add(task)
+        #self.add_task(self._sleep, (how_long,), thread_name='SleepThread')
+        self.add_task(time.sleep, (how_long,), thread_name='SleepThread')
 
     def _throw_an_exception(self):
         self.log.debug("Throwing an exception because you asked for it.")
         raise Exception('base exception with no useful info.')
 
     def throw_an_exception(self):
-        task = Task(self._throw_an_exception, (),
-                    self._success_callback,
-                    self._error_callback,
-                    'ThrowAnExceptionThread')
-        self.tasks.add(task)
+        self.add_task(self._throw_an_exception, thread_name='ThrowAnExceptionThread')
 
 
 class AsyncPool(object):
