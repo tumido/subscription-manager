@@ -67,7 +67,9 @@ class Task(object):
 
     def __repr__(self):
         return "Task(func=%s, func_args=%s, success_callback=%s, error_callback=%s, thread_name=%s)" % \
-            (self.func, self.func_args, self.success_callback, self.error_callback, self.thread_name)
+            (self.func.__name__, self.func_args,
+             self.success_callback.__name__,
+             self.error_callback.__name__, self.thread_name)
 
 
 class IdleQueue(Queue.Queue):
@@ -110,6 +112,19 @@ def main_idle_add(func):
         return idle_handler_id
 
     return _call_method
+
+
+class RunAsTask:
+    def __init__(self, obj):
+        self.obj = obj
+        self.log = logging.getLogger('RunAsTask')
+        self.log.debug("init")
+        self.log.debug("init obj=%s", obj)
+
+    def __call__(self, *args, **kwargs):
+        self.log.debug("self.obj=%s", self.obj)
+        self.log.debug("self=%s, args=%s, kwargs=%s", self, args, kwargs)
+        self.obj(*args, **kwargs)
 
 
 class TaskWorkerThread(threading.Thread):
@@ -234,7 +249,6 @@ class Tasks(object):
     def add(self, task):
         """task is a Task. Add to queue and start consuming."""
         self.task_queue.put(task)
-        self.task_queue_consumer.consume()
         self.log.debug("added task (to become thread=%s)", task.thread_name)
 
     # TODO: start from AsyncEverything.run or a idle callback version of it

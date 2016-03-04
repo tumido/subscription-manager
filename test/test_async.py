@@ -67,6 +67,33 @@ class AsyncTasksForTesting(async.AsyncEverything):
         self.add_task(self._throw_an_exception, thread_name='ThrowAnExceptionThread')
 
 
+class TestAsyncDecorator(fixture.SubManFixture):
+    def test_foo(self):
+        self.log.debug("_some_other_method=%s", self._some_other_method)
+        self.log.debug("dir %s", dir(self._some_other_method))
+        r = self._some_other_method()
+
+        self.assertEquals(6, r)
+
+    def nest(self):
+        a = self._some_method('my_silly_arg')
+        self.assertEquals(5, a)
+        b = self._some_method('dummy', k=False)
+        self.assertEquals(5, b)
+        c = self._some_method(11, 13)
+        self.assertEquals(5, c)
+
+    @async.RunAsTask
+    def _some_method(self, some_arg, k=None):
+        self.log.debug("some_arg=%s k=%s", some_arg, k)
+        return 5
+
+    # @async.RunAsTask
+    def _some_other_method(self):
+        self.log.debug("some_other_method")
+        return 6
+
+
 class TestAsyncEverything(fixture.SubManFixture):
     def setUp(self):
         self.callbacks = []
