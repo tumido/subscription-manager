@@ -41,6 +41,32 @@ class ListPoolsStubUEP(stubs.StubUEP):
         return []
 
 
+class AsyncTasksForTesting(async.AsyncEverything):
+    def _sleep(self, how_long):
+        """An example of a method that ends up being the threads target."""
+
+        self.log.debug("sooooooooooooo sleeeepy")
+        time.sleep(how_long)
+        self.log.debug("better now")
+
+        return 'slept for %s seconds' % how_long
+
+    def sleep(self, how_long):
+        """An example of a method that becomes a Task.
+
+        It sets up the target code, args, callbacks, and thread name."""
+        self.log.debug("AsyncEverything.sleep")
+        #self.add_task(self._sleep, (how_long,), thread_name='SleepThread')
+        self.add_task(time.sleep, (how_long,), thread_name='SleepThread')
+
+    def _throw_an_exception(self):
+        self.log.debug("Throwing an exception because you asked for it.")
+        raise Exception('base exception with no useful info.')
+
+    def throw_an_exception(self):
+        self.add_task(self._throw_an_exception, thread_name='ThrowAnExceptionThread')
+
+
 class TestAsyncEverything(fixture.SubManFixture):
     def setUp(self):
         self.callbacks = []
@@ -63,7 +89,7 @@ class TestAsyncEverything(fixture.SubManFixture):
 
         self.setup_failsafe()
 
-        ae = async.AsyncEverything()
+        ae = AsyncTasksForTesting()
 
         naptime = 1
         ae.sleep(naptime)
@@ -94,7 +120,7 @@ class TestAsyncEverything(fixture.SubManFixture):
     def test_exception_in_task_method(self):
         self.setup_failsafe()
 
-        ae = async.AsyncEverything()
+        ae = AsyncTasksForTesting()
         ae._success_callback = self.success_callback
         # use callback that asserts
 
@@ -118,7 +144,7 @@ class TestAsyncEverything(fixture.SubManFixture):
     def test_exception_default_error_handler(self):
         self.setup_failsafe()
 
-        ae = async.AsyncEverything()
+        ae = AsyncTasksForTesting()
         ae.throw_an_exception()
         ae.run()
         self.mainloop.run()

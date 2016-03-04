@@ -19,7 +19,6 @@ import Queue
 import logging
 import sys
 import threading
-import time
 import gettext
 
 from subscription_manager.ga import GObject as ga_GObject
@@ -288,30 +287,6 @@ class AsyncEverything(object):
                     thread_name)
         self.log.debug("add_task task=%s", task)
         self.tasks.add(task)
-
-    def _sleep(self, how_long):
-        """An example of a method that ends up being the threads target."""
-
-        self.log.debug("sooooooooooooo sleeeepy")
-        time.sleep(how_long)
-        self.log.debug("better now")
-
-        return 'slept for %s seconds' % how_long
-
-    def sleep(self, how_long):
-        """An example of a method that becomes a Task.
-
-        It sets up the target code, args, callbacks, and thread name."""
-        self.log.debug("AsyncEverything.sleep")
-        #self.add_task(self._sleep, (how_long,), thread_name='SleepThread')
-        self.add_task(time.sleep, (how_long,), thread_name='SleepThread')
-
-    def _throw_an_exception(self):
-        self.log.debug("Throwing an exception because you asked for it.")
-        raise Exception('base exception with no useful info.')
-
-    def throw_an_exception(self):
-        self.add_task(self._throw_an_exception, thread_name='ThrowAnExceptionThread')
 
 
 class AsyncPool(object):
