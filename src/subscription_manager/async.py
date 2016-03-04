@@ -200,11 +200,10 @@ class TaskQueueConsumer(QueueConsumer):
         try:
             retval = func(*func_args)
             self.log.debug("success_callback=%s, retval=%s", success_callback, retval)
-            # FIXME: add to queue from main thread via idle_callback
             self.result_queue.put_idle((success_callback, retval, None))
         except Exception, e:
             self.log.exception(e)
-            self.log.debug("busted in target_method")
+            self.log.error("busted in target_method func=%s args=%s", func.__name__, func_args)
             self.result_queue.put_idle((error_callback, None, sys.exc_info()))
 
     def wait_completion(self):

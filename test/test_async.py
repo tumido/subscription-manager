@@ -16,6 +16,7 @@
 
 import datetime
 import fixture
+import time
 
 import mock
 
@@ -58,13 +59,12 @@ class TestAsyncEverything(fixture.SubManFixture):
             self.mainloop.quit()
         return True
 
-    def test_add_task(self):
+    def test_sleep(self):
 
         self.setup_failsafe()
 
         ae = async.AsyncEverything()
-        ae._success_callback = self.success_callback
-        ae._error_callback = self.error_callback
+
         naptime = 1
         ae.sleep(naptime)
 
@@ -76,6 +76,18 @@ class TestAsyncEverything(fixture.SubManFixture):
 
         # add no tasks
         ae = async.AsyncEverything()
+        ae.run()
+        self.mainloop.run()
+
+    def test_add_task(self):
+        self.setup_failsafe()
+        ae = async.AsyncEverything()
+        ae._success_callback = self.success_callback
+        ae._error_callback = self.error_callback
+        ae.add_task(time.sleep, (1,),
+                    success_callback=self.success_callback,
+                    error_callback=self.error_callback,
+                    thread_name='ATestJobForAddTaskThread')
         ae.run()
         self.mainloop.run()
 
@@ -99,6 +111,19 @@ class TestAsyncEverything(fixture.SubManFixture):
         ae.throw_an_exception()
         ae.run()
         self.mainloop.run()
+
+    # We expect this to throw an error and get picked up default error handler and logged
+    # But since there is no return/etc, this will 'fail' with a timeout at the moment because
+    # only the test callbacks prevent that.
+    def test_exception_default_error_handler(self):
+        self.setup_failsafe()
+
+        ae = async.AsyncEverything()
+        ae.throw_an_exception()
+        ae.run()
+        self.mainloop.run()
+
+        # TODO: actually fail these when the task throws and exception
 
     def error_callback(self, retval, error):
         self.log.debug("retval=%s", retval)
