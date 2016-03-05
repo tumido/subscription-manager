@@ -14,17 +14,11 @@
 #
 
 
-import datetime
 import fixture
 import time
 
-import mock
-
 from subscription_manager.ga import GObject as ga_GObject
-import subscription_manager.injection as inj
-from subscription_manager.injection import provide
 from subscription_manager import async
-from subscription_manager import managerlib
 
 import stubs
 
@@ -196,55 +190,3 @@ class TestAsyncEverything(fixture.SubManFixture):
     def quit_on_fail(self):
         self.log.debug('failed, timeout')
         self.mainloop.quit()
-
-
-class TestAsyncPool(fixture.SubManFixture):
-    def setUp(self):
-        self.callbacks = []
-        super(TestAsyncPool, self).setUp()
-
-    def thread_queue_callback(self, data, error):
-        self.callbacks.append((data, error))
-
-    def idle_callback(self, *args):
-        # hit the refresh a few times, out stubbed
-        # refresh doesn't really do anything though
-        self.ap.refresh(datetime.date.today(), self.thread_queue_callback)
-        if len(self.callbacks) > 3:
-            self.mainloop.quit()
-        return True
-
-    def _create_async_pool(self):
-        provide(inj.CP_PROVIDER, stubs.StubCPProvider())
-        inj.provide(inj.PROD_DIR, stubs.StubProductDirectory())
-        inj.provide(inj.ENT_DIR, stubs.StubEntitlementDirectory())
-        inj.provide(inj.CERT_SORTER, stubs.StubCertSorter())
-
-        self.pool_stash = \
-                managerlib.PoolStash()
-
-        self.ap = async.AsyncPool(self.pool_stash)
-
-        # add a timeout and a idle handler
-        self.idle = ga_GObject.idle_add(self.ap.refresh, datetime.date.today(), self.idle_callback)
-        self.timer = ga_GObject.timeout_add(50, self.idle_callback)
-        self.mainloop = ga_GObject.MainLoop()
-
-    def test(self):
-        self._create_async_pool()
-
-        self.mainloop.run()
-        # verify our callback got called a few times
-        self.assertTrue(len(self.callbacks) > 3)
-
-    def test_exception(self):
-        self._create_async_pool()
-
-        # simulate a exception on pool refresh
-        self.pool_stash.refresh = mock.Mock()
-        self.pool_stash.refresh.side_effect = IOError()
-
-        self.mainloop.run()
-        self.assertTrue(len(self.callbacks) > 3)
-        # we should have an exception in the error from the callback
-        self.assertTrue(isinstance(self.callbacks[0][1], IOError))

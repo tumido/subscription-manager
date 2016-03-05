@@ -70,9 +70,9 @@ class AllSubscriptionsTab(widgets.SubscriptionManagerTab):
 
         self.async_bind = async.AsyncBind(self.backend.certlib)
 
-        self.async_everything = async.AsyncEverything()
-        self.async_everything.sleep(how_long=5)
-        self.async_everything.run()
+        #self.async_everything = async.AsyncEverything()
+        #self.async_everything.sleep(how_long=5)
+        #self.async_everything.run()
 
         today = datetime.date.today()
         self.date_picker = widgets.DatePicker(today)
@@ -354,8 +354,6 @@ class AllSubscriptionsTab(widgets.SubscriptionManagerTab):
         Reload the subscriptions from the server when the Search button
         is clicked.
         """
-        log.debug("sssssssssssssllllp")
-        self.async_everything.sleep(how_long=5)
 
         if not self.date_picker.date_entry_validate():
             return
@@ -372,8 +370,13 @@ class AllSubscriptionsTab(widgets.SubscriptionManagerTab):
                 self.pb.set_transient_for(self.parent_win)
 
             # fire off async refresh
-            async_stash = async.AsyncPool(self.pool_stash)
-            async_stash.refresh(self.date_picker.date, self._update_display)
+            async_tasks = async.AsyncEverything()
+            async_tasks.add_task(target_method=self.pool_stash.refresh,
+                                 target_args=(self.date_picker.date,),
+                                 success_callback=self._async_stash_success_callback,
+                                 error_callback=self._async_stash_error_callback,
+                                 thread_name='PoolStashRefreshThread')
+            async_tasks.run()
         except Exception, e:
             handle_gui_exception(e, _("Error fetching subscriptions from server:  %s"),
                     self.parent_win)
@@ -385,14 +388,13 @@ class AllSubscriptionsTab(widgets.SubscriptionManagerTab):
             self.timer = 0
             self.pb = None
 
-    def _update_display(self, data, error):
+    def _async_stash_success_callback(self, retval, error):
         self._clear_progress_bar()
+        self.display_pools()
 
-        if error:
-            handle_gui_exception(error, _("Unable to search for subscriptions:  %s"),
-                    self.parent_win)
-        else:
-            self.display_pools()
+    def _async_stash_error_callback(self, retval, error):
+        handle_gui_exception(error, _("Unable to search for subscriptions:  %s"),
+                             self.parent_win)
 
     # Called after the bind, but before certlib update
     def _async_bind_callback(self):

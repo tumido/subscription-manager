@@ -53,14 +53,24 @@ log = logging.getLogger('rhsm-app.' + __name__)
 #              - join() before exit?
 
 class Task(object):
+    """A method to be called later async.
+
+    func and func_args are the method to call (generally as a Thread(target=func)).
+
+    The success and error callbacks are methods to call on success (func completes)
+    or error (an Exception was raised). Callbacks are optional, but they are the only
+    way to return data from the task.
+
+    thread_name is optional, but if provide will be used for the name of the TaskWorkerThread
+    that is started."""
     def __init__(self,
                  func,
                  func_args=None,
                  success_callback=None,
                  error_callback=None,
                  thread_name=None):
-        self.func = func or ()
-        self.func_args = func_args
+        self.func = func
+        self.func_args = func_args or ()
         self.success_callback = success_callback
         self.error_callback = error_callback
         self.thread_name = thread_name
@@ -73,6 +83,7 @@ class Task(object):
 
 
 class IdleQueue(Queue.Queue):
+    """A Queue that includes a put_idle() for deferring a put until mainloop runs idle handlers."""
     def _put_idle_callback(self, item):
         self.put(item)
         return False
@@ -83,10 +94,12 @@ class IdleQueue(Queue.Queue):
 
 
 class TaskQueue(IdleQueue):
+    """IdleQueue containing Task() objects, waiting to be run."""
     pass
 
 
 class ResultQueue(IdleQueue):
+    """IdleQueue container the results from consuming and running items from a TaskQueue."""
     pass
 
 
@@ -128,14 +141,34 @@ class RunAsTask:
 
 
 class TaskWorkerThread(threading.Thread):
-    def __init__(self, group=None, target=None, name=None, args=(), kwargs={}):
-        pass
+    """Thread is the threading.Thread subclass used by AsyncEverything."""
+    pass
 
 
 class QueueConsumer(object):
+    """Consume a IdleQueue via a idle_handler.
+
+    Items can be added to self.queue.
+
+    To start processing the queue, call self.consume().
+
+    As the idle loop calls QueueConsumer.queue_get_idle_handler, items
+    in QueueConsumer.queue are fetched via the queues .get() amd proccessed
+    via _process_queue_item().
+
+    _process_queue_item() needs to be non-blocking.
+
+    When the queue is empty, queue_get_idle_handler will return False,
+    removing it from the mainloops idle sources. This will stop the consuming
+    of the queue. WHen self.consume() is called, the queue_get_idle_handler
+    will be added to the idle sources and will continue to be called even
+    on a empty queue until self._consuming if False (ie, via self.stop()).
+    """
     def __init__(self, queue):
         self.queue = queue
         self._idle_callback_id = None
+        # Likely should be a semaphore, but then we only manipulate
+        # the queue from the mainthread.
         self._consuming = False
         self.log = logging.getLogger(__name__ + '.' +
                                      self.__class__.__name__)
@@ -155,8 +188,7 @@ class QueueConsumer(object):
             self.queue.task_done()
             self._process_queue_item(queue_item)
         except Queue.Empty:
-            # ??? Does Queue.task_done() need to be called on empty queue?
-            # we were setup with a idle_callback, but so far the queue is empty, but
+            # We were setup with a idle_callback, but so far the queue is empty, but
             # keep trying
             if self._consuming:
                 #log.debug("queue is empty, but we are consume...")
@@ -185,6 +217,9 @@ class QueueConsumer(object):
 
         return self._idle_callback_id
 
+    def stop(self):
+        self._consuming = False
+
     def _process_queue_item(self, queue_item):
         """Call for each item getting from the queue.
 
@@ -203,12 +238,9 @@ class TaskQueueConsumer(QueueConsumer):
         """queue_item is a Task object to have a thread created for and run."""
 
         task = queue_item
-        # self.log.debug("About to spin off a thread for task=%s", task)
-        threading.Thread(target=self._target_method,
+        TaskWorkerThread(target=self._target_method,
                          args=(task.func, task.func_args, task.success_callback, task.error_callback),
                          name=task.thread_name).start()
-
-        # self.log.debug("hopefully started a thread for task=%s", task)
 
     def _target_method(self, func, func_args, success_callback, error_callback):
         try:
@@ -220,18 +252,18 @@ class TaskQueueConsumer(QueueConsumer):
             self.log.error("busted in target_method func=%s args=%s", func.__name__, func_args)
             self.result_queue.put_idle((error_callback, None, sys.exc_info()))
 
-    def wait_completion(self):
-        self.queue.join()
-
 
 class ResultsQueueConsumer(QueueConsumer):
     """Consumers results, and idle_adds the callback and data to mainloop."""
 
     def _process_queue_item(self, queue_item):
         (callback, retval, error) = queue_item
-        self.log.debug("cb=%s", callback)
         self.log.debug("retval=%s", retval)
         self.log.debug("error=%s", error)
+
+        if not callback:
+            return
+
         ga_GObject.idle_add(callback, retval, error)
 
 
@@ -301,43 +333,6 @@ class AsyncEverything(object):
                     thread_name)
         self.log.debug("add_task task=%s", task)
         self.tasks.add(task)
-
-
-class AsyncPool(object):
-
-    def __init__(self, pool):
-        self.pool = pool
-        self.queue = Queue.Queue()
-
-    def _run_refresh(self, active_on, callback, data):
-        """
-        method run in the worker thread.
-        """
-        try:
-            self.pool.refresh(active_on)
-            self.queue.put((callback, data, None))
-        except Exception, e:
-            self.queue.put((callback, data, e))
-
-    def _watch_thread(self):
-        """
-        glib idle method to watch for thread completion.
-        runs the provided callback method in the main thread.
-        """
-        try:
-            (callback, data, error) = self.queue.get(block=False)
-            callback(data, error)
-            return False
-        except Queue.Empty:
-            return True
-
-    def refresh(self, active_on, callback, data=None):
-        """
-        Run pool stash refresh asynchronously.
-        """
-        ga_GObject.idle_add(self._watch_thread)
-        threading.Thread(target=self._run_refresh, name="AsyncPoolRefreshThread",
-                args=(active_on, callback, data)).start()
 
 
 class AsyncBind(object):
