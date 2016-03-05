@@ -393,6 +393,7 @@ class AllSubscriptionsTab(widgets.SubscriptionManagerTab):
         self.display_pools()
 
     def _async_stash_error_callback(self, retval, error):
+        self._clear_progress_bar()
         handle_gui_exception(error, _("Unable to search for subscriptions:  %s"),
                              self.parent_win)
 

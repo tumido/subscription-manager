@@ -343,6 +343,23 @@ class AsyncBind(object):
         self.plugin_manager = require(PLUGIN_MANAGER)
         self.certlib = certlib
 
+    # TODO: This should:
+    #
+    # - run the pre plugin
+    # - make the bindByEntitlementPool network request in a async task
+    # - if it suceeds, then:
+    #     - run it's successcallback in mainthread
+    #       -  callvack run post plugin in mainthread
+    #       - signal app that it should run (sic) search_button_clicked() to refresh the data in the list
+    #         (bind_callback)
+    #       - <detangle managerlib.fetch_certificates into events>
+    #         (eek, certlib.update etc)
+    #       - then (if certlib.update doesnt) signal the app that certs need to be refreshed
+    #           (cert_callback)
+    # - if it fails,
+    #     - error_callback (just show exception/error window).
+    #
+    # - or - see if registergui.AsyncBacked is close enoug
     def _run_bind(self, pool, quantity, bind_callback, cert_callback, except_callback):
         try:
             self.plugin_manager.run("pre_subscribe", consumer_uuid=self.identity.uuid,
