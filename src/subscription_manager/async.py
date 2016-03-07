@@ -82,7 +82,22 @@ class Task(object):
              self.error_callback.__name__, self.thread_name)
 
 
-class IdleQueue(Queue.Queue):
+class QueueSentinel(Exception):
+    consuming_state = None
+
+    def __repr__(self):
+        return '%s(consuming_state=%s)' % (self.__class__.__name__, self.consuming_state)
+
+
+class QueueStartSentinel(QueueSentinel):
+    consuming_state = True
+
+
+class QueueStopSentinel(QueueSentinel):
+    consuming_state = False
+
+
+class IdleQueue(Queue.Queue, object):
     """A Queue that includes a put_idle() for deferring a put until mainloop runs idle handlers."""
     def _put_idle_callback(self, item):
         self.put(item)
@@ -92,9 +107,24 @@ class IdleQueue(Queue.Queue):
         """Put an item into queue from _put_idle_callback in main thread."""
         ga_GObject.idle_add(self._put_idle_callback, item)
 
+    def get(self, block, timeout=None):
+        ret = super(IdleQueue, self).get(block=block, timeout=timeout)
+
+        # Is the item in the queue a sentinel, reraise it, so we
+        # can treat queue sentinels like Queue.Empty
+        if isinstance(ret, QueueSentinel):
+            raise ret
+
+        return ret
+
 
 class TaskQueue(IdleQueue):
     """IdleQueue containing Task() objects, waiting to be run."""
+    pass
+
+
+class WorkerQueue(IdleQueue):
+    """IdleQueue containing TaskWorkerThread objects, waiting to be run."""
     pass
 
 
@@ -166,59 +196,55 @@ class QueueConsumer(object):
     """
     def __init__(self, queue):
         self.queue = queue
-        self._idle_callback_id = None
+
         # Likely should be a semaphore, but then we only manipulate
         # the queue from the mainthread.
         self._consuming = False
         self.log = logging.getLogger(__name__ + '.' +
                                      self.__class__.__name__)
 
-    def queue_get_idle_handler(self):
-        """Called from mainloop to poll results queue for new results.
-
-        Then idle_adds the results callback and/or error to the main thread main loop
-        via self._process_callback."""
-
-        #log.debug("idle hands, etc")
-
-        # Everything in here runs in the main thread.
+    def consume_one(self):
+        self.log.debug("consumer_one")
         try:
             queue_item = self.queue.get(block=False)
-            self.log.debug("got a queue_item in idle_callback")
-            self.queue.task_done()
-            self._process_queue_item(queue_item)
         except Queue.Empty:
-            # We were setup with a idle_callback, but so far the queue is empty, but
-            # keep trying
             if self._consuming:
-                #log.debug("queue is empty, but we are consume...")
                 return True
-
-            #log.debug("queue is empty, and we are not expecting to consumer, so stop.")
-            # remove the callback on empty
-            self._idle_callback_id = None
+            # Tell Tasks we are empty and have been told to stop.
             return False
+        except QueueSentinel, qs:
+            self.log.debug("QueueSentinel self._consuming=%s", self._consuming)
+            self.log.debug("QueueSentinel qs=%s type=%s", repr(qs), type(qs))
+            self.queue.task_done()
+            return self._process_queue_sentinel(qs)
         except Exception, e:
-            self.log.debug("idle_callback exception")
+            self.log.debug("consume_one exception")
             self.log.exception(e)
             raise
 
-        #self._consuming = False
+        self.log.debug("got a queue_item in idle_callback, queue_item=%s", queue_item)
+
+        self.queue.task_done()
+        self._process_queue_item(queue_item)
+
         return True
 
-    def consume(self):
-        """Start consuming the queue via a self.idle_callback.
-
-        When the queue is empty, the idle_callback returns
-        True, but it always returns true, unless self."""
-        self._consuming = True
-        if not self._idle_callback_id:
-            self._idle_callback_id = ga_GObject.idle_add(self.queue_get_idle_handler)
-
-        return self._idle_callback_id
+    def start(self):
+        self.log.debug("start")
+        self.queue.put_idle(QueueStartSentinel())
 
     def stop(self):
-        self._consuming = False
+        self.log.debug("stop")
+        self.queue.put_idle(QueueStopSentinel())
+
+    def _process_queue_sentinel(self, sentinel):
+        # Set _consuming based on the sentinel, so the next consume_one gets
+        # the new _consuiming state. Ie, if we got a QueueStopSentinel, on the
+        # next consume_one, self._consuming will be False and the Queue is empty, so
+        # we return False (indicating that we've seen a stop and the queue is empty).
+        self.log.debug("sentinel=%s", repr(sentinel))
+        self._consuming = sentinel.consuming_state
+        return True
 
     def _process_queue_item(self, queue_item):
         """Call for each item getting from the queue.
@@ -227,21 +253,46 @@ class QueueConsumer(object):
         pass
 
 
+class WorkerPool(object):
+    def __init__(self, queue):
+        self.worker_queue = queue
+        self.log = logging.getLogger(__name__ + '.' +
+                                     self.__class__.__name__)
+
+    def add_worker(self, worker):
+        self.log.debug("WorkerPool.add_worker worker=%s", worker)
+        self.worker_queue.put(worker)
+        worker.start()
+        self.log.debug("WorkerPool after start()")
+
+    def task_done(self):
+        self.log.debug("WorkerPool.task_done")
+        self.worker_queue.task_done()
+
+    def join(self):
+        self.worker_queue.join()
+
+
 class TaskQueueConsumer(QueueConsumer):
 
-    def __init__(self, task_queue, result_queue):
+    def __init__(self, task_queue, worker_pool, result_queue):
         super(TaskQueueConsumer, self).__init__(task_queue)
         self.workers = []
+        self.worker_pool = worker_pool
         self.result_queue = result_queue
 
     def _process_queue_item(self, queue_item):
         """queue_item is a Task object to have a thread created for and run."""
 
         task = queue_item
-        TaskWorkerThread(target=self._target_method,
-                         args=(task.func, task.func_args, task.success_callback, task.error_callback),
-                         name=task.thread_name).start()
+        worker = TaskWorkerThread(target=self._target_method,
+                                  args=(task.func, task.func_args, task.success_callback, task.error_callback),
+                                  name=task.thread_name)
+        self.worker_pool.add_worker(worker)
 
+    # Note that the workers we create from Tasks end up adding themselves to the
+    # results queue. They populate WorkerPool for thread bookkeeping. ResultsQueueConsumer
+    # is responsible for marking result_queue and worker_pool.worker_queue items as task_done().
     def _target_method(self, func, func_args, success_callback, error_callback):
         try:
             retval = func(*func_args)
@@ -253,40 +304,100 @@ class TaskQueueConsumer(QueueConsumer):
             self.result_queue.put_idle((error_callback, None, sys.exc_info()))
 
 
-class ResultsQueueConsumer(QueueConsumer):
+class ResultQueueConsumer(QueueConsumer):
     """Consumers results, and idle_adds the callback and data to mainloop."""
+    def __init__(self, result_queue, worker_pool):
+        super(ResultQueueConsumer, self).__init__(result_queue)
+        self.worker_pool = worker_pool
+        self.result_queue = result_queue
 
     def _process_queue_item(self, queue_item):
         (callback, retval, error) = queue_item
         self.log.debug("retval=%s", retval)
         self.log.debug("error=%s", error)
 
+        self.worker_pool.task_done()
+        # self.worker_pool.task_done() ?
+
         if not callback:
             return
 
         ga_GObject.idle_add(callback, retval, error)
 
+# This doesn't currently track active threads, so something could have
+# been popped off the task queue, and had one or more threads running, that
+# have not yet pushed anything to the result queue. Things could be running
+# with both queues empty...
+#
+# The TasksConsumer could be/is a Workers producer, and ResultsConsumer consumes
+#  from WorkersQueue
+
 
 class Tasks(object):
     def __init__(self):
         self.task_queue = TaskQueue()
+        self.worker_pool = WorkerPool(WorkerQueue())
         self.result_queue = ResultQueue()
-        self.task_queue_consumer = TaskQueueConsumer(self.task_queue, self.result_queue)
-        self.result_queue_consumer = ResultsQueueConsumer(self.result_queue)
+        self.task_queue_consumer = TaskQueueConsumer(self.task_queue, self.worker_pool, self.result_queue)
+        self.result_queue_consumer = ResultQueueConsumer(self.result_queue, self.worker_pool)
         self.log = logging.getLogger(__name__ + '.' +
                                      self.__class__.__name__)
 
+        self._idle_handler_id = None
         self.log.debug("Tasks init")
 
     def add(self, task):
         """task is a Task. Add to queue and start consuming."""
-        self.task_queue.put(task)
+        self.task_queue.put_idle(task)
         self.log.debug("added task (to become thread=%s)", task.thread_name)
+
+    def idle_handler(self):
+        """Idle handler drives the queue consumers."""
+
+        task_queue_consuming = self.task_queue_consumer.consume_one()
+        result_queue_consuming = self.result_queue_consumer.consume_one()
+
+        log.debug("task_queue_consuming=%s", task_queue_consuming)
+        log.debug("result_queue_consuming=%s", result_queue_consuming)
+        log.debug("bool %s", not task_queue_consuming and not result_queue_consuming)
+        # If both queues are empty or 'done', return true to unset this handler
+        if not task_queue_consuming and not result_queue_consuming:
+            self._idle_handler_id = None
+            log.debug("Unsetting Tasks.idle_handler")
+            return False
+        return True
 
     # TODO: start from AsyncEverything.run or a idle callback version of it
     def run(self):
-        self.task_queue_consumer.consume()
-        self.result_queue_consumer.consume()
+        # Push a 'start' sentinal into the queue so we don't start empty
+        self.task_queue_consumer.start()
+        self.result_queue_consumer.start()
+
+        # Add a idle handler to poke at the queue consumers
+        self.start_queue_consumers()
+
+    def run_till_empty(self):
+        self.run()
+        self.stop()
+
+    def stop(self):
+        """Queue a QueueStopSentinel to wind down the queue consumers.
+
+        This doesn't stop the QueueConsumers or Tasks directly, but does
+        tell the queue Consumers they can stop when their queues are empty.
+        Once both queues are empty, self.idle_handler will remove itself."""
+
+        self.task_queue_consumer.stop()
+        self.result_queue_consumer.stop()
+
+    def start_queue_consumers(self):
+        import traceback
+        traceback.print_stack()
+        self.log.debug("stack=%s", traceback.format_stack)
+        self.log.debug("_idle_handler_id=%s", self._idle_handler_id)
+        if not self._idle_handler_id:
+            self._idle_handler_id = ga_GObject.idle_add(self.idle_handler)
+        self.log.debug("start_queue_consumers, handler_id=%s", self._idle_handler_id)
 
 
 class AsyncEverything(object):
@@ -301,9 +412,15 @@ class AsyncEverything(object):
         self.log.debug("AsyncEverything init")
         self.tasks = Tasks()
 
-    @main_idle_add
+    #@main_idle_add
+    def _run(self):
+        #self.tasks.run()
+        self.tasks.run_till_empty()
+        return False
+
     def run(self):
-        self.tasks.run()
+        self.log.debug("run")
+        ga_GObject.idle_add(self._run)
 
     # TODO: we'll want to be able to pass in callbacks as args, so likely
     #       add a decorator to do that.
