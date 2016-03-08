@@ -100,7 +100,7 @@ class QueueStopSentinel(QueueSentinel):
 class IdleQueue(Queue.Queue, object):
     """A Queue that includes a put_idle() for deferring a put until mainloop runs idle handlers."""
     def _put_idle_callback(self, item):
-        self.put(item)
+        self.put(item, block=False)
         return False
 
     def put_idle(self, item):
@@ -258,19 +258,28 @@ class WorkerPool(object):
         self.worker_queue = queue
         self.log = logging.getLogger(__name__ + '.' +
                                      self.__class__.__name__)
+        self.workers = []
 
     def add_worker(self, worker):
         self.log.debug("WorkerPool.add_worker worker=%s", worker)
-        self.worker_queue.put(worker)
+        self.worker_queue.put_idle(worker)
+        self.workers.append(worker)
         worker.start()
         self.log.debug("WorkerPool after start()")
+        self.log.debug("WorkerPool.workers=%s", self.workers)
 
     def task_done(self):
         self.log.debug("WorkerPool.task_done")
         self.worker_queue.task_done()
 
     def join(self):
-        self.worker_queue.join()
+        return self.worker_queue.join()
+
+    def empty(self):
+        self.log.debug('on empty, qsize=%s', self.worker_queue.qsize())
+        self.log.debug("queue=%s", repr(self.worker_queue))
+        self.log.debug("WorkerPool.workers=%s", self.workers)
+        return self.worker_queue.empty()
 
 
 class TaskQueueConsumer(QueueConsumer):
@@ -357,11 +366,17 @@ class Tasks(object):
         task_queue_consuming = self.task_queue_consumer.consume_one()
         result_queue_consuming = self.result_queue_consumer.consume_one()
 
-        log.debug("task_queue_consuming=%s", task_queue_consuming)
-        log.debug("result_queue_consuming=%s", result_queue_consuming)
-        log.debug("bool %s", not task_queue_consuming and not result_queue_consuming)
+        self.log.debug("idle_handler_id=%s", self._idle_handler_id)
+        self.log.debug("task_queue_consuming=%s", task_queue_consuming)
+        self.log.debug("result_queue_consuming=%s", result_queue_consuming)
+        self.log.debug("self.worker_pool.empty()=%s", self.worker_pool.empty())
+        self.log.debug("bool %s", not task_queue_consuming and not result_queue_consuming and self.worker_pool.empty())
         # If both queues are empty or 'done', return true to unset this handler
         if not task_queue_consuming and not result_queue_consuming:
+            if not self.worker_pool.empty():
+                self.log.debug("about to join (and block?)")
+                self.worker_pool.join()
+
             self._idle_handler_id = None
             log.debug("Unsetting Tasks.idle_handler")
             return False
@@ -393,7 +408,7 @@ class Tasks(object):
     def start_queue_consumers(self):
         import traceback
         traceback.print_stack()
-        self.log.debug("stack=%s", traceback.format_stack)
+        self.log.debug("stack=%s", traceback.format_stack())
         self.log.debug("_idle_handler_id=%s", self._idle_handler_id)
         if not self._idle_handler_id:
             self._idle_handler_id = ga_GObject.idle_add(self.idle_handler)
