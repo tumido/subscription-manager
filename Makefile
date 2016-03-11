@@ -7,8 +7,9 @@ PYTHON_SITELIB ?= usr/lib/$(PYTHON_VER)/site-packages
 PYTHON_SITELIB64 ?= usr/lib64/$(PYTHON_VER)/site-packages
 
 INSTALL_DIR = usr/share
-INSTALL_MODULE = rhsm
-CORE_INSTALL_MODULE = rhsmlib
+RHSM_MODULE = rhsm
+RHSMLIB_MODULE = rhsmlib
+SUBMAN_MODULE = subscription_manager
 
 PKGNAME = subscription_manager
 ANACONDA_ADDON_NAME = com_redhat_subscription_manager
@@ -33,8 +34,8 @@ BIN_FILES := $(BIN_DIR)/subscription-manager $(BIN_DIR)/subscription-manager-gui
 
 # Where various bits of code live in the git repo
 BASE_SRC_DIR := src
-BASE_RHSM_SRC_DIR := $(BASE_SRC_DIR)/$(INSTALL_MODULE)
-SRC_DIR := $(BASE_SRC_DIR)/subscription_manager
+RHSMLIB_SRC_DIR := $(BASE_SRC_DIR)/$(RHSMLIB_MODULE)
+SUBMAN_SRC_DIR := $(BASE_SRC_DIR)/$(SUBMAN_MODULE)
 RCT_SRC_DIR := $(BASE_SRC_DIR)/rct
 RD_SRC_DIR := $(BASE_SRC_DIR)/rhsm_debug
 RHSM_ICON_SRC_DIR := $(BASE_SRC_DIR)/rhsm_icon
@@ -43,16 +44,16 @@ EXAMPLE_PLUGINS_SRC_DIR := example-plugins/
 CONTENT_PLUGINS_SRC_DIR := $(BASE_SRC_DIR)/content_plugins/
 ANACONDA_ADDON_SRC_DIR := $(BASE_SRC_DIR)/initial-setup
 ANACONDA_ADDON_MODULE_SRC_DIR := $(ANACONDA_ADDON_SRC_DIR)/$(ANACONDA_ADDON_NAME)
-DBUS_SRC_DIR := $(BASE_RHSM_SRC_DIR)/dbus
+DBUS_SRC_DIR := $(RHSMLIB_SRC_DIR)/dbus
 DBUS_SERVICES_SRC_DIR = $(DBUS_SRC_DIR)/services
 DBUS_COMMON_SRC_DIR = $(DBUS_SRC_DIR)/common
 DBUS_CLIENTS_SRC_DIR = $(DBUS_SRC_DIR)/clients
-FACTS_SRC_DIR := $(BASE_RHSM_SRC_DIR)/facts
-COMPAT_SRC_DIR := $(BASE_RHSM_SRC_DIR)/compat
+FACTS_SRC_DIR := $(RHSMLIB_SRC_DIR)/facts
+COMPAT_SRC_DIR := $(RHSMLIB_SRC_DIR)/compat
 
 # dirs we install to
-RHSMLIB_INST_DIR ?= $(PYTHON_INST_DIR)/$(CORE_INSTALL_MODULE)
-SUBMAN_INST_DIR := $(PYTHON_INST_DIR)/$(PKGNAME)
+RHSMLIB_INST_DIR ?= $(PYTHON_INST_DIR)/$(RHSMLIB_MODULE)
+SUBMAN_INST_DIR := $(PYTHON_INST_DIR)/$(SUBMAN_MODULE)
 SYSTEMD_INST_DIR := $(PREFIX)/usr/lib/systemd/system
 RHSM_PLUGIN_DIR := $(PREFIX)/usr/share/rhsm-plugins/
 RHSM_PLUGIN_CONF_DIR := $(PREFIX)/etc/rhsm/pluginconf.d/
@@ -106,7 +107,7 @@ YUM_PLUGINS_SRC_DIR := $(BASE_SRC_DIR)/plugins
 INSTALL_DNF_PLUGINS ?= false
 DNF_PLUGINS_SRC_DIR := $(BASE_SRC_DIR)/plugins
 
-ALL_SRC_DIRS := $(SRC_DIR) $(RCT_SRC_DIR) $(RD_SRC_DIR) $(DAEMONS_SRC_DIR) $(CONTENT_PLUGINS_SRC_DIR) $(EXAMPLE_PLUGINS_SRC_DIR) $(YUM_PLUGINS_SRC_DIR) $(DNF_PLUGINS_SRC_DIR) $(DBUS_SRC_DIR) $(DBUS_SERVICES_SRC_DIR) $(FACTS_SRC_DIR)
+ALL_SRC_DIRS := $(SUBMAN_SRC_DIR) $(RCT_SRC_DIR) $(RD_SRC_DIR) $(DAEMONS_SRC_DIR) $(CONTENT_PLUGINS_SRC_DIR) $(EXAMPLE_PLUGINS_SRC_DIR) $(YUM_PLUGINS_SRC_DIR) $(DNF_PLUGINS_SRC_DIR) $(DBUS_SRC_DIR) $(DBUS_SERVICES_SRC_DIR) $(FACTS_SRC_DIR)
 # sets a version that is more or less latest tag plus commit sha
 VERSION ?= $(shell git describe | awk ' { sub(/subscription-manager-/,"")};1' )
 
@@ -379,14 +380,14 @@ install-ga-dir:
 # just the gtk3 stuff
 .PHONY: install-ga-gtk3
 install-ga-gtk3: install-ga-dir
-	install -m 644 -p $(SRC_DIR)/ga_impls/__init__.py* $(SUBMAN_INST_DIR)/ga_impls
-	install -m 644 -p $(SRC_DIR)/ga_impls/ga_gtk3.py* $(SUBMAN_INST_DIR)/ga_impls
+	install -m 644 -p $(SUBMAN_SRC_DIR)/ga_impls/__init__.py* $(SUBMAN_INST_DIR)/ga_impls
+	install -m 644 -p $(SUBMAN_SRC_DIR)/ga_impls/ga_gtk3.py* $(SUBMAN_INST_DIR)/ga_impls
 
 .PHONY: install-ga-gtk2
 install-ga-gtk2: install-ga-dir
 	install -d $(SUBMAN_INST_DIR)/ga_impls/ga_gtk2
-	install -m 644 -p $(SRC_DIR)/ga_impls/__init__.py* $(SUBMAN_INST_DIR)/ga_impls
-	install -m 644 -p $(SRC_DIR)/ga_impls/ga_gtk2/*.py $(SUBMAN_INST_DIR)/ga_impls/ga_gtk2
+	install -m 644 -p $(SUBMAN_SRC_DIR)/ga_impls/__init__.py* $(SUBMAN_INST_DIR)/ga_impls
+	install -m 644 -p $(SUBMAN_SRC_DIR)/ga_impls/ga_gtk2/*.py $(SUBMAN_INST_DIR)/ga_impls/ga_gtk2
 
 .PHONY: install-ga
 ifeq ($(GTK_VERSION),2)
@@ -428,7 +429,7 @@ install-initial-setup-real:
 install-firstboot-real:
 	echo "Installing firstboot to $(FIRSTBOOT_MODULES_DIR)"; \
 	install -d $(FIRSTBOOT_MODULES_DIR); \
-	install -m644 $(SRC_DIR)/gui/firstboot/*.py* $(FIRSTBOOT_MODULES_DIR)/;\
+	install -m644 $(SUBMAN_SRC_DIR)/gui/firstboot/*.py* $(FIRSTBOOT_MODULES_DIR)/;\
 
 
 .PHONY: install-firstboot
@@ -452,7 +453,7 @@ install-post-boot: install-firstboot install-initial-setup
 install: install-files install-po install-conf install-help-files install-plugins-conf
 
 set-versions:
-	sed -e 's/RPM_VERSION/$(VERSION)/g' -e 's/GTK_VERSION/$(GTK_VERSION)/g' $(SRC_DIR)/version.py.in > $(SRC_DIR)/version.py
+	sed -e 's/RPM_VERSION/$(VERSION)/g' -e 's/GTK_VERSION/$(GTK_VERSION)/g' $(SUBMAN_SRC_DIR)/version.py.in > $(SUBMAN_SRC_DIR)/version.py
 	sed -e 's/RPM_VERSION/$(VERSION)/g' $(RCT_SRC_DIR)/version.py.in > $(RCT_SRC_DIR)/version.py
 
 install-po: compile-po
@@ -460,18 +461,18 @@ install-po: compile-po
 	cp -R po/build/* $(RHSM_LOCALE_DIR)/
 
 clean-versions:
-	rm -rf $(SRC_DIR)/version.py
+	rm -rf $(SUBMAN_SRC_DIR)/version.py
 	rm -rf $(RCT_SRC_DIR)/version.py
 
 install-dbus: dbus-install polkit-install
 
 install-glade:
 	install -d $(GLADE_INST_DIR)
-	install -m 644 $(SRC_DIR)/gui/data/glade/*.glade $(SUBMAN_INST_DIR)/gui/data/glade/
+	install -m 644 $(SUBMAN_SRC_DIR)/gui/data/glade/*.glade $(SUBMAN_INST_DIR)/gui/data/glade/
 
 install-ui:
 	install -d $(UI_INST_DIR)
-	install -m 644 $(SRC_DIR)/gui/data/ui/*.ui $(SUBMAN_INST_DIR)/gui/data/ui/
+	install -m 644 $(SUBMAN_SRC_DIR)/gui/data/ui/*.ui $(SUBMAN_INST_DIR)/gui/data/ui/
 
 # We could choose here, but it doesn't matter.
 install-gui: install-glade install-ui
@@ -525,19 +526,19 @@ install-files: set-versions install-dbus desktop-files install-plugins install-p
 	install -m 755 $(DAEMONS_SRC_DIR)/rhsmcertd-worker.py \
 		$(PREFIX)/usr/libexec/rhsmcertd-worker
 
-	install -m 644 -p $(BASE_RHSM_SRC_DIR)/*.py $(RHSMLIB_INST_DIR)/
-	install -m 644 -p $(BASE_RHSM_SRC_DIR)/*.py $(RHSMLIB_INST_DIR)/
-	install -m 644 -p $(SRC_DIR)/*.py $(SUBMAN_INST_DIR)/
-	install -m 644 -p $(SRC_DIR)/api/*.py $(SUBMAN_INST_DIR)/api
-	install -m 644 -p $(SRC_DIR)/gui/*.py $(SUBMAN_INST_DIR)/gui
-	install -m 644 -p $(SRC_DIR)/migrate/*.py $(SUBMAN_INST_DIR)/migrate
-	install -m 644 -p $(SRC_DIR)/branding/*.py $(SUBMAN_INST_DIR)/branding
-	install -m 644 -p $(SRC_DIR)/model/*.py $(SUBMAN_INST_DIR)/model
-	install -m 644 -p $(SRC_DIR)/plugin/*.py $(SUBMAN_INST_DIR)/plugin
+	install -m 644 -p $(RHSMLIB_SRC_DIR)/*.py $(RHSMLIB_INST_DIR)/
+	install -m 644 -p $(RHSMLIB_SRC_DIR)/*.py $(RHSMLIB_INST_DIR)/
+	install -m 644 -p $(SUBMAN_SRC_DIR)/*.py $(SUBMAN_INST_DIR)/
+	install -m 644 -p $(SUBMAN_SRC_DIR)/api/*.py $(SUBMAN_INST_DIR)/api
+	install -m 644 -p $(SUBMAN_SRC_DIR)/gui/*.py $(SUBMAN_INST_DIR)/gui
+	install -m 644 -p $(SUBMAN_SRC_DIR)/migrate/*.py $(SUBMAN_INST_DIR)/migrate
+	install -m 644 -p $(SUBMAN_SRC_DIR)/branding/*.py $(SUBMAN_INST_DIR)/branding
+	install -m 644 -p $(SUBMAN_SRC_DIR)/model/*.py $(SUBMAN_INST_DIR)/model
+	install -m 644 -p $(SUBMAN_SRC_DIR)/plugin/*.py $(SUBMAN_INST_DIR)/plugin
 	install -m 644 etc-conf/subscription-manager-gui.completion.sh $(PREFIX)/etc/bash_completion.d/subscription-manager-gui
 
 	if [ "$(INSTALL_OSTREE_PLUGIN)" = "true" ] ; then \
-		install -m 644 -p $(SRC_DIR)/plugin/ostree/*.py $(SUBMAN_INST_DIR)/plugin/ostree ; \
+		install -m 644 -p $(SUBMAN_SRC_DIR)/plugin/ostree/*.py $(SUBMAN_INST_DIR)/plugin/ostree ; \
 	fi
 	if [ "$(INSTALL_YUM_PLUGINS)" = "true" ] ; then \
 		echo "YUM" ; \
@@ -552,23 +553,23 @@ install-files: set-versions install-dbus desktop-files install-plugins install-p
 	fi ; \
 
 	#icons
-	install -m 644 $(SRC_DIR)/gui/data/icons/hicolor/16x16/apps/*.png \
+	install -m 644 $(SUBMAN_SRC_DIR)/gui/data/icons/hicolor/16x16/apps/*.png \
 		$(PREFIX)/usr/share/icons/hicolor/16x16/apps
-	install -m 644 $(SRC_DIR)/gui/data/icons/hicolor/22x22/apps/*.png \
+	install -m 644 $(SUBMAN_SRC_DIR)/gui/data/icons/hicolor/22x22/apps/*.png \
 		$(PREFIX)/usr/share/icons/hicolor/22x22/apps
-	install -m 644 $(SRC_DIR)/gui/data/icons/hicolor/24x24/apps/*.png \
+	install -m 644 $(SUBMAN_SRC_DIR)/gui/data/icons/hicolor/24x24/apps/*.png \
 		$(PREFIX)/usr/share/icons/hicolor/24x24/apps
-	install -m 644 $(SRC_DIR)/gui/data/icons/hicolor/32x32/apps/*.png \
+	install -m 644 $(SUBMAN_SRC_DIR)/gui/data/icons/hicolor/32x32/apps/*.png \
 		$(PREFIX)/usr/share/icons/hicolor/32x32/apps
-	install -m 644 $(SRC_DIR)/gui/data/icons/hicolor/48x48/apps/*.png \
+	install -m 644 $(SUBMAN_SRC_DIR)/gui/data/icons/hicolor/48x48/apps/*.png \
 		$(PREFIX)/usr/share/icons/hicolor/48x48/apps
-	install -m 644 $(SRC_DIR)/gui/data/icons/hicolor/96x96/apps/*.png \
+	install -m 644 $(SUBMAN_SRC_DIR)/gui/data/icons/hicolor/96x96/apps/*.png \
 		$(PREFIX)/usr/share/icons/hicolor/96x96/apps
-	install -m 644 $(SRC_DIR)/gui/data/icons/hicolor/256x256/apps/*.png \
+	install -m 644 $(SUBMAN_SRC_DIR)/gui/data/icons/hicolor/256x256/apps/*.png \
 		$(PREFIX)/usr/share/icons/hicolor/256x256/apps
-	install -m 644 $(SRC_DIR)/gui/data/icons/hicolor/scalable/apps/*.svg \
+	install -m 644 $(SUBMAN_SRC_DIR)/gui/data/icons/hicolor/scalable/apps/*.svg \
 		$(PREFIX)/usr/share/icons/hicolor/scalable/apps
-	install -m 644 $(SRC_DIR)/gui/data/icons/*.svg \
+	install -m 644 $(SUBMAN_SRC_DIR)/gui/data/icons/*.svg \
 		$(SUBMAN_INST_DIR)/gui/data/icons
 
 	install bin/subscription-manager $(PREFIX)/usr/sbin
@@ -669,12 +670,12 @@ coverage-jenkins:
 po/POTFILES.in:
 	# generate the POTFILES.in file expected by intltool. it wants one
 	# file per line, but we're lazy.
-	find $(SRC_DIR)/ $(RCT_SRC_DIR) $(RD_SRC_DIR) $(DAEMONS_SRC_DIR) $(YUM_PLUGINS_SRC_DIR) -name "*.py" > po/POTFILES.in
-	find $(SRC_DIR)/gui/data/glade/ -name "*.glade" >> po/POTFILES.in
+	find $(SUBMAN_SRC_DIR)/ $(RCT_SRC_DIR) $(RD_SRC_DIR) $(DAEMONS_SRC_DIR) $(YUM_PLUGINS_SRC_DIR) -name "*.py" > po/POTFILES.in
+	find $(SUBMAN_SRC_DIR)/gui/data/glade/ -name "*.glade" >> po/POTFILES.in
 	# intltool-update doesn't recognize .ui as glade files, so
 	# build a dir of .glade symlinks to the .ui files and add to POTFILES.in
 	mkdir -p po/tmp_ui_links
-	for ui_file in ./$(SRC_DIR)/gui/data/ui/*.ui ; do \
+	for ui_file in ./$(SUBMAN_SRC_DIR)/gui/data/ui/*.ui ; do \
 		ui_base=$$(basename "$$ui_file") ; \
 		ln -f -s "../../$$ui_file" "po/tmp_ui_links/$$ui_base.glade" ; \
 	done ;
