@@ -46,7 +46,7 @@ from subscription_manager.gui.autobind import DryRunResult, \
         NoProductsException
 from subscription_manager.jsonwrapper import PoolWrapper
 
-from rhsm.dbus.clients.facts import client as facts_client
+from rhsmlib.dbus.clients.facts import client as facts_client
 
 _ = lambda x: gettext.ldgettext("rhsm", x)
 
@@ -1098,8 +1098,8 @@ class PerformUnregisterScreen(NoGuiScreen):
 class PerformPackageProfileSyncScreen(NoGuiScreen):
     screen_enum = UPLOAD_PACKAGE_PROFILE_PAGE
 
-    def __init__(self, reg_info, async_backend, facts, parent_window):
-        super(PerformPackageProfileSyncScreen, self).__init__(reg_info, async_backend, facts, parent_window)
+    def __init__(self, reg_info, async_backend, parent_window):
+        super(PerformPackageProfileSyncScreen, self).__init__(reg_info, async_backend, parent_window)
         self.pre_message = _("Uploading package profile")
 
     def _on_update_package_profile_finished_cb(self, result, error=None):

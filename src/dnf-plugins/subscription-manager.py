@@ -14,9 +14,6 @@
 #
 
 import os
-import sys
-
-sys.path.append('/usr/share/rhsm')
 
 from subscription_manager import injection as inj
 from subscription_manager.repolib import RepoActionInvoker

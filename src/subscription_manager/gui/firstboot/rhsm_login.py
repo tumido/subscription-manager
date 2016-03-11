@@ -1,11 +1,8 @@
 
 import gettext
-import sys
 import logging
 
 _ = lambda x: gettext.ldgettext("rhsm", x)
-
-sys.path.append("/usr/share/rhsm")
 
 from subscription_manager import ga_loader
 ga_loader.init_ga()
@@ -45,9 +42,6 @@ from firstboot import constants
 configure_i18n(with_glade=True)
 
 from rhsm.utils import remove_scheme
-
-sys.path.append("/usr/share/rhn")
-rhn_config = None
 
 try:
     from up2date_client import config as rhn_config

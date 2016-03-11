@@ -99,11 +99,6 @@ def system_exit(code, msgs=None):
 BUS_NAME = "com.redhat.SubscriptionManagerGUI"
 BUS_PATH = "/gui"
 
-_LIBPATH = "/usr/share/rhsm"
-# add to the path if need be
-if _LIBPATH not in sys.path:
-    sys.path.append(_LIBPATH)
-
 try:
     from subscription_manager import ga_loader
     ga_loader.init_ga()

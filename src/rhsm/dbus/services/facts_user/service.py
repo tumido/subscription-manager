@@ -5,8 +5,8 @@ import logging
 log = logging.getLogger(__name__)
 
 
-from rhsm.facts import hwprobe
-from rhsm.dbus.services.facts import service
+from rhsmlib.facts import hwprobe
+from rhsmlib.dbus.services.facts import service
 
 # TODO: move these to a config/constants module
 FACTS_DBUS_INTERFACE = "com.redhat.Subscriptions1.Facts"

@@ -41,8 +41,6 @@ import dbus.glib
 import logging
 import traceback
 
-sys.path.append("/usr/share/rhsm")
-
 from subscription_manager import ga_loader
 ga_loader.init_ga()
 
@@ -71,7 +69,6 @@ init_dep_injection()
 
 from subscription_manager.branding import get_branding
 from subscription_manager.injection import require, IDENTITY, CERT_SORTER, RHSM_ICON_CACHE
-from subscription_manager.cache import RhsmIconCache
 from subscription_manager.hwprobe import ClassicCheck
 from subscription_manager.i18n_optparse import OptionParser, \
     WrappedIndentedHelpFormatter, USAGE

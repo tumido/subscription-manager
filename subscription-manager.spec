@@ -470,32 +470,32 @@ rm -rf %{buildroot}
 %attr(755,root,root) %{_bindir}/rhsm-debug
 
 # facts modules, so to sitelib
-%dir %{python_sitearch}/rhsm/facts
-%{python_sitearch}/rhsm/facts/*.py*
+%dir %{python_sitearch}/rhsmlib/facts
+%{python_sitearch}/rhsmlib/facts/*.py*
 
 # dbus modules
-%dir %{python_sitearch}/rhsm/dbus
-%dir %{python_sitearch}/rhsm/dbus/clients
-%dir %{python_sitearch}/rhsm/dbus/services
-%dir %{python_sitearch}/rhsm/dbus/common
+%dir %{python_sitearch}/rhsmlib/dbus
+%dir %{python_sitearch}/rhsmlib/dbus/clients
+%dir %{python_sitearch}/rhsmlib/dbus/services
+%dir %{python_sitearch}/rhsmlib/dbus/common
 
 # dbus common and base modules
-%{python_sitearch}/rhsm/dbus/*.py*
-%{python_sitearch}/rhsm/dbus/services/*.py*
-%{python_sitearch}/rhsm/dbus/common/*.py*
+%{python_sitearch}/rhsmlib/dbus/*.py*
+%{python_sitearch}/rhsmlib/dbus/services/*.py*
+%{python_sitearch}/rhsmlib/dbus/common/*.py*
 
 # dbus facts services
-%dir %{python_sitearch}/rhsm/dbus/services/facts_user
-%{python_sitearch}/rhsm/dbus/services/facts_user/*.py*
-%dir %{python_sitearch}/rhsm/dbus/services/facts_root
-%{python_sitearch}/rhsm/dbus/services/facts_root/*.py*
+%dir %{python_sitearch}/rhsmlib/dbus/services/facts_user
+%{python_sitearch}/rhsmlib/dbus/services/facts_user/*.py*
+%dir %{python_sitearch}/rhsmlib/dbus/services/facts_root
+%{python_sitearch}/rhsmlib/dbus/services/facts_root/*.py*
 
 # dbus client
-%{python_sitearch}/rhsm/dbus/clients/*.py*
+%{python_sitearch}/rhsmlib/dbus/clients/*.py*
 
 # dbus facts client
-%dir %{python_sitearch}/rhsm/dbus/clients/facts
-%{python_sitearch}/rhsm/dbus/clients/facts/*.py*
+%dir %{python_sitearch}/rhsmlib/dbus/clients/facts
+%{python_sitearch}/rhsmlib/dbus/clients/facts/*.py*
 
 
 %doc

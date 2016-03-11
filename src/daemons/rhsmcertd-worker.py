@@ -17,7 +17,6 @@
 #
 
 import sys
-sys.path.append("/usr/share/rhsm")
 
 import logging
 
