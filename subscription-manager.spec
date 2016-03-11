@@ -151,7 +151,7 @@ the remote in the currently deployed .origin file.
 %defattr(-,root,root,-)
 %{_sysconfdir}/rhsm/pluginconf.d/ostree_content.OstreeContentPlugin.conf
 %{rhsm_plugins_dir}/ostree_content.py*
-%{_datadir}/rhsm/subscription_manager/plugin/ostree/*.py*
+%{python_sitearch}/subscription_manager/plugin/ostree/*.py*
 %endif
 
 %package -n subscription-manager-plugin-container
@@ -167,7 +167,7 @@ from the server. Populates /etc/docker/certs.d appropriately.
 %defattr(-,root,root,-)
 %{_sysconfdir}/rhsm/pluginconf.d/container_content.ContainerContentPlugin.conf
 %{rhsm_plugins_dir}/container_content.py*
-%{_datadir}/rhsm/subscription_manager/plugin/container.py*
+%{python_sitearch}/subscription_manager/plugin/container.py*
 # Copying Red Hat CA cert into each directory:
 %attr(755,root,root) %dir %{_sysconfdir}/docker/certs.d/cdn.redhat.com
 %attr(644,root,root) %{_sysconfdir}/rhsm/ca/redhat-entitlement-authority.pem
@@ -413,34 +413,33 @@ rm -rf %{buildroot}
 
 # code
 # python package dirs
-%dir %{_datadir}/rhsm
-%dir %{_datadir}/rhsm/subscription_manager
-%dir %{_datadir}/rhsm/subscription_manager/api
-%dir %{_datadir}/rhsm/subscription_manager/branding
-%dir %{_datadir}/rhsm/subscription_manager/model
-%dir %{_datadir}/rhsm/subscription_manager/plugin
-%dir %{python_sitearch}/rhsm/
+%dir %{python_sitearch}/subscription_manager
+%dir %{python_sitearch}/subscription_manager/api
+%dir %{python_sitearch}/subscription_manager/branding
+%dir %{python_sitearch}/subscription_manager/model
+%dir %{python_sitearch}/subscription_manager/plugin
+
 
 # code, python modules and packages
-%{_datadir}/rhsm/subscription_manager/*.py*
+%{python_sitearch}/subscription_manager/*.py*
 
-%{_datadir}/rhsm/subscription_manager/api/*.py*
-%{_datadir}/rhsm/subscription_manager/branding/*.py*
+%{python_sitearch}/subscription_manager/api/*.py*
+%{python_sitearch}//subscription_manager/branding/*.py*
 
 # our gtk2/gtk3 compat modules
-%dir %{_datadir}/rhsm/subscription_manager/ga_impls
-%{_datadir}/rhsm/subscription_manager/ga_impls/__init__.py*
+%dir %{python_sitearch}/subscription_manager/ga_impls
+%{python_sitearch}/subscription_manager/ga_impls/__init__.py*
 
 %if %use_gtk3
-%{_datadir}/rhsm/subscription_manager/ga_impls/ga_gtk3.py*
+%{python_sitearch}/subscription_manager/ga_impls/ga_gtk3.py*
 %else
-%dir %{_datadir}/rhsm/subscription_manager/ga_impls/ga_gtk2
-%{_datadir}/rhsm/subscription_manager/ga_impls/ga_gtk2/*.py*
+%dir %{python_sitearch}/subscription_manager/ga_impls/ga_gtk2
+%{python_sitearch}/subscription_manager/ga_impls/ga_gtk2/*.py*
 %endif
 
-%{_datadir}/rhsm/subscription_manager/model/*.py*
+%{python_sitearch}/subscription_manager/model/*.py*
 
-%{_datadir}/rhsm/subscription_manager/plugin/*.py*
+%{python_sitearch}/subscription_manager/plugin/*.py*
 
 # subscription-manager plugins
 %dir %{rhsm_plugins_dir}
@@ -454,19 +453,19 @@ rm -rf %{buildroot}
 %{_prefix}/lib/yum-plugins/search-disabled-repos.py*
 
 # Incude rt CLI tool
-%dir %{_datadir}/rhsm/rct
-%{_datadir}/rhsm/rct/__init__.py*
-%{_datadir}/rhsm/rct/cli.py*
-%{_datadir}/rhsm/rct/*commands.py*
-%{_datadir}/rhsm/rct/printing.py*
-%{_datadir}/rhsm/rct/version.py*
+%dir %{python_sitearch}/rct
+%{python_sitearch}/rct/__init__.py*
+%{python_sitearch}/rct/cli.py*
+%{python_sitearch}/rct/*commands.py*
+%{python_sitearch}/rct/printing.py*
+%{python_sitearch}/rct/version.py*
 %attr(755,root,root) %{_bindir}/rct
 
 # Include consumer debug CLI tool
-%dir %{_datadir}/rhsm/rhsm_debug
-%{_datadir}/rhsm/rhsm_debug/__init__.py*
-%{_datadir}/rhsm/rhsm_debug/cli.py*
-%{_datadir}/rhsm/rhsm_debug/*commands.py*
+%dir %{python_sitearch}/rhsm_debug
+%{python_sitearch}/rhsm_debug/__init__.py*
+%{python_sitearch}/rhsm_debug/cli.py*
+%{python_sitearch}/rhsm_debug/*commands.py*
 %attr(755,root,root) %{_bindir}/rhsm-debug
 
 # facts modules, so to sitelib
@@ -513,14 +512,14 @@ rm -rf %{buildroot}
 # symlink to console-helper
 %{_bindir}/subscription-manager-gui
 %{_bindir}/rhsm-icon
-%dir %{_datadir}/rhsm/subscription_manager/gui
-%dir %{_datadir}/rhsm/subscription_manager/gui/data
-%dir %{_datadir}/rhsm/subscription_manager/gui/data/ui
-%dir %{_datadir}/rhsm/subscription_manager/gui/data/glade
-%dir %{_datadir}/rhsm/subscription_manager/gui/data/icons
-%{_datadir}/rhsm/subscription_manager/gui/data/ui/*.ui
-%{_datadir}/rhsm/subscription_manager/gui/data/glade/*.glade
-%{_datadir}/rhsm/subscription_manager/gui/data/icons/*.svg
+%dir %{python_sitearch}/subscription_manager/gui
+%dir %{python_sitearch}/subscription_manager/gui/data
+%dir %{python_sitearch}/subscription_manager/gui/data/ui
+%dir %{python_sitearch}/subscription_manager/gui/data/glade
+%dir %{python_sitearch}/subscription_manager/gui/data/icons
+%{python_sitearch}/subscription_manager/gui/data/ui/*.ui
+%{python_sitearch}/subscription_manager/gui/data/glade/*.glade
+%{python_sitearch}/subscription_manager/gui/data/icons/*.svg
 %{_datadir}/applications/subscription-manager-gui.desktop
 %{_datadir}/icons/hicolor/16x16/apps/*.png
 %{_datadir}/icons/hicolor/22x22/apps/*.png
@@ -533,7 +532,7 @@ rm -rf %{buildroot}
 %{_datadir}/appdata/subscription-manager-gui.appdata.xml
 
 # code and modules
-%{_datadir}/rhsm/subscription_manager/gui/*.py*
+%{python_sitearch}/subscription_manager/gui/*.py*
 
 # gui system config files
 %{_sysconfdir}/xdg/autostart/rhsm-icon.desktop
@@ -571,8 +570,8 @@ rm -rf %{buildroot}
 
 %files -n subscription-manager-migration
 %defattr(-,root,root,-)
-%dir %{_datadir}/rhsm/subscription_manager/migrate
-%{_datadir}/rhsm/subscription_manager/migrate/*.py*
+%dir %{python_sitearch}/subscription_manager/migrate
+%{python_sitearch}/subscription_manager/migrate/*.py*
 %attr(755,root,root) %{_sbindir}/rhn-migrate-classic-to-rhsm
 
 %doc
