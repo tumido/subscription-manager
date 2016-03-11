@@ -7,6 +7,8 @@ PYTHON_SITELIB ?= usr/lib/$(PYTHON_VER)/site-packages
 PYTHON_SITELIB64 ?= usr/lib64/$(PYTHON_VER)/site-packages
 
 INSTALL_DIR = usr/share
+RCT_MODULE = rct
+RHSM_DEBUD_MODULE = rhsm_debug
 RHSM_MODULE = rhsm
 RHSMLIB_MODULE = rhsmlib
 SUBMAN_MODULE = subscription_manager
@@ -54,13 +56,13 @@ COMPAT_SRC_DIR := $(RHSMLIB_SRC_DIR)/compat
 # dirs we install to
 RHSMLIB_INST_DIR ?= $(PYTHON_INST_DIR)/$(RHSMLIB_MODULE)
 SUBMAN_INST_DIR := $(PYTHON_INST_DIR)/$(SUBMAN_MODULE)
+RCT_INST_DIR := $(PYTHON_INST_DIR)/rct
+RD_INST_DIR := $(PYTHON_INST_DIR)/rhsm_debug
 SYSTEMD_INST_DIR := $(PREFIX)/usr/lib/systemd/system
 RHSM_PLUGIN_DIR := $(PREFIX)/usr/share/rhsm-plugins/
 RHSM_PLUGIN_CONF_DIR := $(PREFIX)/etc/rhsm/pluginconf.d/
 ANACONDA_ADDON_INST_DIR := $(PREFIX)/usr/share/anaconda/addons
 INITIAL_SETUP_INST_DIR := $(ANACONDA_ADDON_INST_DIR)/$(ANACONDA_ADDON_NAME)
-RCT_INST_DIR := $(RHSMLIB_INST_DIR)/rct
-RD_INST_DIR := $(RHSMLIB_INST_DIR)/rhsm_debug
 
 RHSM_LOCALE_DIR := $(PREFIX)/$(INSTALL_DIR)/locale
 
