@@ -198,7 +198,6 @@ dbus-rhsmd-service-install: dbus-common-install
 # TODO: move src/dbus to setup.py? it's own makefile? autoconf?
 dbus-facts-service-install: dbus-common-install dbus-support-install
 	install -d $(DBUS_SERVICES_INSTALL_DIR)/facts
-	install -d $(DBUS_SERVICES_INSTALL_DIR)/facts_user
 	install -m 644 $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.Subscriptions1.Facts.service \
 		$(PREFIX)/$(INSTALL_DIR)/dbus-1/system-services
 	install -m 644 $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.Subscriptions1.Facts.conf \
@@ -208,7 +207,6 @@ dbus-facts-service-install: dbus-common-install dbus-support-install
 	install -m 755 $(DBUS_SERVICES_SRC_DIR)/facts/rhsm-facts-service \
 		$(PREFIX)/usr/libexec/rhsm-facts-service
 	install -m 644 -p $(DBUS_SERVICES_SRC_DIR)/facts/*.py $(DBUS_SERVICES_INSTALL_DIR)/facts
-	install -m 644 -p $(DBUS_SERVICES_SRC_DIR)/facts_user/*.py $(DBUS_SERVICES_INSTALL_DIR)/facts_user
 
 # TODO: move src/dbus to setup.py? it's own makefile? autoconf?
 dbus-subscriptions-service-install: dbus-common-install 

@@ -368,28 +368,6 @@ rm -rf %{buildroot}
 %config(noreplace) %attr(644,root,root) %{_sysconfdir}/logrotate.d/subscription-manager
 %attr(700,root,root) %{_sysconfdir}/cron.daily/rhsmd
 
-# dbus services config
-%config(noreplace) %{_sysconfdir}/dbus-1/system.d/com.redhat.SubscriptionManager.conf
-%config(noreplace) %{_sysconfdir}/dbus-1/system.d/com.redhat.Subscriptions1.Facts.User.conf
-%config(noreplace) %{_sysconfdir}/dbus-1/system.d/com.redhat.Subscriptions1.Facts.Root.conf
-
-# dbus services execs
-%attr(755,root,root) %{_libexecdir}/rhsm-facts-user-service
-%attr(755,root,root) %{_libexecdir}/rhsm-facts-root-service
-
-# polkit policy actions
-%{_datadir}/polkit-1/actions/com.redhat.Subscriptions1.Facts.User.policy
-%{_datadir}/polkit-1/actions/com.redhat.Subscriptions1.Facts.Root.policy
-
-# dbus activation services for systemd
-%if %use_systemd
-    # TODO: These assume systemd. Need versions for rhel6 as well.
-    %{_datadir}/dbus-1/system-services/com.redhat.Subscriptions1.Facts.User.service
-    %{_datadir}/dbus-1/system-services/com.redhat.Subscriptions1.Facts.Root.service
-    %{_unitdir}/rhsm-facts-user.service
-    %{_unitdir}/rhsm-facts-root.service
-%endif
-
 # This doesn't use systemd dbus activation yet
 %{_datadir}/dbus-1/system-services/com.redhat.SubscriptionManager.service
 
@@ -468,9 +446,17 @@ rm -rf %{buildroot}
 %{python_sitearch}/rhsm_debug/*commands.py*
 %attr(755,root,root) %{_bindir}/rhsm-debug
 
+# base rhsmlib
+%dir %{python_sitearch}/rhsmlib
+%{python_sitearch}/rhsmlib/*.py*
+
 # facts modules, so to sitelib
 %dir %{python_sitearch}/rhsmlib/facts
 %{python_sitearch}/rhsmlib/facts/*.py*
+
+# compat modules, so to sitelib
+%dir %{python_sitearch}/rhsmlib/compat
+%{python_sitearch}/rhsmlib/compat/*.py*
 
 # dbus modules
 %dir %{python_sitearch}/rhsmlib/dbus
@@ -483,11 +469,27 @@ rm -rf %{buildroot}
 %{python_sitearch}/rhsmlib/dbus/services/*.py*
 %{python_sitearch}/rhsmlib/dbus/common/*.py*
 
+#%config(noreplace) %{_sysconfdir}/dbus-1/system.d/com.redhat.SubscriptionManager.conf
+
 # dbus facts services
-%dir %{python_sitearch}/rhsmlib/dbus/services/facts_user
-%{python_sitearch}/rhsmlib/dbus/services/facts_user/*.py*
-%dir %{python_sitearch}/rhsmlib/dbus/services/facts_root
-%{python_sitearch}/rhsmlib/dbus/services/facts_root/*.py*
+%config(noreplace) %{_sysconfdir}/dbus-1/system.d/com.redhat.*.conf
+%{_datadir}/polkit-1/actions/com.redhat.*.policy
+%attr(755,root,root) %{_libexecdir}/rhsm-*-service
+# dbus activation services for systemd
+%if %use_systemd
+    # TODO: These assume systemd. Need versions for rhel6 as well.
+    %{_datadir}/dbus-1/system-services/com.redhat.*.service
+    %{_unitdir}/rhsm-*.service
+%endif
+
+%dir %{python_sitearch}/rhsmlib/dbus/services/facts
+%{python_sitearch}/rhsmlib/dbus/services/facts/*.py*
+
+%dir %{python_sitearch}/rhsmlib/dbus/services/subscriptions
+%{python_sitearch}/rhsmlib/dbus/services/subscriptions/*.py*
+
+%dir %{python_sitearch}/rhsmlib/dbus/services/examples
+%{python_sitearch}/rhsmlib/dbus/services/examples/*.py*
 
 # dbus client
 %{python_sitearch}/rhsmlib/dbus/clients/*.py*
