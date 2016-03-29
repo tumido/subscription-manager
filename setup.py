@@ -24,6 +24,7 @@ from distutils import cmd, log
 from distutils.command.install_data import install_data as _install_data
 from distutils.command.build import build as _build
 from distutils.command.clean import clean as _clean
+from distutils.command.build_py import build_py as _build_py
 from distutils.dir_util import remove_tree
 
 
@@ -43,6 +44,57 @@ class Utils(object):
             dest_mtime = 0
         if src_mtime > dest_mtime:
             callback(src, dest)
+
+# subclass build_py so we can generate
+# version.py based on either args passed
+# in (--rpm-version, --rpm-release) or
+# from a guess generated from 'git describe'
+#
+class rpm_version_release_build_py(_build_py):
+    user_options = _build_py.user_options + \
+            [('rpm-version=',
+              None,
+              'version of the rpm this is built for'),
+            ('rpm-release=',
+             None,
+             'release of the rpm this is built for')]
+
+    def initialize_options(self):
+        _build_py.initialize_options(self)
+        self.rpm_version = os.getenv('PYTHON_SUBMAN_VERSION')
+        self.rpm_release = os.getenv('PYTHON_SUBMAN_RELEASE')
+        self.git_tag_prefix = "subscription-manager"
+        self.version_module_sub_dir = ""
+
+    def get_git_describe(self):
+        cmd = ["git", "describe"]
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        output = process.communicate()[0].strip()
+        if output.startswith(self.git_tag_prefix):
+            return output[len(self.git_tag_prefix):]
+        return 'unknown'
+
+    def run(self):
+        # create a "version.py" that includes the rpm version
+        # info passed to our new build_py args
+        if not self.dry_run:
+            version_dir = os.path.join(self.build_lib, self.version_module_sub_dir)
+            version_file = os.path.join(version_dir, 'version.py')
+            version_release = "unknown"
+            if self.rpm_version and self.rpm_release:
+                version_release = "%s-%s" % (self.rpm_version,
+                                               self.rpm_release)
+            else:
+                version_release = self.get_git_describe()
+            try:
+                self.mkpath(version_dir)
+                f = open(version_file, 'w')
+                f.write("rpm_version = '%s'\n" % version_release)
+                f.close()
+            except EnvironmentError:
+                raise
+        _build_py.run(self)
+
 
 
 # Courtesy http://wiki.maemo.org/Internationalize_a_Python_application
@@ -143,6 +195,7 @@ test_require = [
 cmdclass = {
     'build': build,
     'build_trans': build_trans,
+    'build_py': rpm_version_release_build_py,
     'clean': clean,
     'install_data': install_data,
 }
