@@ -84,12 +84,12 @@ class FactsCollection(object):
         # then dirty = False
         self.dirty = False
 
-        log.debug("init %s", repr(self.collection_datetime))
+        #log.debug("init %s", repr(self.collection_datetime))
         log.debug(self)
 
     def __repr__(self):
-        buf = "%s(facts_dict=%s, collection_datetime=%s, cache_lifetime=%s)" % \
-            (self.__class__.__name__, self.data, self.collection_datetime, self.cache_lifetime)
+        buf = "%s(facts_dict=%s, cache_lifetime=%s)" % \
+            (self.__class__.__name__, self.data, self.cache_lifetime)
         return buf
 
     @classmethod

@@ -76,7 +76,7 @@ class BaseFacts(base_service.BaseService):
         facts_dbus_dict = dbus.Dictionary(cleaned, signature="ss")
 
         props_iterable = [('facts', facts_dbus_dict),
-                          ('lastUpdatedTime', time.mktime(collection.collection_datetime.timetuple())),
+                          #('lastUpdatedTime', time.mktime(collection.collection_datetime.timetuple())),
                           ('cacheExpiryTime', time.mktime(collection.expiry_datetime.timetuple()))]
 
         self.props._set_props(interface_name=constants.FACTS_DBUS_INTERFACE,

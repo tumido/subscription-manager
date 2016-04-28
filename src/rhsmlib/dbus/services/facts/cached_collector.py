@@ -34,18 +34,22 @@ class CachedFactsCollector(collector.FactsCollector):
         log.debug("cache_save_finished facts_collection=%s", facts_collection)
 
     def collect(self):
-        log.debug("duration=%s", cache.expiration.duration_seconds)
+        #log.debug("duration=%s", cache.expiration.duration_seconds)
         # A new expiration, of the same duration, but starting now.
-        host_facts_expiration = expiration.Expiration(duration_seconds=self.cache.expiration.duration_seconds)
+        host_facts_expiration = expiration.Expiration(duration_seconds=0)
         fresh_collection = collection.FactsCollection(expiration=host_facts_expiration)
-
+        raise Exception("ab")
         try:
             cached_collection = collection.FactsCollection.from_cache(self.cache)
         except cache.CacheError as e:
             log.exception(e)
             cached_collection = None
 
-        new_enough_collection = cached_collection.merge(fresh_collection)
+        if cached_collection:
+            raise Exception("AHHHHHHHHHHHHHHH")
+            new_enough_collection = cached_collection.merge(fresh_collection)
+        else:
+            pass
 
         # Most of the time, we still haven't collected any facts yet.
         # Until we iterate over fresh_facts, does it's iter start collection
