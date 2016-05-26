@@ -72,18 +72,20 @@ endif
 DBUS_SERVICES_SRC_DIR = src/rhsmlib/dbus/services
 
 DBUS_SERVICES_CONF_INST_DIR := $(PREFIX)/usr/share/dbus-1/system-services
-FACTS_INST_DBUS_SERVICE_FILE = $(DBUS_SERVICES_CONF_INST_DIR)/com.redhat.Subscriptions1.Facts.service
-SUBSCRIPTIONS_INST_DBUS_SERVICE_FILE = $(DBUS_SERVICES_CONF_INST_DIR)/com.redhat.Subscriptions1.Subscriptions.service
-
+FACTS_INST_DBUS_SERVICE_FILE = $(DBUS_SERVICES_CONF_INST_DIR)/com.redhat.RHSM1.Facts.service
+SUBSCRIPTIONS_INST_DBUS_SERVICE_FILE = $(DBUS_SERVICES_CONF_INST_DIR)/com.redhat.RHSM1.Subscriptions.service
+MAIN_INST_DBUS_SERVICE_FILE = $(DBUS_SERVICES_CONF_INST_DIR)/com.redhat.RHSM1.service
 # TODO Ideally these service files would be installed by distutils, but the file we actually
 # install depends on the distro we are using.  Add a --without-systemd or similar flag to the
 # custom install_data class we have in setup.py
 ifeq ($(DBUS_SERVICE_FILE_TYPE),dbus)
-FACTS_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.Subscriptions1.Facts.service-dbus
-SUBSCRIPTIONS_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/subscriptions/com.redhat.Subscriptions1.Subscriptions.service-dbus
+FACTS_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.RHSM1.Facts.service-dbus
+SUBSCRIPTIONS_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/subscriptions/com.redhat.RHSM1.Subscriptions.service-dbus
+MAIN_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/main/com.redhat.RHSM1.service-dbus
 else
-FACTS_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.Subscriptions1.Facts.service
-SUBSCRIPTIONS_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/subscriptions/com.redhat.Subscriptions1.Subscriptions.service
+FACTS_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.RHSM1.Facts.service
+SUBSCRIPTIONS_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/subscriptions/com.redhat.RHSM1.Subscriptions.service
+MAIN_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/main/com.redhat.RHSM1.service
 endif
 
 # always true until fedora is just dnf
@@ -159,7 +161,7 @@ dbus-rhsmd-service-install: dbus-common-install
 dbus-facts-service-install: dbus-common-install
 	if [ "$(DBUS_SERVICE_FILE_TYPE)" == "systemd" ]; then \
 		install -m 644 $(DBUS_SERVICES_SRC_DIR)/facts/rhsm-facts.service $(SYSTEMD_INST_DIR) ; \
-		install -m 644 $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.Subscriptions1.Facts.conf \
+		install -m 644 $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.RHSM1.Facts.conf \
 			$(PREFIX)/etc/dbus-1/system.d ; \
 	fi
 	install -m 644 $(FACTS_SRC_DBUS_SERVICE_FILE) $(FACTS_INST_DBUS_SERVICE_FILE)
@@ -168,12 +170,22 @@ dbus-facts-service-install: dbus-common-install
 dbus-subscriptions-service-install: dbus-common-install
 	if [ "$(DBUS_SERVICE_FILE_TYPE)" == "systemd" ]; then \
 		install -m 644 $(DBUS_SERVICES_SRC_DIR)/subscriptions/rhsm-subscriptions.service $(SYSTEMD_INST_DIR) ; \
-		install -m 644 $(DBUS_SERVICES_SRC_DIR)/subscriptions/com.redhat.Subscriptions1.Subscriptions.conf \
+		install -m 644 $(DBUS_SERVICES_SRC_DIR)/subscriptions/com.redhat.RHSM1.Subscriptions.conf \
 			$(PREFIX)/etc/dbus-1/system.d ; \
 	fi
 	install -m 644 $(SUBSCRIPTIONS_SRC_DBUS_SERVICE_FILE) $(SUBSCRIPTIONS_INST_DBUS_SERVICE_FILE)
 	install -m 755 $(DBUS_SERVICES_SRC_DIR)/subscriptions/rhsm-subscriptions-service \
 		$(PREFIX)/usr/libexec/rhsm-subscriptions-service
+
+dbus-main-service-install: dbus-common-install
+	if [ "$(DBUS_SERVICE_FILE_TYPE)" == "systemd" ]; then \
+		install -m 644 $(DBUS_SERVICES_SRC_DIR)/main/rhsm-main.service $(SYSTEMD_INST_DIR) ; \
+		install -m 644 $(DBUS_SERVICES_SRC_DIR)/main/com.redhat.RHSM1.conf \
+		    $(PREFIX)/etc/dbus-1/system.d ; \
+	fi
+	install -m 644 $(MAIN_SRC_DBUS_SERVICE_FILE) $(MAIN_INST_DBUS_SERVICE_FILE)
+	install -m 755 $(DBUS_SERVICES_SRC_DIR)/main/rhsm-main-service \
+		$(PREFIX)/usr/libexec/rhsm-main-service
 
 .PHONY: dbus-install
 dbus-install: dbus-facts-service-install dbus-subscriptions-service-install dbus-rhsmd-service-install
@@ -197,9 +209,9 @@ install-conf:
 	install -d $(PREFIX)/usr/share/appdata
 	install -m 644 etc-conf/subscription-manager-gui.appdata.xml $(PREFIX)/$(INSTALL_DIR)/appdata/subscription-manager-gui.appdata.xml
 	install -d $(POLKIT_ACTIONS_INST_DIR)
-	install -m 644 $(DBUS_SERVICES_SRC_DIR)/com.redhat.Subscriptions1.policy $(POLKIT_ACTIONS_INST_DIR)
-	install -m 644 $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.Subscriptions1.Facts.policy $(POLKIT_ACTIONS_INST_DIR)
-	install -m 644 $(DBUS_SERVICES_SRC_DIR)/subscriptions/com.redhat.Subscriptions1.Subscriptions.policy $(POLKIT_ACTIONS_INST_DIR)
+	install -m 644 $(DBUS_SERVICES_SRC_DIR)/com.redhat.RHSM1.policy $(POLKIT_ACTIONS_INST_DIR)
+	install -m 644 $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.RHSM1.Facts.policy $(POLKIT_ACTIONS_INST_DIR)
+	install -m 644 $(DBUS_SERVICES_SRC_DIR)/subscriptions/com.redhat.RHSM1.Subscriptions.policy $(POLKIT_ACTIONS_INST_DIR)
 
 .PHONY: install-plugins
 install-plugins:
