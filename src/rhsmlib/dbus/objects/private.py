@@ -11,19 +11,43 @@
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation.
 #
-import gettext
 import rhsmlib.dbus as common
+import gettext
 import socket
 import json
-import dbus
+import logging
+import dbus.service
 
 from rhsm import connection
 from rhsmlib.dbus import dbus_utils
-from rhsmlib.dbus.services import PrivateService
-
-from gi.repository import GLib
 
 _ = gettext.gettext
+log = logging.getLogger(__name__)
+
+
+class PrivateService(dbus.service.Object):
+    """ The base class for service objects to be exposed on either a private connection
+        or a bus."""
+    _interface_name = None
+    _default_dbus_path = common.ROOT_DBUS_PATH
+    _default_dbus_path += ("/" + _interface_name) if _interface_name else ""
+    _default_bus_name = common.BUS_NAME
+
+    def __init__(self, conn=None, bus=None, object_path=None):
+        if object_path is None or object_path == "":
+            # If not given a path to be exposed on, use class defaults
+            _interface_name = self.__class__._interface_name or ""
+            if _interface_name:
+                object_path = "/" + _interface_name.replace('.', '/')
+            else:
+                object_path = self.__class__._default_dbus_path
+
+        bus_name = None
+        if bus is not None:
+            # If we are passed in a bus, try to claim an appropriate bus name
+            bus_name = dbus.service.BusName(self.__class__._default_bus_name, bus)
+
+        super(PrivateService, self).__init__(object_path=object_path, conn=conn, bus_name=bus_name)
 
 
 class RegisterService(PrivateService):
@@ -115,22 +139,3 @@ class RegisterService(PrivateService):
         elif (options.get('force') and options.get('consumerid')):
             return _("Error: Can not force registration while attempting to recover registration with consumerid. Please use --force without --consumerid to re-register or use the clean command and try again without --force.")
         return None
-
-if __name__ == '__main__':
-    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-    dbus.mainloop.glib.threads_init()
-
-    mainloop = GLib.MainLoop()
-    bus = dbus.SessionBus()
-    service = RegisterService(bus, bus)
-
-    try:
-        mainloop.run()
-    except KeyboardInterrupt as e:
-        print(e)
-    except SystemExit as e:
-        print(e)
-    except Exception as e:
-        print(e)
-    finally:
-        mainloop.quit()
