@@ -1,7 +1,7 @@
 
 import logging
 
-from rhsmlib.dbus import base_properties
+from rhsmlib.dbus.base_object import ReadWriteProperties
 from rhsmlib.dbus.facts import constants
 from rhsmlib.dbus.facts import base_facts
 
@@ -17,7 +17,7 @@ class FactsReadWrite(base_facts.BaseFacts):
     }
 
     def _create_props(self):
-        return base_properties.ReadWriteProperties(
+        return ReadWriteProperties(
             self._interface_name,
             data=self.default_props_data,
             properties_changed_callback=self.PropertiesChanged)

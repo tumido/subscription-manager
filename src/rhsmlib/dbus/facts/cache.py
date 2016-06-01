@@ -16,15 +16,12 @@ import logging
 import json
 import os
 
-# FIXME: We can likely dump this now
-import rhsmlib.dbus as common
-
 from rhsmlib.dbus.facts import expiration
 
 log = logging.getLogger(__name__)
 
 
-class CacheError(common.Error):
+class CacheError(Exception):
     pass
 
 

@@ -53,40 +53,84 @@ def init_root_logger():
     logger_initialized = True
 
 
-class Error(Exception):
-    pass
-
-
-# From system-config-firewall
-class Subscriptions1DBusException(dbus.DBusException):
+class RHSM1DBusException(dbus.DBusException):
     """Base exceptions."""
-    _dbus_error_name = "%s.Exception" % INTERFACE_BASE
+    include_traceback = True
+    _dbus_error_name = "%s.Error" % INTERFACE_BASE
+
+
+class UnknownProperty(dbus.DBusException):
+    include_traceback = True
+
+    def __init__(self, property_name):
+        super(UnknownProperty, self).__init__(
+            "Property '%s' does not exist" % property_name,
+            name="org.freedesktop.DBus.Error.UnknownProperty"
+        )
+
+
+class UnknownInterface(dbus.DBusException):
+    include_traceback = True
+
+    def __init__(self, interface_name):
+        super(UnknownInterface, self).__init__(
+            "Interface '%s' is unknown" % interface_name,
+            name="org.freedesktop.DBus.Error.UnknownInterface"
+        )
+
+
+class InvalidArguments(dbus.DBusException):
+    include_traceback = True
+
+    def __init__(self, argument):
+        super(InvalidArguments, self).__init__(
+            "Argument '%s' is invalid" % argument,
+            name="org.freedesktop.DBus.Error.InvalidArgs"
+        )
+
+
+class AccessDenied(dbus.DBusException):
+    include_traceback = True
+
+    def __init__(self, prop, interface):
+        super(InvalidArguments, self).__init__(
+            "Property '%s' isn't exported (or does not exist) on interface: %s" % (prop, interface),
+            name="org.freedesktop.DBus.Error.AccessDenied"
+        )
+
+
+class PropertyMissing(dbus.DBusException):
+    include_traceback = True
+
+    def __init__(self, prop, interface):
+        super(InvalidArguments, self).__init__(
+            "Property '%s' does not exist on interface: %s" % (prop, interface),
+            name="org.freedesktop.DBus.Error.AccessDenied"
+        )
+
+
+class Failed(dbus.DBusException):
+    include_traceback = True
+
+    def __init__(self, msg=None):
+        super(InvalidArguments, self).__init__(
+            msg or "Operation failed",
+            name="org.freedesktop.DBus.Error.Failed"
+        )
 
 
 @decorator.decorator
 def dbus_handle_exceptions(func, *args, **kwargs):
-    """Decorator to handle exceptions, log and report them into D-Bus
-
-    :Raises DBusException: on a firewall error code problems.
-    """
+    """Decorator to handle exceptions, log them, and wrap them if necessary"""
     try:
-        log.debug("about to call %s %s", args, kwargs)
         ret = func(*args, **kwargs)
         return ret
     except dbus.DBusException as e:
-        dbus_message = e.get_dbus_message()  # returns unicode
-        dbus_name = e.get_dbus_name()
-        # only log DBusExceptions once
-        log.debug("DbusException caught")
-        log.debug("dbus_message=%s", dbus_message)
-        log.debug("dbus_name=%s", dbus_name)
-        log.debug("msg=%s", e)
         log.exception(e)
         raise
     except Exception as e:
-        log.debug("Exception caught")
         log.exception(e)
-        raise Subscriptions1DBusException(str(e))
+        raise RHSM1DBusException(str(e))
 
 
 def dbus_service_method(*args, **kwargs):

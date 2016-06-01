@@ -6,14 +6,13 @@ import dbus
 import rhsmlib.dbus as common
 
 from rhsmlib.facts import collector
-from rhsmlib.dbus import base_properties
-from rhsmlib.dbus import base_object
+from rhsmlib.dbus.base_object import BaseObject, BaseProperties, Property
 from rhsmlib.dbus.facts import constants
 
 log = logging.getLogger(__name__)
 
 
-class BaseFacts(base_object.BaseObject):
+class BaseFacts(BaseObject):
     _interface_name = constants.FACTS_DBUS_INTERFACE
     _default_facts_collector_class = collector.FactsCollector
 
@@ -27,21 +26,26 @@ class BaseFacts(base_object.BaseObject):
         self.facts_collector = self._default_facts_collector_class()
 
     def _create_props(self):
-        properties = base_properties.BaseProperties.from_string_to_string_dict(self._interface_name,
-                                                                               self.default_props_data,
-                                                                               self.PropertiesChanged)
-        properties.props_data['facts'] = base_properties.Property(name='facts',
-                                                                  value=dbus.Dictionary({}, signature='ss'),
-                                                                  value_signature='a{ss}',
-                                                                  access='read')
-        properties.props_data['lastUpdatedTime'] = base_properties.Property(name='lastUpdatedTime',
-                                                                        value=dbus.UInt64(0),
-                                                                        value_signature='t',
-                                                                        access='read')
-        properties.props_data['cacheExpiryTime'] = base_properties.Property(name='cacheExpiryTime',
-                                                                        value=dbus.UInt64(0),
-                                                                        value_signature='t',
-                                                                        access='read')
+        properties = BaseProperties.create_instance(
+            self._interface_name,
+            self.default_props_data,
+            self.PropertiesChanged)
+
+        properties.props_data['facts'] = Property(
+            name='facts',
+            value=dbus.Dictionary({}, signature='ss'),
+            value_signature='a{ss}',
+            access='read')
+        properties.props_data['lastUpdatedTime'] = Property(
+            name='lastUpdatedTime',
+            value=dbus.UInt64(0),
+            value_signature='t',
+            access='read')
+        properties.props_data['cacheExpiryTime'] = Property(
+            name='cacheExpiryTime',
+            value=dbus.UInt64(0),
+            value_signature='t',
+            access='read')
         return properties
 
     @common.dbus_service_method(dbus_interface=constants.FACTS_DBUS_INTERFACE, out_signature='a{ss}')
