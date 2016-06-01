@@ -37,9 +37,27 @@ class Property(object):
 #       (And maybe python-dbus can do something useful with a Gobject?
 class BaseProperties(object):
     def __init__(self, interface_name, data=None, properties_changed_callback=None):
+        if not data:
+            data = {}
+
         self.props_data = data  # dict of prop_name: property_object
         self.interface_name = interface_name
         self.properties_changed_callback = properties_changed_callback
+
+    def __getitem__(self, key):
+        return self.props_data[key]
+
+    def __setitem__(self, key, value):
+        self.props_data[key] = value
+
+    def __delitem__(self, key):
+        del self.props_data[key]
+
+    def __contains__(self, item):
+        return item in self.props_data
+
+    def __iter__(self):
+        return self.props_data.iteritems()
 
     @classmethod
     def create_instance(cls, interface_name, prop_dict, properties_changed_callback=None):
@@ -58,9 +76,8 @@ class BaseProperties(object):
 
         try:
             return self.props_data[property_name].value
-        except KeyError as e:
-            self.log.exception(e)
-            self.raise_access_denied_or_unknown_property(property_name)
+        except KeyError:
+            raise common.UnknownProperty(property_name)
 
     def get_all(self, interface_name=None):
         if interface_name != self.interface_name:
@@ -79,7 +96,7 @@ class BaseProperties(object):
         Subclasses that need settable properties should override this.
         BaseService subclasses that need rw properties should use
         a ReadWriteBaseProperties instead of BaseProperties."""
-        self.raise_access_denied(property_name)
+        raise common.AccessDenied(property_name)
 
     def _set(self, interface_name, property_name, new_value):
         """Set a property to given value, ignoring access writes.
@@ -180,14 +197,12 @@ class ReadWriteProperties(BaseProperties):
 class BaseObject(dbus.service.Object):
     # Name of the DBus interface provided by this object
     interface_name = common.INTERFACE_BASE
-    object_path = common.ROOT_DBUS_PATH
+    default_dbus_path = common.ROOT_DBUS_PATH
 
-    def __init__(self, conn=None, object_path=None, bus_name=None,
-                 base_object_path=None, service_name=None):
+    def __init__(self, conn=None, object_path=None, bus_name=None):
         super(BaseObject, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
-        self.object_path = object_path
+        self.object_path = self.default_dbus_path
         self._props = self._create_props(self.interface_name)
-        self.persistent = True
 
     def _create_props(self, interface_name):
         properties = BaseProperties.create_instance(interface_name, {}, self.PropertiesChanged)
