@@ -93,7 +93,7 @@ class AccessDenied(dbus.DBusException):
     include_traceback = True
 
     def __init__(self, prop, interface):
-        super(InvalidArguments, self).__init__(
+        super(AccessDenied, self).__init__(
             "Property '%s' isn't exported (or does not exist) on interface: %s" % (prop, interface),
             name="org.freedesktop.DBus.Error.AccessDenied"
         )
@@ -103,7 +103,7 @@ class PropertyMissing(dbus.DBusException):
     include_traceback = True
 
     def __init__(self, prop, interface):
-        super(InvalidArguments, self).__init__(
+        super(PropertyMissing, self).__init__(
             "Property '%s' does not exist on interface: %s" % (prop, interface),
             name="org.freedesktop.DBus.Error.AccessDenied"
         )

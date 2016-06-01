@@ -12,19 +12,22 @@
 # in this software or its documentation.
 #
 import logging
-import dbus.service
 import rhsmlib.dbus as common
+from rhsmlib.dbus.base_object import BaseObject, BaseProperties, Property
 
 log = logging.getLogger(__name__)
 
 
-class Config(dbus.service.Object):
+class Config(BaseObject):
     default_dbus_path = common.CONFIG_DBUS_PATH
+    interface_name = common.CONFIG_INTERFACE
 
-    """ Represents the system config """
-    @common.dbus_service_method(
-        dbus_interface=common.CONFIG_INTERFACE,
-        in_signature='',
-        out_signature='s')
-    def getConfig(self, sender=None):
-        return "My Cool config"
+    def __init__(self, object_path=None, bus_name=None):
+        super(Config, self).__init__(conn=None, object_path=object_path, bus_name=bus_name)
+
+    def _create_propertiess(self, interface_name):
+        d = {'hello': 'world'}
+        properties = BaseProperties.create_instance(interface_name, d, self.PropertiesChanged)
+        properties.add('version', Property(value='x', access='write'))
+
+        return properties

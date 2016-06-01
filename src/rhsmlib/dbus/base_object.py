@@ -26,9 +26,8 @@ class Property(object):
     default_access = 'read'
     default_value_signature = 's'
 
-    def __init__(self, name, value, value_signature=None, access=None):
+    def __init__(self, value, value_signature=None, access=None):
         self.access = access or self.default_access
-        self.name = name
         self.value = value
         self.value_signature = value_signature or self.default_value_signature
 
@@ -40,15 +39,21 @@ class BaseProperties(object):
         if not data:
             data = {}
 
-        self.props_data = data  # dict of prop_name: property_object
+        self.props_data = data
         self.interface_name = interface_name
         self.properties_changed_callback = properties_changed_callback
 
     def __getitem__(self, key):
+        self._check_property(key)
         return self.props_data[key]
 
     def __setitem__(self, key, value):
-        self.props_data[key] = value
+        if key in self.props_data:
+            v = self.props_data[key]
+
+            if v and v.access != 'read':
+                self.props_data[key] = dbus_utils.dbus_to_python(value)
+        raise common.AccessDenied(key, self.interface_name)
 
     def __delitem__(self, key):
         del self.props_data[key]
@@ -61,78 +66,25 @@ class BaseProperties(object):
 
     @classmethod
     def create_instance(cls, interface_name, prop_dict, properties_changed_callback=None):
-        base_prop = cls(interface_name, properties_changed_callback=properties_changed_callback)
+        instance = cls(interface_name, properties_changed_callback=properties_changed_callback)
         props = {}
-        for prop_key, prop_value in prop_dict.items():
-            prop = Property(name=prop_key, value=prop_value)
-            props[prop.name] = prop
+        for key, value in prop_dict.items():
+            props[key] = Property(value)
 
-        base_prop.props_data = props
-        return base_prop
+        instance.props_data = props
+        return instance
 
-    def get(self, interface_name=None, property_name=None):
-        self._check_interface(interface_name)
-        self._check_prop(property_name)
-
-        try:
-            return self.props_data[property_name].value
-        except KeyError:
-            raise common.UnknownProperty(property_name)
-
-    def get_all(self, interface_name=None):
-        if interface_name != self.interface_name:
-            raise common.UnknownInterface(interface_name)
-
-        a = dict([(p_name, p_v.value) for p_name, p_v in self.props_data.items()])
+    def get_all(self):
+        a = dict([(name, p_v.value) for name, p_v in iter(self)])
         return a
-
-    def set(self, interface_name, property_name, new_value):
-        """On attempts to set a property, raise AccessDenied.
-
-        The default base_properties is read-only. Attempts to set()
-        a property will raise a DBusException of type
-        org.freedesktop.DBus.Error.AccessDenied.
-
-        Subclasses that need settable properties should override this.
-        BaseService subclasses that need rw properties should use
-        a ReadWriteBaseProperties instead of BaseProperties."""
-        raise common.AccessDenied(property_name)
-
-    def _set(self, interface_name, property_name, new_value):
-        """Set a property to given value, ignoring access writes.
-
-        Ie, BaseProperties.set() can be exposed through the dbus.Properties 'Set()'
-        method, where it will check access rights. But internal use can use _set."""
-        self._set_prop(interface_name, property_name, new_value)
-
-    def _set_props(self, interface_name, properties_iterable):
-        for property_name, new_value in properties_iterable:
-            self._set_prop(interface_name, property_name, new_value)
-        self._emit_properties_changed(properties_iterable)
-
-    def _set_prop(self, interface_name, property_name, new_value):
-        interface_name = dbus_utils.dbus_to_python(interface_name, str)
-        if interface_name != self.interface_name:
-            raise common.UnknownInterface(interface_name)
-
-        property_name = dbus_utils.dbus_to_python(property_name, str)
-        new_value = dbus_utils.dbus_to_python(new_value)
-
-        self._check_prop(property_name)
-
-        # FIXME/TODO: Plug in access checks and data validation
-        # FIXME/TODO: Plug in checking if prop should emit a change signal.
-        try:
-            self.props_data[property_name].value = new_value
-        except Exception as e:
-            msg = "Error setting property %s=%s on interface_name=%s: %s" % \
-                (property_name, new_value, self.interface_name)
-            self.log.exception(e)
-            raise common.Failed(msg)
 
     def add_introspection_xml(self, interface_xml):
         ret = dbus_utils.add_properties(interface_xml, self.interface_name, self.to_introspection_props())
         return ret
+
+    def add(self, name, property):
+        """Used to add without hitting __setitem__'s access controls."""
+        self.props_data[name] = property
 
     # FIXME: This only supports string type values at the moment.
     def to_introspection_props(self):
@@ -161,8 +113,8 @@ class BaseProperties(object):
     def access_mask(self, prop_key):
         return 'read'
 
-    def _check_prop(self, property_name):
-        if property_name not in self.props_data:
+    def _check_property(self, property_name):
+        if property_name not in self:
             raise common.UnknownProperty(property_name)
 
     def _emit_properties_changed(self, properties_iterable):
@@ -184,10 +136,10 @@ class ReadWriteProperties(BaseProperties):
     Use this if you want to be able to set()/Set() DBus.Properties
     on a service."""
 
-    def set(self, interface_name, property_name, new_value):
-        if self.access_mask(property_name) != 'write':
-            raise common.AccessDenied(property_name, interface_name)
-        return self._set(interface_name, property_name, new_value)
+    def __setitem__(self, key, value):
+        if self.access_mask(key) != 'write':
+            raise common.AccessDenied(key, self.interface_name)
+        self[key] = value
 
     # FIXME: track read/write per property
     def access_mask(self, prop_key):
@@ -202,18 +154,20 @@ class BaseObject(dbus.service.Object):
     def __init__(self, conn=None, object_path=None, bus_name=None):
         super(BaseObject, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
         self.object_path = self.default_dbus_path
-        self._props = self._create_props(self.interface_name)
 
-    def _create_props(self, interface_name):
-        properties = BaseProperties.create_instance(interface_name, {}, self.PropertiesChanged)
-        return properties
+        # TODO: Support multiple interfaces
+        self.properties = {self.interface_name: self._create_props(self.interface_name)}
 
-    @property
-    def props(self):
-        return self._props
+    def _create_properties(self, interface_name):
+        return BaseProperties.create_instance(interface_name, {}, self.PropertiesChanged)
+
+    def _check_interface(self, interface_name):
+        if interface_name != self.interface_name:
+            raise common.UnknownInterface(interface_name)
 
     @dbus.service.signal(dbus.PROPERTIES_IFACE, signature='sa{sv}as')
     def PropertiesChanged(self, interface_name, changed_properties, invalidated_properties):
+        # TODO: Do something here
         log.debug("Properties Changed emitted.")
 
     @common.dbus_service_method(
@@ -222,7 +176,8 @@ class BaseObject(dbus.service.Object):
         out_signature='a{sv}')
     @common.dbus_handle_exceptions
     def GetAll(self, interface_name, sender=None):
-        return dbus.Dictionary(self.props.get_all(interface_name=interface_name), signature='sv')
+        self._check_interface(interface_name)
+        return dbus.Dictionary(self.properties[interface_name].get_all(), signature='sv')
 
     @common.dbus_service_method(
         dbus.PROPERTIES_IFACE,
@@ -230,7 +185,8 @@ class BaseObject(dbus.service.Object):
         out_signature='v')
     @common.dbus_handle_exceptions
     def Get(self, interface_name, property_name, sender=None):
-        return self.props.get(interface_name=interface_name, property_name=property_name)
+        self._check_interface(interface_name)
+        return self.properties[interface_name][property_name]
 
     @common.dbus_service_method(
         dbus.PROPERTIES_IFACE,
@@ -244,4 +200,5 @@ class BaseObject(dbus.service.Object):
         DBusException of type org.freedesktop.DBus.Error.AccessDenied.
 
         Subclasses that need settable properties should override this."""
-        self.props.set(interface_name=interface_name, property_name=property_name, new_value=new_value)
+        self._check_interface(interface_name)
+        self.properties[interface_name][property_name] = new_value
