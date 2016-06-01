@@ -54,8 +54,8 @@ class RegisterService(PrivateService):
     _interface_name = common.REGISTER_INTERFACE
 
     @common.dbus_service_method(dbus_interface=common.REGISTER_INTERFACE,
-                                    in_signature='sssa{ss}',
-                                    out_signature='s')
+                                    in_signature='sssa{sv}',
+                                    out_signature='a{sv}')
     def register(self, username, password, org, options, sender=None):
         """
         This method registers the system using basic auth
@@ -80,7 +80,9 @@ class RegisterService(PrivateService):
                                       password=password,
                                       host=options['host'],
                                       ssl_port=connection.safe_int(options['port']),
-                                      handler=options['handler'])
+                                      handler=options['handler'],
+                                      insecure=options['insecure'],
+                                      restlib_class=connection.BaseRestLib)
         registration_output = cp.registerConsumer(name=options['name'],
                                                   owner=org)
 
@@ -88,7 +90,7 @@ class RegisterService(PrivateService):
         # TODO: Create standard return signature
         # NOTE: dbus python does not know what to do with the python NoneType
         # Otherwise we could just have our return signature be a dict of strings to variant
-        return json.dumps(registration_output)
+        return dbus_utils.dict_to_variant_dict(registration_output)
 
     @common.dbus_service_method(dbus_interface=common.REGISTER_INTERFACE,
                                     in_signature='sa(s)a{ss}',
