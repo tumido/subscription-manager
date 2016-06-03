@@ -11,23 +11,38 @@
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation.
 #
+import dbus
 import logging
 import rhsmlib.dbus as common
-from rhsmlib.dbus.base_object import BaseObject, BaseProperties, Property
+
+from rhsmlib.dbus.base_object import BaseObject, BaseProperties
+from rhsmlib.services.config import Config
+from dbus import DBusException
 
 log = logging.getLogger(__name__)
 
 
-class Config(BaseObject):
+class ConfigDBusObject(BaseObject):
     default_dbus_path = common.CONFIG_DBUS_PATH
     interface_name = common.CONFIG_INTERFACE
 
     def __init__(self, object_path=None, bus_name=None):
-        super(Config, self).__init__(conn=None, object_path=object_path, bus_name=bus_name)
+        self.config = Config()
+        super(ConfigDBusObject, self).__init__(conn=None, object_path=object_path, bus_name=bus_name)
 
-    def _create_propertiess(self, interface_name):
-        d = {'hello': 'world'}
+    def _create_properties(self, interface_name):
+        d = {}
+        for k, v in self.config.iteritems():
+            d[k] = {}
+            for kk, vv in v.iteritems():
+                d[k][kk] = vv
+
         properties = BaseProperties.create_instance(interface_name, d, self.PropertiesChanged)
-        properties.add('version', Property(value='x', access='write'))
-
         return properties
+
+    @common.dbus_service_method(
+        dbus.PROPERTIES_IFACE,
+        in_signature='ssv')
+    @common.dbus_handle_exceptions
+    def Set(self, interface_name, property_name, new_value, sender=None):
+        raise DBusException("Not implemented")

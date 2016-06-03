@@ -29,11 +29,11 @@ class ProtoDict(object):
         return iter(self)
 
     def itervalues(self):
-        for k in self:
+        for k in iter(self):
             yield self[k]
 
     def iteritems(self):
-        for k in self:
+        for k in iter(self):
             yield (k, self[k])
 
     def get(self, key, default=None):
@@ -100,7 +100,7 @@ class ConfigSection(ProtoDict):
         self._section = section
 
     def __iter__(self):
-        return self._parser.items(self._section)
+        return iter(self._parser.options(self._section))
 
     def __getitem__(self, key):
         if key in self:

@@ -25,7 +25,7 @@ import rhsmlib.dbus as common
 
 from rhsmlib import import_class
 from rhsmlib.dbus.server import Server
-from rhsmlib.dbus.objects import Config, Main
+from rhsmlib.dbus.objects import ConfigDBusObject, Main
 
 common.init_root_logger()
 
@@ -41,7 +41,7 @@ def main(args):
         bus_name = args[1]
 
     object_classes = [
-        Config,
+        ConfigDBusObject,
         Main,
     ]
 

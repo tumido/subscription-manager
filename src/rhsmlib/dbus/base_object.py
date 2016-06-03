@@ -156,7 +156,7 @@ class BaseObject(dbus.service.Object):
         self.object_path = self.default_dbus_path
 
         # TODO: Support multiple interfaces
-        self.properties = {self.interface_name: self._create_props(self.interface_name)}
+        self.properties = {self.interface_name: self._create_properties(self.interface_name)}
 
     def _create_properties(self, interface_name):
         return BaseProperties.create_instance(interface_name, {}, self.PropertiesChanged)
