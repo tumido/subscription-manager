@@ -18,8 +18,8 @@ import json
 import logging
 import dbus.service
 
-from subscription_manager import managerlib
-from rhsm import connection
+import subscription_manager.managerlib as managerlib
+import rhsm.connection as connection
 from rhsmlib.dbus import dbus_utils
 
 _ = gettext.gettext
@@ -82,13 +82,12 @@ class RegisterService(PrivateService):
                                       host=options['host'],
                                       ssl_port=connection.safe_int(options['port']),
                                       handler=options['handler'],
-                                      insecure=options['insecure'],
+                                      insecure=options.get('insecure', None),
                                       restlib_class=connection.BaseRestLib)
         registration_output = cp.registerConsumer(name=options['name'],
                                                   owner=org)
         consumer = json.loads(registration_output['content'],
-            object_hook=self._decode_dict)
-
+            object_hook=dbus_utils._decode_dict)
         managerlib.persist_consumer_cert(consumer)
         # Remove idcert
         del consumer['idCert']
@@ -99,20 +98,6 @@ class RegisterService(PrivateService):
         # NOTE: dbus python does not know what to do with the python NoneType
         # Otherwise we could just have our return signature be a dict of strings to variant
         return dbus_utils.dict_to_variant_dict(registration_output)
-
-    def _decode_dict(self, data):
-        rv = {}
-        for key, value in data.iteritems():
-            if isinstance(key, unicode):
-                key = key.encode('utf-8')
-            if isinstance(value, unicode):
-                value = value.encode('utf-8')
-            elif isinstance(value, list):
-                value = self._decode_list(value)
-            elif isinstance(value, dict):
-                value = self._decode_dict(value)
-            rv[key] = value
-        return rv
 
     @common.dbus_service_method(dbus_interface=common.REGISTER_INTERFACE,
                                     in_signature='sa(s)a{ss}',

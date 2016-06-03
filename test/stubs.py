@@ -392,7 +392,7 @@ class StubUEP(object):
                  username=None, password=None,
                  proxy_hostname=None, proxy_port=None,
                  proxy_user=None, proxy_password=None,
-                 cert_file=None, key_file=None):
+                 cert_file=None, key_file=None, restlib_class=None):
         self.registered_consumer_info = {"uuid": 'dummy-consumer-uuid'}
         self.environment_list = []
         self.called_unregister_uuid = None
