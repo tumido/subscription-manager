@@ -11,6 +11,6 @@
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation.
 #
-from rhsmlib.dbus.objects.config import ConfigDBusObject # NOQA
+from rhsmlib.dbus.objects.config import ConfigDBusObject  # NOQA
 from rhsmlib.dbus.objects.main import Main  # NOQA
 from rhsmlib.dbus.objects.private import RegisterService  # NOQA

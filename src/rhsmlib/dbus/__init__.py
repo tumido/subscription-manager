@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 import decorator
 import string
@@ -130,7 +131,8 @@ def dbus_handle_exceptions(func, *args, **kwargs):
         raise
     except Exception as e:
         log.exception(e)
-        raise RHSM1DBusException(str(e))
+        trace = sys.exc_info()[2]
+        raise RHSM1DBusException("%s: %s" % (type(e).__name__, str(e))), None, trace
 
 
 def dbus_service_method(*args, **kwargs):

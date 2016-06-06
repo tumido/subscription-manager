@@ -43,18 +43,20 @@ class ProtoDict(object):
 
 
 class Config(ProtoDict):
-    def __init__(self, parser=None):
+    def __init__(self, parser=None, auto_persist=False):
         if parser:
             self._parser = parser
         else:
             self._parser = rhsm.config.initConfig()
 
+        self.auto_persist = auto_persist
+
         self._sections = {}
         for s in self._parser.sections():
-            self._sections[s] = ConfigSection(self, self._parser, s)
+            self._sections[s] = ConfigSection(self, self._parser, s, self.auto_persist)
         super(Config, self).__init__()
 
-    def _persist(self):
+    def persist(self):
         self._parser.save()
 
     def __getitem__(self, name):
@@ -62,20 +64,21 @@ class Config(ProtoDict):
             return self._sections[name]
         raise KeyError("No configuration section '%s' exists" % name)
 
-    def __setitem__(self, key, value, persist=False):
+    def __setitem__(self, key, value):
         if key in self:
             raise NotImplementedError("Cannot replace existing sections")
 
         for k, v in value.iteritems():
             self._sections[key][k] = v
 
-        if persist:
-            self._persist()
+        if self.auto_persist:
+            self.persist()
 
     def __delitem__(self, key):
         self._parser.remove_section(key)
         del self._sections[key]
-        self._persist()
+        if self.auto_persist:
+            self.persist()
 
     def __contains__(self, key):
         return key in self._sections
@@ -94,10 +97,11 @@ class Config(ProtoDict):
 
 
 class ConfigSection(ProtoDict):
-    def __init__(self, wrapper, parser, section):
+    def __init__(self, wrapper, parser, section, auto_persist=False):
         self._wrapper = wrapper
         self._parser = parser
         self._section = section
+        self.auto_persist = auto_persist
 
     def __iter__(self):
         return iter(self._parser.options(self._section))
@@ -107,15 +111,16 @@ class ConfigSection(ProtoDict):
             return self._parser.get(self._section, key)
         raise KeyError("Property '%s' does not exist in section '%s'" % (key, self._section))
 
-    def __setitem__(self, key, value, persist=False):
+    def __setitem__(self, key, value):
         self._parser.set(self._section, key, value)
-        if persist:
-            self._persist()
+        if self.auto_persist:
+            self.persist()
 
     def __delitem__(self, key):
         if key in self:
             self._parser.remove_option(self._section, key)
-            self._persist()
+            if self.auto_persist:
+                self.persist()
         raise KeyError("Property '%s' does not exist in section '%s'" % (key, self._section))
 
     def __contains__(self, key):
