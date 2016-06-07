@@ -65,8 +65,21 @@ class Config(ProtoDict):
         raise KeyError("No configuration section '%s' exists" % name)
 
     def __setitem__(self, key, value):
+        try:
+            value.iteritems()
+        except Exception:
+            raise
+
         if key in self:
-            raise NotImplementedError("Cannot replace existing sections")
+            # Similar to __delitem__ but with no persistence
+            self._parser.remove_section(key)
+            # Be aware that RhsmConfigParser is very diligent about keeping
+            # default values in the configuration.  Deleting the section will result
+            # in all the section's values being reset to the defaults.
+            del self._sections[key]
+
+        self._parser.add_section(key)
+        self._sections[key] = ConfigSection(self, self._parser, key, self.auto_persist)
 
         for k, v in value.iteritems():
             self._sections[key][k] = v
@@ -114,14 +127,15 @@ class ConfigSection(ProtoDict):
     def __setitem__(self, key, value):
         self._parser.set(self._section, key, value)
         if self.auto_persist:
-            self.persist()
+            self._wrapper.persist()
 
     def __delitem__(self, key):
         if key in self:
             self._parser.remove_option(self._section, key)
             if self.auto_persist:
                 self.persist()
-        raise KeyError("Property '%s' does not exist in section '%s'" % (key, self._section))
+        else:
+            raise KeyError("Property '%s' does not exist in section '%s'" % (key, self._section))
 
     def __contains__(self, key):
         return self._parser.has_option(self._section, key)

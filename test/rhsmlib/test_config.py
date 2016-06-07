@@ -15,11 +15,12 @@ import unittest
 
 from tempfile import NamedTemporaryFile
 from rhsmlib.services.config import Config, ConfigSection
-from rhsm.config import RhsmConfigParser
+from rhsm.config import RhsmConfigParser, NoOptionError
 
 TEST_CONFIG = """
 [foo]
 bar =
+quux = baz
 bigger_than_32_bit = 21474836470
 bigger_than_64_bit = 123456789009876543211234567890
 
@@ -85,14 +86,53 @@ class TestConfig(BaseConfigTest):
     def test_keys(self):
         self.assert_items_equals(self.expected_sections, self.config.keys())
 
-    def test_no_overwrite_sections(self):
-        self.parser.add_section("new_section")
+    def test_values(self):
+        values = self.config.values()
+        for v in values:
+            self.assertIsInstance(v, ConfigSection)
 
-        with self.assertRaises(NotImplementedError):
-            self.config['server'] = {}
+    def test_set_new_section(self):
+        self.config['new_section'] = {'hello': 'world'}
+        self.assertEquals(['hello'], self.config._parser.options('new_section'))
+        self.assertEquals('world', self.config._parser.get('new_section', 'hello'))
+
+    def test_set_old_section(self):
+        self.config['foo'] = {'hello': 'world'}
+        self.assertEquals(['hello'], self.config._parser.options('foo'))
+        self.assertEquals('world', self.config._parser.get('foo', 'hello'))
+        self.assertRaises(NoOptionError, self.config._parser.get, 'foo', 'quux')
 
     def test_get_item(self):
         self.assertIsInstance(self.config['server'], ConfigSection)
+
+    def test_persist(self):
+        self.config['foo'] = {'hello': 'world'}
+        self.config.persist()
+        reparsed = RhsmConfigParser(self.fid.name)
+        self.assertEquals('world', reparsed.get('foo', 'hello'))
+        self.assertRaises(NoOptionError, reparsed.get, 'foo', 'quux')
+
+    def test_auto_persists(self):
+        config = Config(self.parser, auto_persist=True)
+        config['foo'] = {'hello': 'world'}
+        reparsed = RhsmConfigParser(self.fid.name)
+        self.assertEquals('world', reparsed.get('foo', 'hello'))
+        self.assertRaises(NoOptionError, reparsed.get, 'foo', 'quux')
+
+    def test_does_not_auto_persist_by_default(self):
+        config = Config(self.parser, auto_persist=False)
+        config['foo'] = {'hello': 'world'}
+        reparsed = RhsmConfigParser(self.fid.name)
+        self.assertEquals('baz', reparsed.get('foo', 'quux'))
+        self.assertRaises(NoOptionError, reparsed.get, 'foo', 'hello')
+
+    def test_del_item(self):
+        del self.config['foo']
+        self.assertFalse(self.config._parser.has_section('foo'))
+
+    def test_iter(self):
+        sections = [s for s in self.config]
+        self.assert_items_equals(sections, ['foo', 'rhsm', 'rhsmcertd', 'server'])
 
 
 class TestConfigSection(BaseConfigTest):
@@ -102,3 +142,34 @@ class TestConfigSection(BaseConfigTest):
     def test_get_missing_value(self):
         with self.assertRaises(KeyError):
             self.config['server']['missing']
+
+    def test_set_item(self):
+        self.assertEquals('baz', self.config['foo']['quux'])
+        self.config['foo']['quux'] = 'fizz'
+        self.assertEquals('fizz', self.config['foo']['quux'])
+
+    def test_auto_persist(self):
+        config = Config(self.parser, auto_persist=True)
+        self.assertEquals('baz', config['foo']['quux'])
+        config['foo']['quux'] = 'fizz'
+        self.assertEquals('fizz', config['foo']['quux'])
+
+        reparsed = RhsmConfigParser(self.fid.name)
+        self.assertEquals('fizz', reparsed.get('foo', 'quux'))
+
+    def test_persist_cascades(self):
+        config = Config(self.parser, auto_persist=False)
+        self.assertEquals('baz', config['foo']['quux'])
+        config['foo']['quux'] = 'fizz'
+        config.persist()
+        self.assertEquals('fizz', config['foo']['quux'])
+
+        reparsed = RhsmConfigParser(self.fid.name)
+        self.assertEquals('fizz', reparsed.get('foo', 'quux'))
+
+    def test_del_item(self):
+        del self.config['foo']['quux']
+        self.assertNotIn('quux', self.config['foo'])
+
+        with self.assertRaises(KeyError):
+            del self.config['foo']['missing_key']
