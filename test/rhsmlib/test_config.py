@@ -173,3 +173,10 @@ class TestConfigSection(BaseConfigTest):
 
         with self.assertRaises(KeyError):
             del self.config['foo']['missing_key']
+
+    def test_len(self):
+        self.assertEquals(4, len(self.config['foo']))
+
+    def test_in(self):
+        self.assertIn("quux", self.config['foo'])
+        self.assertNotIn("missing", self.config['foo'])
