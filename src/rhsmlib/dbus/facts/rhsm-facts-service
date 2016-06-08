@@ -41,10 +41,10 @@ def main(args):
         root.FactsRoot,
     ]
 
-    Server().run(
+    Server(
         bus_class=bus_class,
         bus_name=bus_name,
-        object_classes=object_classes)
+        object_classes=object_classes).run()
     return 0
 
 

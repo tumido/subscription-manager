@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 
 
 class Server(object):
-    def run(self, bus_class=None, bus_name=None, object_classes=None):
+    def __init__(self, bus_class=None, bus_name=None, object_classes=None):
         """bus == dbus.SystemBus() etc.
         object_class is the the class implementing a DBus Object"""
 
@@ -42,10 +42,11 @@ class Server(object):
             connection_name = dbus.service.BusName(bus_name, bus)
             clazz(object_path=clazz.default_dbus_path, bus_name=connection_name)
 
-        mainloop = GLib.MainLoop()
+        self.mainloop = GLib.MainLoop()
 
+    def run(self, bus_class=None, bus_name=None, object_classes=None):
         try:
-            mainloop.run()
+            self.mainloop.run()
         except KeyboardInterrupt as e:
             log.exception(e)
         except SystemExit as e:
@@ -54,7 +55,10 @@ class Server(object):
         except Exception as e:
             log.exception(e)
         finally:
-            mainloop.quit()
+            self.mainloop.quit()
+
+    def shutdown(self):
+        self.mainloop.quit()
 
 
 class PrivateServer(object):
@@ -67,17 +71,7 @@ class PrivateServer(object):
     def connection_removed(conn):
         print("Connection closed")
 
-    def create_server(self, object_classes=None):
-        object_classes = object_classes or []
-        server = dbus.server.Server("unix:tmpdir=/var/run")
-        server.on_connection_removed.append(PrivateServer.connection_removed)
-        log.debug("object_classes=%s", object_classes)
-
-        for clazz in object_classes:
-            server.on_connection_added.append(partial(PrivateServer.connection_added, clazz))
-        return server
-
-    def run(self, object_classes=None):
+    def __init__(self, object_classes=None):
         """bus == dbus.SystemBus() etc.
         object_class is the the class implementing a DBus Object"""
         object_classes = object_classes or []
@@ -88,10 +82,21 @@ class PrivateServer(object):
         server = self.create_server(object_classes=object_classes)
         log.info("Server created: %s" % server.get_address())
 
-        mainloop = GLib.MainLoop()
+        self.mainloop = GLib.MainLoop()
 
+    def create_server(self, object_classes=None):
+        object_classes = object_classes or []
+        server = dbus.server.Server("unix:tmpdir=/var/run")
+        server.on_connection_removed.append(PrivateServer.connection_removed)
+        log.debug("object_classes=%s", object_classes)
+
+        for clazz in object_classes:
+            server.on_connection_added.append(partial(PrivateServer.connection_added, clazz))
+        return server
+
+    def run(self):
         try:
-            mainloop.run()
+            self.mainloop.run()
         except KeyboardInterrupt as e:
             log.exception(e)
         except SystemExit as e:
@@ -100,4 +105,7 @@ class PrivateServer(object):
         except Exception as e:
             log.exception(e)
         finally:
-            mainloop.quit()
+            self.mainloop.quit()
+
+    def shutdown(self):
+        self.mainloop.quit()

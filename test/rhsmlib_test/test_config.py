@@ -11,11 +11,17 @@
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation.
 #
+import dbus
 import unittest
+
+from nose.plugins.attrib import attr
 
 from tempfile import NamedTemporaryFile
 from rhsmlib.services.config import Config, ConfigSection
 from rhsm.config import RhsmConfigParser, NoOptionError
+from rhsmlib.dbus.objects.config import ConfigDBusObject
+
+from .base import DBusObjectTest
 
 TEST_CONFIG = """
 [foo]
@@ -180,3 +186,29 @@ class TestConfigSection(BaseConfigTest):
     def test_in(self):
         self.assertIn("quux", self.config['foo'])
         self.assertNotIn("missing", self.config['foo'])
+
+
+@attr('functional_dbus')
+class TestConfigDBusObject(DBusObjectTest):
+    def postServerSetUp(self):
+        self.bus = dbus.SessionBus()
+        self.proxy = self.bus.get_object(
+            self.bus_name, ConfigDBusObject.default_dbus_path)
+        self.interface = dbus.Interface(self.proxy, dbus_interface=dbus.PROPERTIES_IFACE)
+
+    def dbus_objects(self):
+        return [ConfigDBusObject]
+
+    def test_get_all(self):
+        config = self.interface.GetAll(ConfigDBusObject.interface_name)
+        self.assertIn("server", config)
+
+    def test_get_property(self):
+        self.interface.Get(ConfigDBusObject.interface_name, 'server.hostname')
+
+    def test_get_section(self):
+        config = self.interface.Get(ConfigDBusObject.interface_name, 'server')
+        self.assertIn('hostname', config)
+
+
+
