@@ -22,6 +22,7 @@ import subscription_manager.managerlib as managerlib
 import rhsm.connection as connection
 from rhsmlib.dbus import dbus_utils
 
+from subscription_manager import injection as inj
 _ = gettext.gettext
 log = logging.getLogger(__name__)
 
@@ -54,10 +55,11 @@ class PrivateService(dbus.service.Object):
 class RegisterService(PrivateService):
     _interface_name = common.REGISTER_INTERFACE
 
-    @common.dbus_service_method(dbus_interface=common.REGISTER_INTERFACE,
+
+    @dbus.service.method(dbus_interface=common.REGISTER_INTERFACE,
                                     in_signature='sssa{sv}',
                                     out_signature='a{sv}')
-    def register(self, username, password, org, options, sender=None):
+    def register(self, username, password, org, options):
         """
         This method registers the system using basic auth
         (username and password for a given org).
@@ -67,84 +69,115 @@ class RegisterService(PrivateService):
         Options is a dict of strings that modify the outcome of this method.
         """
         # TODO: Read from config if needed
-        validation_result = RegisterService._validate_register_options(options)
-        if validation_result:
-            return validation_result
+        options = RegisterService._validate_register_options(options)
         # We have to convert dictionaries from the dbus objects to their
         # python equivalents. Seems like the dbus dictionaries don't work
         # in quite the same way as regular python ones.
         options = dbus_utils.dbus_to_python(options)
 
-        if options.get('name') is None:
-            options['name'] = socket.gethostname()
-        cp = connection.UEPConnection(username=username,
-                                      password=password,
-                                      host=options['host'],
-                                      ssl_port=connection.safe_int(options['port']),
-                                      handler=options['handler'],
-                                      insecure=options.get('insecure', None),
-                                      restlib_class=connection.BaseRestLib)
-        registration_output = cp.registerConsumer(name=options['name'],
-                                                  owner=org)
-        consumer = json.loads(registration_output['content'],
-            object_hook=dbus_utils._decode_dict)
-        managerlib.persist_consumer_cert(consumer)
-        # Remove idcert
-        del consumer['idCert']
-        registration_output['content'] = json.dumps(consumer)
+        # TODO: Facts collection, We'll need facts exposed as a service like
+        #       the config to achieve this.
+        installed_mgr = inj.require(inj.INSTALLED_PRODUCTS_MANAGER)
 
-        # For now return the json from the server as a string
-        # TODO: Create standard return signature
-        # NOTE: dbus python does not know what to do with the python NoneType
-        # Otherwise we could just have our return signature be a dict of strings to variant
+        options['username'] = username
+        options['password'] = password
+        cp = RegisterService._get_uep_from_options(options)
+        registration_output = cp.registerConsumer(name=options['name'],
+                                                  owner=org,
+                                                  installed_products=installed_mgr.format_for_server(),
+                                                  content_tags=installed_mgr.tags)
+        installed_mgr.write_cache()
+        registration_output['content'] = RegisterService._persist_and_sanitize_consumer(registration_output['content'])
         return dbus_utils.dict_to_variant_dict(registration_output)
 
-    @common.dbus_service_method(dbus_interface=common.REGISTER_INTERFACE,
+    @dbus.service.method(dbus_interface=common.REGISTER_INTERFACE,
                                     in_signature='sa(s)a{ss}',
-                                    out_signature='s')
-    def register_with_activation_keys(self,
-                                      org,
-                                      activation_keys,
-                                      options, sender=None):
+                                    out_signature='a{sv}')
+    def register_with_activation_keys(self, org, activation_keys, options):
         """ This method registers a system with the given options, using
-        an activation key.
-        """
-        # TODO: Implement
+            an activation key."""
         # NOTE: We could probably manage doing this in one method with the use
         #       of variants in the in_signature (but I'd imagine that might be
         #       slightly more difficult to unit test)
-        return "WITH ACTIVATION KEYS"
+        options = RegisterService._validate_register_options(options)
+
+        options = dbus_utils.dbus_to_python(options)
+
+        cp = RegisterService._get_uep_from_options(options)
+        installed_mgr = inj.require(inj.INSTALLED_PRODUCTS_MANAGER)
+
+        registration_output = cp.registerConsumer(
+            name=options['name'],
+            keys=activation_keys,
+            owner=org,
+            installed_products=installed_mgr.format_for_server(),
+            content_tags=installed_mgr.tags)
+
+        installed_mgr.write_cache()
+        registration_output['content'] = RegisterService._persist_and_sanitize_consumer(registration_output['content'])
+        return dbus_utils.dict_to_variant_dict(registration_output)
+
+    @staticmethod
+    def _get_uep_from_options(options):
+        return connection.UEPConnection(
+            username=options.get('username', None),
+            password=options.get('password', None),
+            host=options.get('host', None),
+            ssl_port=connection.safe_int(options.get('port', None)),
+            handler=options.get('handler', None),
+            insecure=options.get('insecure', None),
+            proxy_hostname=options.get('proxy_hostname', None),
+            proxy_port=options.get('proxy_port', None),
+            proxy_user=options.get('proxy_user', None),
+            proxy_password=options.get('proxy_password', None),
+            restlib_class=connection.BaseRestLib
+        )
+
+    @staticmethod
+    def _persist_and_sanitize_consumer(consumer_json):
+        """ Persists consumer and removes unnecessary keys """
+        consumer = json.loads(consumer_json,
+            object_hook=dbus_utils._decode_dict)
+        managerlib.persist_consumer_cert(consumer)
+
+        del consumer['idCert']
+
+        return json.dumps(consumer)
 
     @staticmethod
     def is_registered():
-        # TODO: Implement this
-        # NOTE: Likely needs some form of injection as in managercli
-        return False
+        return inj.require(inj.IDENTITY).is_valid()
 
     @staticmethod
     def _validate_register_options(options):
         # TODO: Rewrite the error messages to be more dbus specific
         # From managercli.RegisterCommand._validate_options
+        error_msg = None
         autoattach = options.get('autosubscribe') or options.get('autoattach')
         if RegisterService.is_registered() and not options.get('force'):
-            return _("This system is already registered. Use --force to override")
+            error_msg = _("This system is already registered. Add force to options to override.")
         elif (options.get('consumername') == ''):
-            return _("Error: system name can not be empty.")
+            error_msg = _("Error: system name can not be empty.")
         elif (options.get('username') and options.get('activation_keys')):
-            return _("Error: Activation keys do not require user credentials.")
+            error_msg = _("Error: Activation keys do not require user credentials.")
         elif (options.get('consumerid') and options.get('activation_keys')):
-            return _("Error: Activation keys can not be used with previously registered IDs.")
+            error_msg =  _("Error: Activation keys can not be used with previously registered IDs.")
         elif (options.get('environment') and options.get('activation_keys')):
-            return _("Error: Activation keys do not allow environments to be specified.")
+            error_msg = _("Error: Activation keys do not allow environments to be specified.")
         elif (autoattach and options.get('activation_keys')):
-            return _("Error: Activation keys cannot be used with --auto-attach.")
+            error_msg = _("Error: Activation keys cannot be used with --auto-attach.")
         # 746259: Don't allow the user to pass in an empty string as an activation key
         elif (options.get('activation_keys') and '' in options.get('activation_keys')):
-            return _("Error: Must specify an activation key")
+            error_msg = _("Error: Must specify an activation key")
         elif (options.get('service_level') and not autoattach):
-            return _("Error: Must use --auto-attach with --servicelevel.")
+            error_msg = _("Error: Must use --auto-attach with --servicelevel.")
         elif (options.get('activation_keys') and not options.get('org')):
-            return _("Error: Must provide --org with activation keys.")
+            error_msg = _("Error: Must provide --org with activation keys.")
         elif (options.get('force') and options.get('consumerid')):
-            return _("Error: Can not force registration while attempting to recover registration with consumerid. Please use --force without --consumerid to re-register or use the clean command and try again without --force.")
-        return None
+            error_msg = _("Error: Can not force registration while attempting to recover registration with consumerid. Please use --force without --consumerid to re-register or use the clean command and try again without --force.")
+
+        if error_msg:
+            raise common.Failed(msg=error_msg)
+        if not 'name' in options or not options['name']:
+            options['name'] = socket.gethostname()
+        return options

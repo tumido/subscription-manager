@@ -16,7 +16,8 @@ import dbus.service
 import dbus.server
 import dbus.mainloop.glib
 import rhsmlib.dbus as common
-
+from rhsmlib.dbus import gi_kluge
+gi_kluge.kluge_it()
 from gi.repository import GLib
 from functools import partial
 

@@ -14,6 +14,7 @@
 import logging
 import dbus.service
 import rhsmlib.dbus as common
+from subscription_manager.injectioninit import init_dep_injection
 
 from rhsmlib.dbus.server import PrivateServer
 from rhsmlib.dbus.objects.private import RegisterService
@@ -21,6 +22,7 @@ from rhsmlib.dbus.objects.private import RegisterService
 from functools import partial
 
 log = logging.getLogger(__name__)
+init_dep_injection()
 
 
 class Main(dbus.service.Object):
