@@ -207,12 +207,14 @@ def add_properties(xml, interface, props):
         return Et.tostring(root, encoding='utf8')
     return xml
 
+
 def dict_to_variant_dict(in_dict):
     # Handle creating dbus.Dictionaries with signatures of 'sv'
     for key, value in in_dict.iteritems():
         if isinstance(value, dict):
             in_dict[key] = dict_to_variant_dict(value)
     return dbus.Dictionary(in_dict, signature="sv")
+
 
 def _decode_dict(data):
     rv = {}
@@ -227,6 +229,7 @@ def _decode_dict(data):
             value = _decode_dict(value)
         rv[key] = value
     return rv
+
 
 def _decode_list(data):
     rv = []

@@ -146,30 +146,29 @@ def main():
     dbus.mainloop.glib.threads_init()
 
     mainloop = GLib.MainLoop()
-    #slip.dbus.service.set_mainloop(mainloop)
 
     facts_client = FactsClient()
     facts_host_client = FactsHostClient()
 
     # Test passing in the object path
-#    facts_read_write_client = FactsClient(object_path=facts_constants.FACTS_READ_WRITE_DBUS_PATH)
+    # facts_read_write_client = FactsClient(object_path=facts_constants.FACTS_READ_WRITE_DBUS_PATH)
 
     def get_facts():
         facts_host_client.GetFacts()
         facts_client.GetFacts()
-#        facts_read_write_client.GetFacts()
+        # facts_read_write_client.GetFacts()
         return False
 
     def get_all_properties():
         facts_client.GetAll()
-#        facts_read_write_client.GetAll()
+        # facts_read_write_client.GetAll()
 
     GLib.idle_add(get_facts)
     GLib.idle_add(get_all_properties)
 
     GLib.timeout_add_seconds(9, facts_client.GetFacts)
     GLib.timeout_add_seconds(11, facts_host_client.GetFacts)
-#    GLib.timeout_add_seconds(13, facts_read_write_client.GetAll)
+    # GLib.timeout_add_seconds(13, facts_read_write_client.GetAll)
 
     try:
         mainloop.run()
