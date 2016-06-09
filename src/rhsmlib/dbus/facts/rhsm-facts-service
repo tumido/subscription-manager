@@ -41,10 +41,15 @@ def main(args):
         root.FactsRoot,
     ]
 
-    Server(
-        bus_class=bus_class,
-        bus_name=bus_name,
-        object_classes=object_classes).run()
+    try:
+        Server(
+            bus_class=bus_class,
+            bus_name=bus_name,
+            object_classes=object_classes).run()
+    except dbus.exceptions.DBusException as e:
+        if e._dbus_error_name == "org.freedesktop.DBus.Error.AccessDenied":
+            print("Access to DBus denied.  You need to edit /etc/dbus-1/system.conf to allow %s or run with "
+                "dbus-daemon and a custom config file." % bus_name)
     return 0
 
 

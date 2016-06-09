@@ -33,7 +33,6 @@ class Cache(object):
     default_duration_seconds = None
 
     def __init__(self, store=None, expiration_obj=None):
-        self.log = logging.getLogger(__name__ + '.' + self.__class__.__name__)
         self.store = store or Store()
         self.expiration = expiration_obj or expiration.Expiration(start_datetime=self.timestamp,
                                                                   duration_seconds=self.default_duration_seconds)
@@ -85,7 +84,6 @@ class Store(object):
 
 class FileStore(Store):
     def __init__(self, path=None):
-        self.log = logging.getLogger(__name__ + '.' + self.__class__.__name__)
         self.path = path
         self.fd = None
 

@@ -18,9 +18,11 @@
 
 import logging
 import sys
+import optparse
 
 import dbus.mainloop.glib
 
+from rhsmlib import import_class
 from rhsmlib.dbus import gi_kluge
 gi_kluge.kluge_it()
 
@@ -51,7 +53,7 @@ class FactsClient(object):
     interface_name = facts_constants.FACTS_DBUS_INTERFACE
 
     def __init__(self, bus=None, bus_name=None, object_path=None, interface_name=None):
-        self.log = logging.getLogger(__name__ + '.' + self.__class__.__name__)
+        log = logging.getLogger(__name__ + '.' + self.__class__.__name__)
 
         # use default mainloop for dbus
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
@@ -89,40 +91,40 @@ class FactsClient(object):
                                          path_keyword='path')
 
     def GetFacts(self, *args, **kwargs):
-        self.log.debug("GetFacts pre")
+        log.debug("GetFacts pre")
         ret = self.interface.GetFacts(*args, **kwargs)
         return ret
 
     def GetAll(self, *args, **kwargs):
-        self.log.debug("GetAll")
+        log.debug("GetAll")
         ret = self.props_interface.GetAll(facts_constants.FACTS_DBUS_INTERFACE,
                                           *args, **kwargs)
-        self.log.debug("GetAll res=%s", ret)
+        log.debug("GetAll res=%s", ret)
         return ret
 
     def Get(self, property_name):
-        self.log.debug("Get %s", property_name)
+        log.debug("Get %s", property_name)
         ret = self.props_interface.Get(facts_constants.FACTS_DBUS_INTERFACE,
                                        property_name=property_name)
         return ret
 
     def signal_handler(self, *args, **kwargs):
-        self.log.debug("signal_handler args=%s kwargs=%s", args, kwargs)
+        log.debug("signal_handler args=%s kwargs=%s", args, kwargs)
 
     def _on_properties_changed(self, *args, **kwargs):
-        self.log.debug("PropertiesChanged")
+        log.debug("PropertiesChanged")
         self.signal_handler(*args, **kwargs)
 
     def _on_name_owner_changed(self, *args, **kwargs):
-        self.log.debug("NameOwnerChanged")
+        log.debug("NameOwnerChanged")
         self.signal_handler(*args, **kwargs)
 
     def _on_bus_disconnect(self, connection):
         self.dbus_proxy_object = None
-        self.log.debug("disconnected")
+        log.debug("disconnected")
 
     def _on_service_started(self, *args, **kwargs):
-        self.log.debug("ServiceStarted")
+        log.debug("ServiceStarted")
         self.signal_handler(*args, **kwargs)
 
 
@@ -132,9 +134,6 @@ class FactsHostClient(FactsClient):
 
 def main():
     from gi.repository import GLib
-
-    # FIXME: Remove, just needed for testing
-    sys.path.append("/usr/share/rhsm")
     from subscription_manager import logutil
     logutil.init_logger()
 
@@ -147,7 +146,10 @@ def main():
 
     mainloop = GLib.MainLoop()
 
-    facts_client = FactsClient()
+    if len(args) > 0:
+        bus_class = import_class(args[0])
+
+    facts_client = FactsClient(bus_class=bus_class)
     facts_host_client = FactsHostClient()
 
     # Test passing in the object path
@@ -183,4 +185,12 @@ def main():
     mainloop.quit()
 
 if __name__ == "__main__":
+    parser = optparse.OptionParser()
+    parser.add_option("-v", "--verbose", action="store_true")
+    (options, args) = parser.parse_args()
+
+    if options.verbose:
+        logger = logging.getLogger('')
+        logger.setLevel(logging.DEBUG)
+
     sys.exit(main())

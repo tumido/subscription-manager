@@ -13,36 +13,31 @@ log = logging.getLogger(__name__)
 
 
 class BaseFacts(BaseObject):
-    _interface_name = constants.FACTS_DBUS_INTERFACE
+    interface_name = constants.FACTS_DBUS_INTERFACE
+    default_dbus_path = constants.FACTS_ROOT_DBUS_PATH
     _default_facts_collector_class = collector.FactsCollector
 
-    def __init__(self, conn=None, object_path=None, bus_name=None,
-                 base_object_path=None):
-        super(BaseFacts, self).__init__(conn=conn, object_path=object_path,
-                                        bus_name=bus_name,
-                                        base_object_path=base_object_path)
+    def __init__(self, conn=None, object_path=None, bus_name=None):
+        super(BaseFacts, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
 
         # Default is an empty FactsCollector
         self.facts_collector = self._default_facts_collector_class()
 
     def _create_props(self):
         properties = BaseProperties.create_instance(
-            self._interface_name,
+            self.interface_name,
             self.default_props_data,
             self.PropertiesChanged)
 
         properties.props_data['facts'] = Property(
-            name='facts',
             value=dbus.Dictionary({}, signature='ss'),
             value_signature='a{ss}',
             access='read')
         properties.props_data['lastUpdatedTime'] = Property(
-            name='lastUpdatedTime',
             value=dbus.UInt64(0),
             value_signature='t',
             access='read')
         properties.props_data['cacheExpiryTime'] = Property(
-            name='cacheExpiryTime',
             value=dbus.UInt64(0),
             value_signature='t',
             access='read')
@@ -51,7 +46,7 @@ class BaseFacts(BaseObject):
     @common.dbus_service_method(dbus_interface=constants.FACTS_DBUS_INTERFACE, out_signature='a{ss}')
     @common.dbus_handle_exceptions
     def GetFacts(self, sender=None):
-        self.log.debug("GetFacts")
+        log.debug("GetFacts")
 
         # Are we using the cache or force?
 
@@ -72,9 +67,9 @@ class BaseFacts(BaseObject):
         # we listen for the changed signal and save cache async?
         collection = self.facts_collector.collect()
 
-        self.log.debug("collection=%s", collection)
-        self.log.debug("collections.data=%s", collection.data)
-        self.log.debug("collections.data type=%s", type(collection.data))
+        log.debug("collection=%s", collection)
+        log.debug("collections.data=%s", collection.data)
+        log.debug("collections.data type=%s", type(collection.data))
 
         cleaned = dict([(str(key), str(value)) for key, value in collection.data.items()])
 
@@ -84,8 +79,8 @@ class BaseFacts(BaseObject):
                           ('lastUpdatedTime', time.mktime(collection.collection_datetime.timetuple())),
                           ('cacheExpiryTime', time.mktime(collection.expiration.expiry_datetime.timetuple()))]
 
-        self.props._set_props(interface_name=constants.FACTS_DBUS_INTERFACE,
-                              properties_iterable=props_iterable)
+        for k, v in props_iterable:
+            self.properties[constants.FACTS_DBUS_INTERFACE][k] = v
 
         return facts_dbus_dict
 

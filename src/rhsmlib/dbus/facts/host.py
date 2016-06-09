@@ -22,13 +22,10 @@ class FactsHost(base_facts.BaseFacts):
         'name': constants.FACTS_HOST_NAME,
     }
     default_dbus_path = constants.FACTS_HOST_DBUS_PATH
-    _service_name = constants.SUB_SERVICE_NAME
 
-    def __init__(self, conn=None, object_path=None, bus_name=None,
-                 base_object_path=None):
-        super(FactsHost, self).__init__(conn=conn, object_path=object_path,
-                                        bus_name=bus_name,
-                                        base_object_path=base_object_path)
+    def __init__(self, conn=None, object_path=None, bus_name=None):
+        log.debug("Initializing FactsHost")
+        super(FactsHost, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
 
         host_cache = FactsHostCacheFile()
         self.facts_collector = host_collector.HostCollector(cache=host_cache)

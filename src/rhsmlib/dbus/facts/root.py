@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 import logging
 
 from rhsmlib.dbus.facts import constants
@@ -20,10 +18,10 @@ class FactsRoot(base_facts.BaseFacts):
     }
 
     def __init__(self, conn=None, object_path=None, bus_name=None):
+        log.debug("Initializing FactsRoot")
         super(FactsRoot, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
 
         self.consumers = []
-        self.log.debug("FactsRoot even object_path=%s", object_path)
 
         # We could potentially aggregate facts up to here, or provide dynamic/meta
         # facts  (fact collector types and versions, fact count, timestamps, any/all()
@@ -31,9 +29,10 @@ class FactsRoot(base_facts.BaseFacts):
         #
         # But for now, FactsRoot has no facts of it's own.
 
-        # In this object path, Facts/Machine is equilivent to 'subscription-manager facts --list'. Ie, the facts associated with the local running system image. 'Machine'
+        # In this object path, Facts/Machine is equivalent to 'subscription-manager facts --list'.
+        # Ie, the facts associated with the local running system image. 'Machine'
         # moniker is based on similar conventions in NetworkManager and systemd dbus
         # services. At some point, there could be other 'hosts' here (systemd
         # managed containers and vm guests perhaps).
 
-        self.machine = host.FactsHost(conn=conn, object_path=object_path, bus_name=bus_name)
+        self.machine = host.FactsHost(conn=conn, object_path=constants.FACTS_HOST_DBUS_PATH, bus_name=bus_name)
