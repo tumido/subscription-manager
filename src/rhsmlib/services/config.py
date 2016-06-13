@@ -12,37 +12,10 @@
 # in this software or its documentation.
 #
 import rhsm.config
+import collections
 
 
-class ProtoDict(object):
-    """Standard dict methods that are not dependent on underlying structure."""
-    def keys(self):
-        return list(self)
-
-    def values(self):
-        return [self[key] for key in self]
-
-    def items(self):
-        return [(key, self[key]) for key in self]
-
-    def iterkeys(self):
-        return iter(self)
-
-    def itervalues(self):
-        for k in iter(self):
-            yield self[k]
-
-    def iteritems(self):
-        for k in iter(self):
-            yield (k, self[k])
-
-    def get(self, key, default=None):
-        if key not in self:
-            return default
-        return self[key]
-
-
-class Config(ProtoDict):
+class Config(collections.MutableMapping):
     def __init__(self, parser=None, auto_persist=False):
         if parser:
             self._parser = parser
@@ -109,7 +82,7 @@ class Config(ProtoDict):
         return "%s" % result
 
 
-class ConfigSection(ProtoDict):
+class ConfigSection(collections.MutableMapping):
     def __init__(self, wrapper, parser, section, auto_persist=False):
         self._wrapper = wrapper
         self._parser = parser

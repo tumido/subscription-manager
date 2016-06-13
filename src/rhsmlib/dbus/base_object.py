@@ -13,6 +13,7 @@
 #
 
 import logging
+import collections
 import dbus.service
 import rhsmlib.dbus as common
 
@@ -34,7 +35,7 @@ class Property(object):
 
 # TODO: Make properties class a gobject, so we can reused it's prop handling
 #       (And maybe python-dbus can do something useful with a Gobject?
-class BaseProperties(object):
+class BaseProperties(collections.Mapping):
     def __init__(self, interface_name, data=None, properties_changed_callback=None):
         if not data:
             data = {}
@@ -62,7 +63,10 @@ class BaseProperties(object):
         return item in self.props_data
 
     def __iter__(self):
-        return self.props_data.iteritems()
+        return iter(self.props_data)
+
+    def __len__(self):
+        return len(self.props_data)
 
     @classmethod
     def create_instance(cls, interface_name, prop_dict, properties_changed_callback=None):
