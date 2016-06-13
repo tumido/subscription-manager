@@ -86,9 +86,9 @@ class BaseProperties(collections.Mapping):
         ret = dbus_utils.add_properties(interface_xml, self.interface_name, self.to_introspection_props())
         return ret
 
-    def add(self, name, property):
+    def add(self, name, val):
         """Used to add without hitting __setitem__'s access controls."""
-        self.props_data[name] = property
+        self.props_data[name] = val
 
     # FIXME: This only supports string type values at the moment.
     def to_introspection_props(self):
