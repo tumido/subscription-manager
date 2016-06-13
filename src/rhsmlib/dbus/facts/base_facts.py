@@ -23,9 +23,9 @@ class BaseFacts(BaseObject):
         # Default is an empty FactsCollector
         self.facts_collector = self._default_facts_collector_class()
 
-    def _create_props(self):
+    def _create_properties(self, interface_name):
         properties = BaseProperties.create_instance(
-            self.interface_name,
+            interface_name,
             self.default_props_data,
             self.PropertiesChanged)
 
@@ -66,21 +66,20 @@ class BaseFacts(BaseObject):
         # changed_callback that could emit a changed signal so that
         # we listen for the changed signal and save cache async?
         collection = self.facts_collector.collect()
-
-        log.debug("collection=%s", collection)
-        log.debug("collections.data=%s", collection.data)
-        log.debug("collections.data type=%s", type(collection.data))
-
         cleaned = dict([(str(key), str(value)) for key, value in collection.data.items()])
 
         facts_dbus_dict = dbus.Dictionary(cleaned, signature="ss")
 
+        expiryTime = None
+        if collection.expiration:
+            expiryTime = time.mktime(collection.expiration.expiry_datetime.timetuple())
+
         props_iterable = [('facts', facts_dbus_dict),
                           ('lastUpdatedTime', time.mktime(collection.collection_datetime.timetuple())),
-                          ('cacheExpiryTime', time.mktime(collection.expiration.expiry_datetime.timetuple()))]
+                          ('cacheExpiryTime', expiryTime)]
 
         for k, v in props_iterable:
-            self.properties[constants.FACTS_DBUS_INTERFACE][k] = v
+            self.properties[self.interface_name].set(k, v)
 
         return facts_dbus_dict
 

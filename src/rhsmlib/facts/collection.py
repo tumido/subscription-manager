@@ -48,12 +48,10 @@ class FactsDict(collections.MutableMapping):
         if not isinstance(other, FactsDict):
             return NotImplemented
 
-        log.debug("FactsDict _eq_ %s == %s", self, other)
         keys_self = set(self.data).difference(self.graylist)
         keys_other = set(other.data).difference(self.graylist)
         if keys_self == keys_other:
             if all(self.data[k] == other.data[k] for k in keys_self):
-                log.debug("FactsDict %s == %s is true?", self, other)
                 return True
 
         return False
@@ -61,6 +59,10 @@ class FactsDict(collections.MutableMapping):
     # Maybe total_ordering is a bit overkill for just a custom compare
     def __lt__(self, other):
         return len(self) < len(other)
+
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__.__name__, self.items())
+
 
 # Support a @from_previous_collection could also populate a list/map of changed facts...
 
@@ -85,9 +87,6 @@ class FactsCollection(object):
         # then dirty = False
         self.dirty = False
         self.collection_datetime = datetime.now()
-
-        log.debug("init %s", repr(self.collection_datetime))
-        log.debug(self)
 
     def __repr__(self):
         buf = "%s(facts_dict=%s, collection_datetime=%s, cache_lifetime=%s)" % \

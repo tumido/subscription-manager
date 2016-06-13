@@ -56,9 +56,6 @@ class FactsCollector(object):
         based on facts collector from other modules/classes.
         self._collected_hw_info isn't meant to be altered as a side effect, but
         no promises."""
-        self.log = logging.getLogger(__name__ + '.' + self.__class__.__name__)
-        self.log.debug("FactsCollector init")
-
         self.allhw = {}
         self.prefix = prefix or ''
         self.testing = testing or False
@@ -73,16 +70,10 @@ class FactsCollector(object):
 
     def collect(self):
         """Return a FactsCollection iterable."""
-        self.log.debug("in _collect")
-
         facts_dict = collection.FactsDict()
         facts_dict.update(self.get_all())
-
-        self.log.debug("facts_dict=%s", facts_dict)
-
         facts_collection = collection.FactsCollection(facts_dict=facts_dict)
-
-        self.log.debug("facts_collection=%s", facts_collection)
+        log.debug("facts_collection=%s", facts_collection)
 
         return facts_collection
 
