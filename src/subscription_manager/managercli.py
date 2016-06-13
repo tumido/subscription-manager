@@ -1420,7 +1420,7 @@ class ReleaseCommand(CliCommand):
 
         cdn_url = cfg.get('rhsm', 'baseurl')
         # note: parse_baseurl_info will populate with defaults if not found
-        (cdn_hostname, cdn_port, cdn_prefix) = parse_baseurl_info(cdn_url)
+        (cdn_hostname, cdn_port, _cdn_prefix) = parse_baseurl_info(cdn_url)
 
         # Base CliCommand has already setup proxy info etc
         self.cp_provider.set_content_connection_info(cdn_hostname=cdn_hostname,
@@ -1487,11 +1487,11 @@ class AttachCommand(CliCommand):
         _("All installed products are covered by valid entitlements.")
         _("No need to update subscriptions at this time.")
 
-    def _read_pool_ids(self, file):
+    def _read_pool_ids(self, f):
         if not self.options.pool:
             self.options.pool = []
 
-        for line in fileinput.input(file):
+        for line in fileinput.input(f):
             for pool in filter(bool, re.split(r"\s+", line.strip())):
                 self.options.pool.append(pool)
 
@@ -2180,7 +2180,7 @@ class ConfigCommand(CliCommand):
         self.parser.add_option("--remove", dest="remove", action="append",
                                help=_("remove configuration entry by section.name"))
         for section in cfg.sections():
-            for name, value in cfg.items(section):
+            for name, _value in cfg.items(section):
                 self.parser.add_option("--" + section + "." + name, dest=(section + "." + name),
                     help=_("Section: %s, Name: %s") % (section, name))
 
@@ -2191,7 +2191,7 @@ class ConfigCommand(CliCommand):
                 too_many = True
             else:
                 for section in cfg.sections():
-                    for name, value in cfg.items(section):
+                    for name, _value in cfg.items(section):
                         if getattr(self.options, section + "." + name):
                             too_many = True
                             break
@@ -2201,7 +2201,7 @@ class ConfigCommand(CliCommand):
         if not (self.options.list or self.options.remove):
             has = False
             for section in cfg.sections():
-                for name, value in cfg.items(section):
+                for name, _value in cfg.items(section):
                     test = "%s" % getattr(self.options, section + "." + name)
                     has = has or (test != 'None')
             if not has:
@@ -2217,7 +2217,7 @@ class ConfigCommand(CliCommand):
                 name = r.split('.')[1]
                 found = False
                 if cfg.has_section(section):
-                    for key, value in cfg.items(section):
+                    for key, _value in cfg.items(section):
                         if name == key:
                             found = True
                 if not found:
@@ -2540,8 +2540,7 @@ class ListCommand(CliCommand):
                             pool_type,
                             managerlib.format_date(cert.valid_range.begin()),
                             managerlib.format_date(cert.valid_range.end()),
-                            system_type, **kwargs
-                        ) + "\n"
+                            system_type, **kwargs) + "\n"
             elif not pid_only:
                 if filter_string and service_level:
                     print(
@@ -2584,7 +2583,7 @@ class OverrideCommand(CliCommand):
         if parser.values.additions is None:
             parser.values.additions = {}
 
-        k, colon, v = value.partition(':')
+        k, _colon, v = value.partition(':')
         if not v:
             raise OptionValueError(_("--add arguments should be in the form of \"name:value\""))
 

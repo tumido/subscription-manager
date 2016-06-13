@@ -59,7 +59,7 @@ class Directory(object):
 
     def listdirs(self):
         dirs = []
-        for p, fn in self.list_all():
+        for _p, fn in self.list_all():
             path = self.abspath(fn)
             if Path.isdir(path):
                 dirs.append(Directory(path))
@@ -114,7 +114,7 @@ class CertificateDirectory(Directory):
         if self._listing is not None:
             return self._listing
         listing = []
-        for p, fn in Directory.list(self):
+        for _p, fn in Directory.list(self):
             if not fn.endswith('.pem') or fn.endswith(self.KEY):
                 continue
             path = self.abspath(fn)

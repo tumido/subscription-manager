@@ -9,7 +9,6 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import logging
 import logging.handlers
 import logging.config
 import os

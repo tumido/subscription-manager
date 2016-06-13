@@ -83,8 +83,7 @@ class CertificateFetchError(Exception):
         self.errors = errors
 
     def __str__(self, reason=""):
-        msg = 'Entitlement Certificate(s) update failed due to the following reasons:\n' + \
-        '\n'.join(self.errors)
+        msg = 'Entitlement Certificate(s) update failed due to the following reasons:\n' + '\n'.join(self.errors)
         return msg
 
 

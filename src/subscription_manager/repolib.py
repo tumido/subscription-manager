@@ -384,7 +384,7 @@ class RepoUpdateActionCommand(object):
         """
         changes_made = 0
 
-        for key, (mutable, default) in self._build_props(old_repo, new_repo).items():
+        for key, (mutable, _default) in self._build_props(old_repo, new_repo).items():
             new_val = new_repo.get(key)
 
             # Mutable properties should be added if not currently defined,
@@ -516,7 +516,7 @@ class Repo(dict):
         # NOTE: This sets the above properties to the default values even if
         # they are not defined on disk. i.e. these properties will always
         # appear in this dict, but their values may be None.
-        for k, (m, d) in self.PROPERTIES.items():
+        for k, (_m, d) in self.PROPERTIES.items():
             if k not in self.keys():
                 self[k] = d
 
