@@ -14,8 +14,6 @@
 import dbus
 import unittest
 
-from nose.plugins.attrib import attr
-
 from tempfile import NamedTemporaryFile
 from rhsmlib.services.config import Config, ConfigSection
 from rhsm.config import RhsmConfigParser, NoOptionError
@@ -188,7 +186,6 @@ class TestConfigSection(BaseConfigTest):
         self.assertNotIn("missing", self.config['foo'])
 
 
-@attr('functional_dbus')
 class TestConfigDBusObject(DBusObjectTest):
     def postServerSetUp(self):
         self.bus = dbus.SessionBus()
@@ -209,6 +206,3 @@ class TestConfigDBusObject(DBusObjectTest):
     def test_get_section(self):
         config = self.interface.Get(ConfigDBusObject.interface_name, 'server')
         self.assertIn('hostname', config)
-
-
-
