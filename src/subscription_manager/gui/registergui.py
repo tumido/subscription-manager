@@ -46,7 +46,7 @@ from subscription_manager.gui.autobind import DryRunResult, \
         NoProductsException
 from subscription_manager.jsonwrapper import PoolWrapper
 
-from rhsmlib.dbus.services.facts import client as facts_client
+from rhsmlib.dbus.facts import client as facts_client
 
 _ = lambda x: gettext.ldgettext("rhsm", x)
 
@@ -1649,10 +1649,10 @@ class CredentialsScreen(Screen):
 class ActivationKeyScreen(Screen):
     screen_enum = ACTIVATION_KEY_PAGE
     widget_names = Screen.widget_names + [
-                'activation_key_entry',
-                'organization_entry',
-                'consumer_entry',
-        ]
+        'activation_key_entry',
+        'organization_entry',
+        'consumer_entry',
+    ]
     gui_file = "activation_key"
 
     def __init__(self, reg_info, async_backend, parent_window):
@@ -1763,9 +1763,9 @@ class ChooseServerScreen(Screen):
         self.button_label = _("Next")
 
         callbacks = {
-                "on_default_button_clicked": self._on_default_button_clicked,
-                "on_proxy_button_clicked": self._on_proxy_button_clicked,
-            }
+            "on_default_button_clicked": self._on_default_button_clicked,
+            "on_proxy_button_clicked": self._on_proxy_button_clicked,
+        }
 
         self.connect_signals(callbacks)
 
@@ -2252,10 +2252,10 @@ class InfoScreen(Screen):
     Also allows the user to skip registration if they wish.
     """
     widget_names = Screen.widget_names + [
-                'register_radio',
-                'skip_radio',
-                'why_register_dialog'
-        ]
+        'register_radio',
+        'skip_radio',
+        'why_register_dialog'
+    ]
     gui_file = "registration_info"
 
     def __init__(self, reg_info, async_backend, parent_window):
