@@ -22,7 +22,7 @@ from subscription_manager.gui import widgets
 from subscription_manager.gui.utils import handle_gui_exception, linkify
 from subscription_manager import injection as inj
 
-from rhsmlib.dbus.services.facts import client as facts_client
+from rhsmlib.dbus.facts import client as facts_client
 
 _ = gettext.gettext
 
@@ -98,7 +98,7 @@ class SystemFactsDialog(widgets.SubmanBaseWidget):
 
     def _on_get_facts_error_handler(self, exception):
         log.debug(exception)
-        raise
+        raise exception
 
     def _on_get_facts_reply_handler(self, facts_dict):
         self.update_facts_store(facts_dict)
