@@ -40,20 +40,6 @@ CONFIG_INTERFACE = '%s.%s' % (INTERFACE_BASE, 'Config')
 CONFIG_DBUS_PATH = '%s/%s' % (ROOT_DBUS_PATH, 'Config')
 
 
-def init_root_logger():
-    global logger_initialized
-    if logger_initialized:
-        return
-    # Set up root logger for debug purposes
-    logger = logging.getLogger('')
-    logger.setLevel(logging.INFO)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    logger.addHandler(ch)
-
-    logger_initialized = True
-
-
 class RHSM1DBusException(dbus.DBusException):
     """Base exceptions."""
     include_traceback = True

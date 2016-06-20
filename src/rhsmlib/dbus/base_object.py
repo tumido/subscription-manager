@@ -20,7 +20,6 @@ import rhsmlib.dbus as common
 from rhsmlib.dbus import dbus_utils
 
 log = logging.getLogger(__name__)
-common.init_root_logger()
 
 
 class Property(object):

@@ -4,14 +4,13 @@ import unittest
 import subprocess
 import dbus
 import optparse
+import logging
 import time
 import signal
 
 from rhsmlib.dbus.server import Server
 from rhsmlib import import_class
 from rhsmlib import dbus as common
-
-common.init_root_logger()
 
 
 class DBusObjectTest(unittest.TestCase):
@@ -63,6 +62,13 @@ def main(options, args):
 
 
 if __name__ == "__main__":
+    # Set up root logger for debug purposes
+    logger = logging.getLogger('')
+    logger.setLevel(logging.INFO)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    logger.addHandler(ch)
+
     parser = optparse.OptionParser()
     parser.add_option("-b", "--bus-class",
         action="callback", callback=load_bus_class,
