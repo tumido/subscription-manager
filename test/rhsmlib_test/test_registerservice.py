@@ -12,25 +12,16 @@
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation.
 #
-
-from test.fixture import SubManFixture
-import unittest
-
 import mock
 import json
 import dbus.connection
 
+from ..fixture import SubManFixture
 from rhsmlib.dbus import dbus_utils
-
 from rhsmlib.dbus.objects import RegisterService
-
-import rhsm.connection
-
-
 
 
 class TestRegisterService(SubManFixture):
-
     def setUp(self):
         self.dbus_connection = mock.Mock(spec=dbus.connection.Connection)
         super(TestRegisterService, self).setUp()
@@ -81,7 +72,6 @@ class TestRegisterService(SubManFixture):
             'handler': '/candlepin'
         }
         output = register_service.register(username, password, org, options)
-
 
         # Be sure we are persisting the consumer cert
         mock_persist_consumer.assert_called_once_with(expected_consumer)

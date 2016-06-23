@@ -3,14 +3,14 @@ import rhsmlib.dbus as common_constants
 
 SUB_SERVICE_NAME = "Facts"
 
-# com.redhat.Subscriptions1.Facts
+# com.redhat.RHSM1.Facts
 FACTS_BUS_NAME = common_constants.BUS_NAME + '.' + SUB_SERVICE_NAME
 
-# also, com.redhat.Subscriptions1.Facts
+# also, com.redhat.RHSM1.Facts
 FACTS_DBUS_INTERFACE = common_constants.BUS_NAME + '.' + SUB_SERVICE_NAME
 
 FACTS_SUB_DBUS_PATH = SUB_SERVICE_NAME
-# /com/redhat/Subscriptions1/Facts
+# /com/redhat/RHSM1/Facts
 FACTS_ROOT_DBUS_PATH = common_constants.ROOT_DBUS_PATH + '/' + FACTS_SUB_DBUS_PATH
 
 FACTS_ROOT_VERSION = "1.1e1"

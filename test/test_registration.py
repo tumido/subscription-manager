@@ -24,7 +24,7 @@ from subscription_manager.managercli import RegisterCommand
 from subscription_manager import injection as inj
 from subscription_manager import cache
 
-from fixture import SubManFixture
+from .fixture import SubManFixture
 
 
 class CliRegistrationTests(SubManFixture):

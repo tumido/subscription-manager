@@ -448,9 +448,11 @@ class StubUEP(object):
     def setConsumer(self, consumer):
         self.consumer = consumer
 
-    def getConsumer(self, consumerId):
+    def getConsumer(self, consumerId, username=None, password=None):
         if hasattr(self, 'consumer') and self.consumer:
             return self.consumer
+        if callable(self.registered_consumer_info):
+            return self.registered_consumer_info()
         return self.registered_consumer_info
 
     def unbindAll(self, consumer):

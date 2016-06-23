@@ -1250,10 +1250,7 @@ class TestServiceLevelCommand(TestCliProxyCommand):
 
     def test_service_level_supported(self):
         self.cc.cp.setConsumer({'serviceLevel': 'Jarjar'})
-        try:
-            self.cc.set_service_level('JRJAR')
-        except SystemExit:
-            self.fail("Exception Raised")
+        self.cc.set_service_level('JRJAR')
 
 
 class TestReleaseCommand(TestCliProxyCommand):

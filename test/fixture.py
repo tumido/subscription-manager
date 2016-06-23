@@ -232,7 +232,7 @@ class SubManFixture(unittest.TestCase):
         return identity
 
     def _inject_mock_invalid_consumer(self, uuid=None):
-        """For chaning injected consumer identity to one that fails is_valid()
+        """For chaining injected consumer identity to one that fails is_valid()
 
         Returns the injected identity if it need to be examined.
         """
