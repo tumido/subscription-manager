@@ -226,6 +226,8 @@ install_requires = []
 test_require = [
       'mock',
       'nose',
+      'nose-capturestderr',
+      'nose-randomly',
       'coverage',
       'polib',
       'freezegun',
@@ -262,7 +264,7 @@ except OSError:
 
 setup(
     name="subscription-manager",
-    version='1.17.7',
+    version='1.17.8',
     url="http://www.candlepinproject.org",
     description="Manage subscriptions for Red Hat products.",
     license="GPLv2",

@@ -121,15 +121,15 @@ STYLEFILES=$(PYFILES) $(BIN_FILES)
 
 .DEFAULT_GOAL := build
 
-# we never "remake" this makefile, so add a target so
-# we stop searching for implicit rules on how to remake it
-Makefile: ;
-
 build: rhsmcertd rhsm-icon
 # Install doesn't perform a build if it doesn't have too.  Best to clean out
 # any cruft so developers don't end up install old builds.
 	./setup.py clean --all
 	./setup.py build --quiet --gtk-version=$(GTK_VERSION) --rpm-version=$(VERSION)
+
+# we never "remake" this makefile, so add a target so
+# we stop searching for implicit rules on how to remake it
+Makefile: ;
 
 .PHONY: clean
 clean:
@@ -317,7 +317,7 @@ install-via-setup:
 	./setup.py install --root $(PREFIX) --gtk-version=$(GTK_VERSION) --rpm-version=$(VERSION)
 
 .PHONY: install
-install: install-via-setup rhsmcertd rhsm-icon install-files
+install: install-via-setup install-files
 
 .PHONY: install-files
 install-files: dbus-install install-conf install-plugins install-post-boot install-ga
@@ -379,7 +379,13 @@ check:
 
 .PHONY: coverage
 coverage:
+ifdef ghprbPullId
+	# Pull the PR id from the Jenkins environment and use it as a seed so that each PR
+	# uses a consistant test ordering.
+	./setup.py -q nosetests --randomly-seed=$(ghprbPullId) -c playpen/noserc.ci
+else
 	./setup.py -q nosetests -c playpen/noserc.ci
+endif
 
 .PHONY: gettext
 gettext:
@@ -441,17 +447,8 @@ flake8:
 rpmlint:
 	./setup.py lint_rpm
 
-# We target python 2.6, hence -m 2.7 is the earliest python features to warn about use of.
-# See https://github.com/alikins/pyqver for pyqver.
-# Since plugin/ostree is for python 2.7+ systems only, we can ignore the warning there.
-.PHONY: versionlint
-versionlint:
-	@TMPFILE=`mktemp` || exit 1; \
-	pyqver2.py -m 2.7 -l $(STYLEFILES) | grep -v hashlib | grep -v plugin/ostree.*check_output | tee $$TMPFILE; \
-	! test -s $$TMPFILE
-
 .PHONY: stylish
-stylish: lint versionlint
+stylish: lint
 
 .PHONY: install-pip-requirements
 install-pip-requirements:

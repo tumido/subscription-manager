@@ -160,6 +160,9 @@ class UniqueList(object):
         p = self._list.pop()
         return p
 
+    def is_empty(self):
+        return len(self._list) == 0
+
 
 class RegisterInfo(ga_GObject.GObject):
     """GObject holding registration info and state.
@@ -737,6 +740,7 @@ class RegisterDialog(widgets.SubmanBaseWidget):
                                self._on_register_state_change)
 
         self.window = self.register_dialog
+        self.back_button.set_sensitive(False)
 
     def create_wizard_widget(self, backend, reg_info, parent_window):
         """Create a RegisterWidget or subclass and use it for our content."""
@@ -790,11 +794,12 @@ class RegisterDialog(widgets.SubmanBaseWidget):
 
     def _on_back_button_clicked(self, obj):
         self.register_widget.emit('back')
+        self.back_button.set_sensitive(not self.register_widget.applied_screen_history.is_empty())
 
     def _on_register_screen_ready_change(self, obj, value):
         ready = self.register_widget.current_screen.get_property('ready')
         self.register_button.set_sensitive(ready)
-        self.back_button.set_sensitive(ready)
+        self.back_button.set_sensitive(ready and not self.register_widget.applied_screen_history.is_empty())
 
     def _on_register_button_clicked(self, button):
         self.register_widget.emit('proceed')
@@ -2099,7 +2104,7 @@ class AsyncBackend(object):
             raise NoProductsException()
 
         if len(self.backend.cs.valid_products) == len(self.backend.cs.installed_products) and \
-                len(self.backend.cs.partial_stacks) == 0:
+                len(self.backend.cs.partial_stacks) == 0 and self.backend.cs.system_status != 'partial':
             raise AllProductsCoveredException()
 
         if current_sla:
