@@ -16,6 +16,8 @@ import mock
 import json
 import dbus.connection
 
+import rhsm.connection
+
 from ..fixture import SubManFixture
 from rhsmlib.dbus import dbus_utils
 from rhsmlib.dbus.objects import RegisterService

@@ -61,7 +61,7 @@ from subscription_manager.exceptions import ExceptionMapper
 from subscription_manager.printing_utils import columnize, format_name, \
         none_wrap_columnize_callback, echo_columnize_callback, highlight_by_filter_string_columnize_callback
 
-from rhsmlib.dbus.facts import client as facts_client
+import rhsmlib.dbus.facts as facts
 
 _ = gettext.gettext
 
@@ -1085,7 +1085,7 @@ class RegisterCommand(UserPassCommand):
         self.cp_provider.clean()
 
         # A proxy to the dbus service
-        facts_dbus_client = facts_client.FactsHostClient()
+        facts_dbus_client = facts.FactsHostClient()
 
         # Proceed with new registration:
         try:
@@ -1841,7 +1841,7 @@ class FactsCommand(CliCommand):
 
         if self.options.list:
             # A proxy to the dbus service
-            facts_dbus_client = facts_client.FactsHostClient()
+            facts_dbus_client = facts.FactsHostClient()
 
             facts_dict = facts_dbus_client.GetFacts()
             facts_keys = facts_dict.keys()
@@ -1856,7 +1856,7 @@ class FactsCommand(CliCommand):
         if self.options.update:
             #identity = inj.require(inj.IDENTITY)
             # A proxy to the dbus service
-            facts_dbus_client = facts_client.FactsHostClient()
+            facts_dbus_client = facts.FactsHostClient()
             facts_action_command = FactsActionCommand()
             facts_action_command.update_force()
 

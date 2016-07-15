@@ -30,12 +30,12 @@ from subscription_manager.gui.utils import AsyncWidgetUpdater, handle_gui_except
 from rhsm.certificate2 import Version
 from subscription_manager.certdirectory import EntitlementDirectory, ProductDirectory
 
+from rhsmlib.dbus.facts import FactsClient, FactsHostClient
+
 from rhsm.certificate import parse_tags
 from rhsm.certificate2 import EntitlementCertificate, ProductCertificate, \
         Product, Content, Order
 from rhsm import profile
-
-
 from rhsm import ourjson as json
 
 # config file is root only, so just fill in a stringbuffer

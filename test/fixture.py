@@ -103,18 +103,27 @@ class Matcher(object):
 
 
 class SubManFixture(unittest.TestCase):
+    def set_facts(self):
+        """Override if you need to set facts for a test."""
+        return {"mock.facts": "true"}
+
     """
     Can be extended by any subscription manager test case to make
     sure nothing on the actual system is read/touched, and appropriate
     mocks/stubs are in place.
     """
     def setUp(self):
+        # No matter what, stop all patching (even if we have a failure in setUp itself)
         self.addCleanup(patch.stopall)
 
         # Never attempt to use the actual managercli.cfg which points to a
         # real file in etc.
         cfg_patcher = patch.object(subscription_manager.managercli, 'cfg', new=stubs.config.CFG)
         self.mock_cfg = cfg_patcher.start()
+
+        facts_host_patcher = patch('rhsmlib.dbus.facts.FactsHostClient', auto_spec=True)
+        self.mock_facts_host = facts_host_patcher.start()
+        self.mock_facts_host.return_value.GetFacts.return_value = self.set_facts()
 
         # By default mock that we are registered. Individual test cases
         # can override if they are testing disconnected scenario.
