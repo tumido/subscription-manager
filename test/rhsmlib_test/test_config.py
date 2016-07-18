@@ -11,8 +11,12 @@
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation.
 #
+try:
+    import unittest2 as unittest
+except ImportError:
+    import unittest
+
 import dbus
-import unittest
 
 from tempfile import NamedTemporaryFile
 from rhsmlib.services.config import Config, ConfigSection

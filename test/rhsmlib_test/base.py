@@ -1,6 +1,10 @@
+try:
+    import unittest2 as unittest
+except ImportError:
+    import unittest
+
 import os
 import sys
-import unittest
 import subprocess
 import dbus
 import optparse
