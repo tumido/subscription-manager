@@ -23,8 +23,8 @@ import optparse
 import dbus.mainloop.glib
 
 from rhsmlib import import_class
-from rhsmlib.dbus import gi_kluge
-gi_kluge.kluge_it()
+# from rhsmlib.dbus import gi_kluge
+# gi_kluge.kluge_it()
 
 # TODO: This is very glib2/dbus-python based. That is likely a requirement
 #       for the services, but it may be worthwhile to use something more
@@ -133,7 +133,10 @@ class FactsHostClient(FactsClient):
 
 
 def main():
-    from gi.repository import GLib
+    from subscription_manager import ga_loader
+    ga_loader.init_ga()
+    from subscription_manager.ga import GLib
+
     from subscription_manager import logutil
     logutil.init_logger()
 

@@ -16,9 +16,11 @@ import dbus.service
 import dbus.server
 import dbus.mainloop.glib
 import rhsmlib.dbus as common
-from rhsmlib.dbus import gi_kluge
-gi_kluge.kluge_it()
-from gi.repository import GLib
+
+from subscription_manager import ga_loader
+ga_loader.init_ga()
+from subscription_manager.ga import GLib
+
 from functools import partial
 
 log = logging.getLogger(__name__)
