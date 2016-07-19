@@ -27,8 +27,6 @@ from rhsmlib import import_class
 from rhsmlib.dbus.server import PrivateServer
 from rhsmlib.dbus.objects import RegisterService
 
-common.init_root_logger()
-
 
 def main(args):
     bus_name = common.BUS_NAME

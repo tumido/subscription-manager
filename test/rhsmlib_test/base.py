@@ -44,18 +44,19 @@ class DBusObjectTest(unittest.TestCase):
 
 def load_bus_class(option, opt_str, value, parser):
     clazz = import_class(value)
-    parser.values.bus_class = clazz
+    parser.values.bus = clazz
 
 
 def main(options, args):
     if not args:
         raise RuntimeError("You must provide DBus Object classes as arguments")
     object_classes = []
+
     for clazz in args:
         object_classes.append(import_class(clazz))
 
     server = Server(
-        bus_class=options.bus_class,
+        bus_class=options.bus,
         bus_name=options.bus_name,
         object_classes=object_classes)
     server.run()
@@ -69,10 +70,12 @@ if __name__ == "__main__":
     ch.setLevel(logging.DEBUG)
     logger.addHandler(ch)
 
-    parser = optparse.OptionParser()
-    parser.add_option("-b", "--bus-class",
+    usage = "usage: %prog [options] DBUS_OBJECT_CLASS"
+    parser = optparse.OptionParser(usage=usage)
+    parser.add_option("-b", "--bus",
         action="callback", callback=load_bus_class,
-        type="string", default=dbus.SessionBus)
+        type="string", default=dbus.SessionBus,
+        help="Bus to use (e.g. dbus.SessionBus)")
     parser.add_option("-n", "--bus-name")
     (options, args) = parser.parse_args()
     sys.exit(main(options, args))
