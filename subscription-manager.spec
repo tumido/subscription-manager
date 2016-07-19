@@ -60,7 +60,7 @@
 %endif
 
 Name: subscription-manager
-Version: 1.17.8
+Version: 1.18.1
 Release: 1%{?dist}
 Summary: Tools and libraries for subscription and repository management
 Group:   System Environment/Base
@@ -78,7 +78,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires:  python-ethtool
 Requires:  python-iniparse
 Requires:  virt-what
-Requires:  python-rhsm >= 1.17.3
+Requires:  python-rhsm >= 1.18.0
 %if 0%{?sles_version}
 Requires:  dbus-1-python
 %else
@@ -627,6 +627,17 @@ fi
 gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 
 %changelog
+* Fri Jul 15 2016 Alex Wood <awood@redhat.com> 1.18.1-1
+- Bump version to 1.18 (vrjain@redhat.com)
+
+* Tue Jul 12 2016 Vritant Jain <vrjain@redhat.com> 1.17.9-1
+- 1353662: Explicitly use ConsumerIdentity keypath and certpath methods
+  (csnyder@redhat.com)
+- 1268307, 1268043, 1257179: Disable back button on registration dialog when
+  there is no back (wpoteat@redhat.com)
+- 1335371: Allow auto-attach in GUI when system status is partial
+  (wpoteat@redhat.com)
+
 * Wed Jun 22 2016 Vritant Jain <vrjain@redhat.com> 1.17.8-1
 - 1335537: Fix typo in proxy message (wpoteat@redhat.com)
 - Remove sys.path shenanigans that break yum imports. (awood@redhat.com)
