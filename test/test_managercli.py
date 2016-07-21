@@ -382,19 +382,19 @@ class TestRegisterCommand(TestCliProxyCommand):
         self._test_no_exception([])
 
     def test_main_server_url(self):
-        with patch.object(self.mock_cfg, "save") as mock_save:
+        with patch.object(self.mock_cfg_parser, "save") as mock_save:
             server_url = "https://subscription.rhsm.redhat.com/subscription"
             self._test_no_exception(["--serverurl", server_url])
             mock_save.assert_called_with()
 
     def test_main_base_url(self):
-        with patch.object(self.mock_cfg, "save") as mock_save:
+        with patch.object(self.mock_cfg_parser, "save") as mock_save:
             base_url = "https://cdn.redhat.com"
             self._test_no_exception(["--baseurl", base_url])
             mock_save.assert_called_with()
 
     def test_insecure(self):
-        with patch.object(self.mock_cfg, "save") as mock_save:
+        with patch.object(self.mock_cfg_parser, "save") as mock_save:
             self._test_no_exception(["--insecure"])
             mock_save.assert_called_with()
 
@@ -939,7 +939,7 @@ class TestConfigCommand(TestCliCommand):
 
         baseurl = 'https://someserver.example.com/foo'
         self.cc.main(['--rhsm.baseurl', baseurl])
-        self.assertEquals(managercli.cfg.store['rhsm.baseurl'], baseurl)
+        self.assertEquals(managercli.conf['rhsm']['baseurl'], baseurl)
 
     def test_remove_config_default(self):
         with Capture() as cap:

@@ -67,7 +67,8 @@ _ = gettext.gettext
 
 log = logging.getLogger('rhsm-app.' + __name__)
 
-cfg = rhsm.config.initConfig()
+from rhsmlib.services import config
+conf = config.Config(rhsm.config.initConfig())
 
 SM = "subscription-manager"
 ERR_NOT_REGISTERED_MSG = _("This system is not yet registered. Try 'subscription-manager register --help' for more information.")
@@ -314,12 +315,12 @@ class CliCommand(AbstractCLICommand):
 
     def test_proxy_connection(self):
         result = None
-        if not self.proxy_hostname or cfg.get("server", "proxy_hostname"):
+        if not self.proxy_hostname or conf["server"]["proxy_hostname"]:
             return True
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(10)
-            result = s.connect_ex((self.proxy_hostname or cfg.get("server", "proxy_hostname"), int(self.proxy_port or rhsm.config.DEFAULT_PROXY_PORT)))
+            result = s.connect_ex((self.proxy_hostname or conf["server"]["proxy_hostname"], int(self.proxy_port or rhsm.config.DEFAULT_PROXY_PORT)))
         except Exception as e:
             log.info("Attempted bad proxy: %s" % e)
         finally:
@@ -420,14 +421,14 @@ class CliCommand(AbstractCLICommand):
             system_exit(os.EX_USAGE)
 
         if hasattr(self.options, "insecure") and self.options.insecure:
-            cfg.set("server", "insecure", "1")
+            conf["server"]["insecure"] = "1"
             config_changed = True
 
         if hasattr(self.options, "server_url") and self.options.server_url:
             try:
                 (self.server_hostname,
                  self.server_port,
-                 self.server_prefix) = parse_server_info(self.options.server_url, cfg)
+                 self.server_prefix) = parse_server_info(self.options.server_url, conf)
             except ServerUrlParseError, e:
                 print _("Error parsing serverurl:")
                 handle_exception("Error parsing serverurl:", e)
@@ -442,9 +443,9 @@ class CliCommand(AbstractCLICommand):
             except MissingCaCertException:
                 system_exit(os.EX_CONFIG, _("Error: CA certificate for subscription service has not been installed."))
 
-            cfg.set("server", "hostname", self.server_hostname)
-            cfg.set("server", "port", self.server_port)
-            cfg.set("server", "prefix", self.server_prefix)
+            conf["server"]["hostname"] = self.server_hostname
+            conf["server"]["port"] = self.server_port
+            conf["server"]["prefix"] = self.server_prefix
             if self.server_port:
                 self.server_port = int(self.server_port)
             config_changed = True
@@ -458,9 +459,10 @@ class CliCommand(AbstractCLICommand):
                 print _("Error parsing baseurl:")
                 handle_exception("Error parsing baseurl:", e)
 
-            cfg.set("rhsm", "baseurl", format_baseurl(baseurl_server_hostname,
-                                                      baseurl_server_port,
-                                                      baseurl_server_prefix))
+            conf["rhsm"]["baseurl"] = format_baseurl(
+                baseurl_server_hostname,
+                baseurl_server_port,
+                baseurl_server_prefix)
             config_changed = True
 
         # support foo.example.com:3128 format
@@ -472,7 +474,7 @@ class CliCommand(AbstractCLICommand):
                 self.proxy_port = int(parts[1])
             else:
                 # if no port specified, use the one from the config, or fallback to the default
-                self.proxy_port = cfg.get_int('server', 'proxy_port') or rhsm.config.DEFAULT_PROXY_PORT
+                self.proxy_port = conf['server'].get_int('proxy_port') or rhsm.config.DEFAULT_PROXY_PORT
             config_changed = True
 
         if hasattr(self.options, "proxy_user") and self.options.proxy_user:
@@ -530,7 +532,7 @@ class CliCommand(AbstractCLICommand):
 
             # Only persist the config changes if there was no exception
             if config_changed and self.persist_server_options():
-                cfg.save()
+                conf.persist()
 
             if return_code is not None:
                 return return_code
@@ -1091,7 +1093,7 @@ class RegisterCommand(UserPassCommand):
         try:
             if not self.options.activation_keys:
                 print _("Registering to: %s:%s%s") % \
-                    (cfg.get("server", "hostname"), cfg.get("server", "port"), cfg.get("server", "prefix"))
+                    (conf["server"]["hostname"], conf["server"]["port"], conf["server"]["prefix"])
                 self.cp_provider.set_user_pass(self.username, self.password)
                 admin_cp = self.cp_provider.get_basic_auth_cp()
             else:
@@ -1418,7 +1420,7 @@ class ReleaseCommand(CliCommand):
 
     def _do_command(self):
 
-        cdn_url = cfg.get('rhsm', 'baseurl')
+        cdn_url = conf['rhsm']['baseurl']
         # note: parse_baseurl_info will populate with defaults if not found
         (cdn_hostname, cdn_port, _cdn_prefix) = parse_baseurl_info(cdn_url)
 
@@ -2189,10 +2191,11 @@ class ConfigCommand(CliCommand):
                                help=_("list the configuration for this system"))
         self.parser.add_option("--remove", dest="remove", action="append",
                                help=_("remove configuration entry by section.name"))
-        for section in cfg.sections():
-            for name, _value in cfg.items(section):
-                self.parser.add_option("--" + section + "." + name, dest=(section + "." + name),
-                    help=_("Section: %s, Name: %s") % (section, name))
+        for s in conf.keys():
+            section = conf[s]
+            for name, _value in section.items():
+                self.parser.add_option("--" + s + "." + name, dest=(s + "." + name),
+                    help=_("Section: %s, Name: %s") % (s, name))
 
     def _validate_options(self):
         if self.options.list:
@@ -2200,9 +2203,10 @@ class ConfigCommand(CliCommand):
             if self.options.remove:
                 too_many = True
             else:
-                for section in cfg.sections():
-                    for name, _value in cfg.items(section):
-                        if getattr(self.options, section + "." + name):
+                for s in conf.keys():
+                    section = conf[s]
+                    for name, _value in section.items():
+                        if getattr(self.options, s + "." + name):
                             too_many = True
                             break
             if too_many:
@@ -2210,9 +2214,10 @@ class ConfigCommand(CliCommand):
 
         if not (self.options.list or self.options.remove):
             has = False
-            for section in cfg.sections():
-                for name, _value in cfg.items(section):
-                    test = "%s" % getattr(self.options, section + "." + name)
+            for s in conf.keys():
+                section = conf[s]
+                for name, _value in section.items():
+                    test = "%s" % getattr(self.options, s + "." + name)
                     has = has or (test != 'None')
             if not has:
                 # if no options are given, default to --list
@@ -2226,8 +2231,8 @@ class ConfigCommand(CliCommand):
                 section = r.split('.')[0]
                 name = r.split('.')[1]
                 found = False
-                if cfg.has_section(section):
-                    for key, _value in cfg.items(section):
+                if section in conf.keys():
+                    for key, _value in conf[section].items():
                         if name == key:
                             found = True
                 if not found:
@@ -2237,14 +2242,16 @@ class ConfigCommand(CliCommand):
         self._validate_options()
 
         if self.options.list:
-            for section in cfg.sections():
-                print '[%s]' % (section)
-                source_list = cfg.items(section)
+            for s in conf.keys():
+                section = conf[s]
+                print '[%s]' % s
+                source_list = section.items()
                 source_list.sort()
                 for (name, value) in source_list:
                     indicator1 = ''
                     indicator2 = ''
-                    if (value == cfg.get_default(section, name)):
+                    # ?????
+                    if value == section.get_default(name):
                         indicator1 = '['
                         indicator2 = ']'
                     print '   %s = %s%s%s' % (name, indicator1, value, indicator2)
@@ -2256,23 +2263,24 @@ class ConfigCommand(CliCommand):
                 section = r.split('.')[0]
                 name = r.split('.')[1]
                 try:
-                    if not cfg.has_default(section, name):
-                        cfg.set(section, name, '')
+                    if not conf[section].has_default(name):
+                        conf[section][name] = ''
                         print _("You have removed the value for section %s and name %s.") % (section, name)
                     else:
-                        cfg.set(section, name, cfg.get_default(section, name))
+                        conf[section][name] = conf[section].get_default(name)
                         print _("You have removed the value for section %s and name %s.") % (section, name)
                         print _("The default value for %s will now be used.") % (name)
                 except Exception:
                     print _("Section %s and name %s cannot be removed.") % (section, name)
-            cfg.save()
+            conf.persist()
         else:
-            for section in cfg.sections():
-                for name, value in cfg.items(section):
-                    value = "%s" % getattr(self.options, section + "." + name)
+            for s in conf.keys():
+                section = conf[s]
+                for name, value in section.items():
+                    value = "%s" % getattr(self.options, s + "." + name)
                     if not value == 'None':
-                        cfg.set(section, name, value)
-            cfg.save()
+                        section[name] = value
+            conf.persist()
 
     def require_connection(self):
         return False

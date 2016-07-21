@@ -67,7 +67,7 @@ class TestNetworkConfigDialog(SubManFixture):
         self.assertEquals(expected, actual)
 
     def test_network_cfg_set_initial_values(self):
-        self.stubConfig = stubs.StubConfig(config_file=stubs.test_config)
+        self.stubConfig = stubs.StubConfig()
         self.nc.set_initial_values()
 
     def test_network_cfg_write_values(self):

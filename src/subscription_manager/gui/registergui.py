@@ -23,10 +23,13 @@ import socket
 import sys
 import threading
 
+from subscription_manager import ga_loader
+ga_loader.init_ga()
+
 from subscription_manager.ga import Gtk as ga_Gtk
 from subscription_manager.ga import GObject as ga_GObject
 
-import rhsm.config as config
+import rhsm.config as base_config
 from rhsm.utils import ServerUrlParseError
 from rhsm.connection import GoneException, RestlibException, UEPConnection
 
@@ -51,10 +54,10 @@ from rhsmlib.dbus.facts import client as facts_client
 _ = lambda x: gettext.ldgettext("rhsm", x)
 
 gettext.textdomain("rhsm")
-
 log = logging.getLogger('rhsm-app.' + __name__)
 
-CFG = config.initConfig()
+from rhsmlib.services import config
+conf = config.Config(base_config.initConfig())
 
 
 class RegisterState(object):
@@ -122,13 +125,13 @@ def reset_resolver():
 
 def server_info_from_config(config):
     return {
-            "host": config.get('server', 'hostname'),
-            "ssl_port": config.get_int('server', 'port'),
-            "handler": config.get('server', 'prefix'),
-            "proxy_hostname": config.get('server', 'proxy_hostname'),
-            "proxy_port": config.get_int('server', 'proxy_port'),
-            "proxy_user": config.get('server', 'proxy_user'),
-            "proxy_password": config.get('server', 'proxy_password')
+            "host": conf['server']['hostname'],
+            "ssl_port": conf['server'].get_int('port'),
+            "handler": conf['server']['prefix'],
+            "proxy_hostname": conf['server']['proxy_hostname'],
+            "proxy_port": conf['server'].get_int('proxy_port'),
+            "proxy_user": conf['server']['proxy_user'],
+            "proxy_password": conf['server']['proxy_password']
            }
 
 
@@ -218,9 +221,9 @@ class RegisterInfo(ga_GObject.GObject):
 
     def _defaults_from_config(self):
         """Load the current server values from configuration (rhsm.conf)."""
-        self.set_property('hostname', CFG.get('server', 'hostname'))
-        self.set_property('port', CFG.get('server', 'port'))
-        self.set_property('prefix', CFG.get('server', 'prefix'))
+        self.set_property('hostname', conf['server']['hostname'])
+        self.set_property('port', conf['server']['port'])
+        self.set_property('prefix', conf['server']['prefix'])
 
     def _initial_registration_status(self):
         msg = _("This system is currently not registered.")
@@ -399,8 +402,8 @@ class RegisterWidget(widgets.SubmanBaseWidget):
     def do_register_finished(self):
         msg = _("System '%s' successfully registered.\n") % self.info.identity.name
         self.info.set_property('register-status', msg)
-        CFG.save()
-        last_server_info = server_info_from_config(CFG)
+        conf.persist()
+        last_server_info = server_info_from_config(conf)
         last_server_info['cert_file'] = self.backend.cp_provider.cert_file
         last_server_info['key_file'] = self.backend.cp_provider.key_file
         self.info.set_property('server-info', last_server_info)
@@ -1779,9 +1782,9 @@ class ChooseServerScreen(Screen):
     def _on_default_button_clicked(self, widget):
         # Default port and prefix are fine, so we can be concise and just
         # put the hostname for RHN:
-        self.server_entry.set_text("%s:%s%s" % (config.DEFAULT_HOSTNAME,
-            config.DEFAULT_PORT,
-            config.DEFAULT_PREFIX))
+        self.server_entry.set_text("%s:%s%s" % (base_config.DEFAULT_HOSTNAME,
+            base_config.DEFAULT_PORT,
+            base_config.DEFAULT_PREFIX))
 
     def _on_proxy_button_clicked(self, widget):
         # proxy dialog may attempt to resolve proxy and server names, so
@@ -1820,10 +1823,10 @@ class ChooseServerScreen(Screen):
         # TODO: test the values before saving, then update
         #       self.info and cfg if it works
         try:
-            (hostname, port, prefix) = parse_server_info(server, CFG)
-            CFG.set('server', 'hostname', hostname)
-            CFG.set('server', 'port', port)
-            CFG.set('server', 'prefix', prefix)
+            (hostname, port, prefix) = parse_server_info(server, conf)
+            conf['server']['hostname'] = hostname
+            conf['server']['port'] = port
+            conf['server']['prefix'] = prefix
 
             self.reset_resolver()
 
@@ -1866,8 +1869,8 @@ class ChooseServerScreen(Screen):
 
     def set_server_entry(self, hostname, port, prefix):
         # No need to show port and prefix for hosted:
-        if hostname == config.DEFAULT_HOSTNAME:
-            self.server_entry.set_text(config.DEFAULT_HOSTNAME)
+        if hostname == base_config.DEFAULT_HOSTNAME:
+            self.server_entry.set_text(base_config.DEFAULT_HOSTNAME)
         else:
             self.server_entry.set_text("%s:%s%s" % (hostname,
                                        port, prefix))

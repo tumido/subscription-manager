@@ -32,6 +32,9 @@ class Config(collections.MutableMapping):
     def persist(self):
         self._parser.save()
 
+    def defaults(self):
+        return self._parser.defaults()
+
     def __getitem__(self, name):
         if name in self:
             return self._sections[name]
@@ -71,6 +74,12 @@ class Config(collections.MutableMapping):
 
     def __iter__(self):
         return iter(self._parser.sections())
+
+    def iter_sections(self):
+        """An iterator that yields the actual ConfigSection objects instead of just
+        the names of the sections."""
+        for s in self._parser.sections():
+            yield self[s]
 
     def __len__(self):
         return len(self._parser.sections())
@@ -121,3 +130,12 @@ class ConfigSection(collections.MutableMapping):
 
     def __repr__(self):
         return "%s" % self._parser.items(self._section)
+
+    def get_int(self, key):
+        return self._parser.get_int(self._section, key)
+
+    def get_default(self, key):
+        return self._parser.get_default(self._section, key)
+
+    def has_default(self, key):
+        return self._parser.has_default(self._section, key)

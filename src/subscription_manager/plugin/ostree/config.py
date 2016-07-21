@@ -17,9 +17,10 @@ import logging
 import os
 import re
 
-from rhsm import config
+from rhsm.config import initConfig, RhsmConfigParser
 from rhsm.config import NoSectionError  # NOQA: Imported so we can catch elsewhere
 from subscription_manager import utils
+from rhsmlib.services import config
 
 # iniparse.utils isn't in old versions
 # but it's always there if ostree is
@@ -31,7 +32,7 @@ except ImportError:
 
 log = logging.getLogger("rhsm-app." + __name__)
 
-CFG = config.initConfig()
+conf = config.Config(initConfig())
 
 """Ostree has two config files, both based on the freedesktop.org
 Desktop Entry spec. This defines a file format based on "ini" style
@@ -65,7 +66,7 @@ class RefspecFormatException(Exception):
 
 
 # KeyFile is the desktop.org name for ini files, more or less
-class KeyFileConfigParser(config.RhsmConfigParser):
+class KeyFileConfigParser(RhsmConfigParser):
     """A ini/ConfigParser subclass based on RhsmConfigParser.
 
     This impl removes the RhsmConfigParser support for rhsm.config.DEFAULTS.
@@ -78,8 +79,8 @@ class KeyFileConfigParser(config.RhsmConfigParser):
     # but we also don't want to monkeypatch our config module.
     #
     # why? useful convience methods on RhsmConfigParser
-    # why not pyxdg xdg.IniFile? woudl still have to add type casts
-    # why noy pyxdg xdg.DesktopEntry?  the repo configs are not actually
+    # why not pyxdg xdg.IniFile? would still have to add type casts
+    # why not pyxdg xdg.DesktopEntry?  the repo configs are not actually
     #    desktop files, just that format, so that class throws exceptions
     #    in that case.
     def defaults(self):
@@ -186,11 +187,11 @@ class RepoFile(BaseOstreeConfigFile):
         return self.config_parser.set(section, key, value)
 
     def get_proxy(self):
-        proxy_host = CFG.get('server', 'proxy_hostname')
+        proxy_host = conf['server']['proxy_hostname']
         # proxy_port as string is fine here
-        proxy_port = CFG.get('server', 'proxy_port')
-        proxy_user = CFG.get('server', 'proxy_user')
-        proxy_password = CFG.get('server', 'proxy_password')
+        proxy_port = conf['server']['proxy_port']
+        proxy_user = conf['server']['proxy_user']
+        proxy_password = conf['server']['proxy_password']
 
         proxy_uri = None
         if proxy_host == "":
@@ -218,8 +219,8 @@ class RepoFile(BaseOstreeConfigFile):
         # Assume all remotes will share the same cdn
         # This is really info about a particular CDN, we just happen
         # to only support one at the moment.
-        baseurl = CFG.get('rhsm', 'baseurl')
-        ca_cert = CFG.get('rhsm', 'repo_ca_cert')
+        baseurl = conf['rhsm']['baseurl']
+        ca_cert = conf['rhsm']['repo_ca_cert']
 
         full_url = utils.url_base_join(baseurl, ostree_remote.url)
 

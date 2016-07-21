@@ -23,11 +23,12 @@ from rhsm.certificate import Key, create_from_file
 from rhsm.config import initConfig
 from subscription_manager.injection import require, ENT_DIR
 
-log = logging.getLogger('rhsm-app.' + __name__)
+from rhsmlib.services import config
 
+log = logging.getLogger('rhsm-app.' + __name__)
 _ = gettext.gettext
 
-cfg = initConfig()
+conf = config.Config(initConfig())
 
 DEFAULT_PRODUCT_CERT_DIR = "/etc/pki/product-default"
 
@@ -219,7 +220,7 @@ class ProductCertificateDirectory(CertificateDirectory):
 
 class ProductDirectory(ProductCertificateDirectory):
     def __init__(self, path=None, default_path=None):
-        installed_prod_path = path or cfg.get('rhsm', 'productCertDir')
+        installed_prod_path = path or conf['rhsm']['productCertDir']
         default_prod_path = default_path or DEFAULT_PRODUCT_CERT_DIR
         self.installed_prod_dir = ProductCertificateDirectory(path=installed_prod_path)
         self.default_prod_dir = ProductCertificateDirectory(path=default_prod_path)
@@ -252,7 +253,7 @@ class ProductDirectory(ProductCertificateDirectory):
 
 class EntitlementDirectory(CertificateDirectory):
 
-    PATH = cfg.get('rhsm', 'entitlementCertDir')
+    PATH = conf['rhsm']['entitlementCertDir']
     PRODUCT = 'product'
 
     @classmethod

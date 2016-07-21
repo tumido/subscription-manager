@@ -61,12 +61,11 @@ repo_ca_cert = %(ca_cert_dir)sredhat-uep.pem
 productCertDir = /etc/pki/product
 entitlementCertDir = /etc/pki/entitlement
 consumerCertDir = /etc/pki/consumer
+ca_cert_dir = /etc/rhsm/ca/
 
 [rhsmcertd]
 certCheckInterval = 240
 """
-
-test_config = StringIO.StringIO(cfg_buf)
 
 
 class StubConfig(config.RhsmConfigParser):
@@ -79,7 +78,7 @@ class StubConfig(config.RhsmConfigParser):
 
     # isntead of reading a file, let's use the stringio
     def read(self, filename):
-        self.readfp(test_config, "foo.conf")
+        self.readfp(StringIO.StringIO(cfg_buf), "foo.conf")
 
     # this way our test can put some values in and have them used during the run
     def get(self, section, key):
@@ -104,8 +103,6 @@ class StubConfig(config.RhsmConfigParser):
         if self.raise_io:
             raise IOError
         return None
-
-    # replace read with readfp on stringio
 
 
 def stubInitConfig():
