@@ -22,6 +22,11 @@ import optparse
 
 import dbus.mainloop.glib
 
+from subscription_manager import ga_loader
+ga_loader.init_ga()
+from subscription_manager.ga import GLib
+
+
 from rhsmlib import import_class
 # from rhsmlib.dbus import gi_kluge
 # gi_kluge.kluge_it()
@@ -56,8 +61,8 @@ class FactsClient(object):
         log = logging.getLogger(__name__ + '.' + self.__class__.__name__)
 
         # use default mainloop for dbus
-        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
         dbus.mainloop.glib.threads_init()
+        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
 
         self.bus = bus or dbus.SystemBus()
 
@@ -133,10 +138,6 @@ class FactsHostClient(FactsClient):
 
 
 def main():
-    from subscription_manager import ga_loader
-    ga_loader.init_ga()
-    from subscription_manager.ga import GLib
-
     from subscription_manager import logutil
     logutil.init_logger()
 
