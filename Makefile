@@ -75,7 +75,7 @@ else
    DBUS_SERVICE_FILE_TYPE?=systemd
 endif
 
-DBUS_SERVICES_SRC_DIR = src/rhsmlib/dbus/services
+DBUS_SERVICES_SRC_DIR = src/rhsmlib/dbus/
 
 DBUS_SERVICES_CONF_INST_DIR := $(PREFIX)/usr/share/dbus-1/system-services
 FACTS_INST_DBUS_SERVICE_FILE = $(DBUS_SERVICES_CONF_INST_DIR)/com.redhat.RHSM1.Facts.service
@@ -149,45 +149,42 @@ check-syntax:
 	$(CC) -fsyntax-only $(CFLAGS) $(LDFLAGS) $(ICON_FLAGS) `find -name '*.c'`
 
 dbus-common-install:
+	install -d $(PREFIX)/etc/dbus-1/system.d
 	if [ "$(DBUS_SERVICE_FILE_TYPE)" == "systemd" ]; then \
 		install -d $(SYSTEMD_INST_DIR) ; \
-		install -d $(PREFIX)/etc/dbus-1/system.d ; \
 	fi
 	install -d $(PREFIX)/$(INSTALL_DIR)/dbus-1/system-services
 	install -d $(PREFIX)/$(LIBEXEC_DIR)
 	install -d $(PREFIX)/etc/bash_completion.d
 
 dbus-rhsmd-service-install: dbus-common-install
+	install -m 644 etc-conf/com.redhat.SubscriptionManager.conf $(PREFIX)/etc/dbus-1/system.d
 	if [ "$(DBUS_SERVICE_FILE_TYPE)" == "systemd" ]; then \
-		install -m 644 etc-conf/com.redhat.SubscriptionManager.conf $(PREFIX)/etc/dbus-1/system.d ; \
 	fi
 	install -m 644 etc-conf/com.redhat.SubscriptionManager.service $(PREFIX)/$(INSTALL_DIR)/dbus-1/system-services
 	install -m 744 $(DAEMONS_SRC_DIR)/rhsm_d.py $(PREFIX)/$(LIBEXEC_DIR)/rhsmd
 
 dbus-facts-service-install: dbus-common-install
+	install -m 644 $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.RHSM1.Facts.conf $(PREFIX)/etc/dbus-1/system.d
 	if [ "$(DBUS_SERVICE_FILE_TYPE)" == "systemd" ]; then \
 		install -m 644 $(DBUS_SERVICES_SRC_DIR)/facts/rhsm-facts.service $(SYSTEMD_INST_DIR) ; \
-		install -m 644 $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.RHSM1.Facts.conf \
-			$(PREFIX)/etc/dbus-1/system.d ; \
 	fi
 	install -m 644 $(FACTS_SRC_DBUS_SERVICE_FILE) $(FACTS_INST_DBUS_SERVICE_FILE)
 	install -m 755 $(DBUS_SERVICES_SRC_DIR)/facts/rhsm-facts-service $(PREFIX)/usr/libexec/rhsm-facts-service
 
 dbus-subscriptions-service-install: dbus-common-install
+	install -m 644 $(DBUS_SERVICES_SRC_DIR)/subscriptions/com.redhat.RHSM1.Subscriptions.conf $(PREFIX)/etc/dbus-1/system.d
 	if [ "$(DBUS_SERVICE_FILE_TYPE)" == "systemd" ]; then \
 		install -m 644 $(DBUS_SERVICES_SRC_DIR)/subscriptions/rhsm-subscriptions.service $(SYSTEMD_INST_DIR) ; \
-		install -m 644 $(DBUS_SERVICES_SRC_DIR)/subscriptions/com.redhat.RHSM1.Subscriptions.conf \
-			$(PREFIX)/etc/dbus-1/system.d ; \
 	fi
 	install -m 644 $(SUBSCRIPTIONS_SRC_DBUS_SERVICE_FILE) $(SUBSCRIPTIONS_INST_DBUS_SERVICE_FILE)
 	install -m 755 $(DBUS_SERVICES_SRC_DIR)/subscriptions/rhsm-subscriptions-service \
 		$(PREFIX)/$(LIBEXEC_DIR)/rhsm-subscriptions-service
 
 dbus-main-service-install: dbus-common-install
+	install -m 644 $(DBUS_SERVICES_SRC_DIR)/main/com.redhat.RHSM1.conf $(PREFIX)/etc/dbus-1/system.d
 	if [ "$(DBUS_SERVICE_FILE_TYPE)" == "systemd" ]; then \
 		install -m 644 $(DBUS_SERVICES_SRC_DIR)/main/rhsm-main.service $(SYSTEMD_INST_DIR) ; \
-		install -m 644 $(DBUS_SERVICES_SRC_DIR)/main/com.redhat.RHSM1.conf \
-		    $(PREFIX)/etc/dbus-1/system.d ; \
 	fi
 	install -m 644 $(MAIN_SRC_DBUS_SERVICE_FILE) $(MAIN_INST_DBUS_SERVICE_FILE)
 	install -m 755 $(DBUS_SERVICES_SRC_DIR)/main/rhsm-main-service \
