@@ -13,6 +13,7 @@
 # in this software or its documentation.
 #
 
+from collections import defaultdict
 import StringIO
 from datetime import datetime, timedelta
 import mock
@@ -65,6 +66,9 @@ ca_cert_dir = /etc/rhsm/ca/
 
 [rhsmcertd]
 certCheckInterval = 240
+
+[logging]
+default_log_level = DEBUG
 """
 
 
@@ -74,9 +78,9 @@ class StubConfig(config.RhsmConfigParser):
         config.RhsmConfigParser.__init__(self, config_file=config_file, defaults=defaults)
         self.raise_io = None
         self.fileName = config_file
-        self.store = {}
+        self.store = defaultdict(dict)
 
-    # isntead of reading a file, let's use the stringio
+    # instead of reading a file, let's use the stringio
     def read(self, filename):
         self.readfp(StringIO.StringIO(cfg_buf), "foo.conf")
 
@@ -86,7 +90,7 @@ class StubConfig(config.RhsmConfigParser):
         value = super(StubConfig, self).get(section, key)
         test_value = None
         try:
-            test_value = self.store['%s.%s' % (section, key)]
+            test_value = self.store[section][key]
         except KeyError:
             test_value = None
 
@@ -97,7 +101,16 @@ class StubConfig(config.RhsmConfigParser):
 
     def set(self, section, key, value):
         # print self.sections()
-        self.store['%s.%s' % (section, key)] = value
+        self.store[section][key] = value
+
+    def items(self, section):
+        # Attempt to return the items from the store for the given section.
+        # This allows tests using this stub to set arbitrary keys in a given
+        # section and iterate over them with their values.
+        items_from_store = self.store[section]
+        if len(items_from_store) > 0:
+            return items_from_store.items()
+        return config.RhsmConfigParser.items(self, section)
 
     def save(self, config_file=None):
         if self.raise_io:

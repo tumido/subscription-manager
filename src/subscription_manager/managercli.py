@@ -65,7 +65,7 @@ import rhsmlib.dbus.facts as facts
 
 _ = gettext.gettext
 
-log = logging.getLogger('rhsm-app.' + __name__)
+log = logging.getLogger(__name__)
 
 from rhsmlib.services import config
 conf = config.Config(rhsm.config.initConfig())
@@ -647,6 +647,12 @@ class RefreshCommand(CliCommand):
     def _do_command(self):
         self.assert_should_be_registered()
         try:
+            # get current consumer identity
+            identity = inj.require(inj.IDENTITY)
+
+            # Force a regen of the entitlement certs for this consumer
+            self.cp.regenEntitlementCertificates(identity.uuid, True)
+
             self.entcertlib.update()
             log.info("Refreshed local data")
             print (_("All local data refreshed"))
@@ -2136,8 +2142,8 @@ class ReposCommand(CliCommand):
             matches = set([repo for repo in repos if fnmatch.fnmatch(repo.id, repoid)])
             if not matches:
                 rc = 1
-                print _("Error: %s is not a valid repository ID. "
-                        "Use --list option to see valid repositories.") % repoid
+                print _("Error: '%s' does not match a valid repository ID. "
+                        "Use \"subscription-manager repos --list\" to see valid repositories.") % repoid
 
             # Overwrite repo if it's already in the dict, we want the last
             # match to be the one sent to server.

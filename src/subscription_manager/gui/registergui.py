@@ -54,7 +54,7 @@ from rhsmlib.dbus.facts import client as facts_client
 _ = lambda x: gettext.ldgettext("rhsm", x)
 
 gettext.textdomain("rhsm")
-log = logging.getLogger('rhsm-app.' + __name__)
+log = logging.getLogger(__name__)
 
 from rhsmlib.services import config
 conf = config.Config(base_config.initConfig())

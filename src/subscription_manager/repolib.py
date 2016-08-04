@@ -38,7 +38,7 @@ from subscription_manager.certlib import ActionReport, BaseActionInvoker
 from subscription_manager.certdirectory import Path
 from rhsmlib.services import config
 
-log = logging.getLogger('rhsm-app.' + __name__)
+log = logging.getLogger(__name__)
 
 conf = config.Config(initConfig())
 

@@ -25,7 +25,7 @@ from subscription_manager.injection import require, ENT_DIR
 
 from rhsmlib.services import config
 
-log = logging.getLogger('rhsm-app.' + __name__)
+log = logging.getLogger(__name__)
 _ = gettext.gettext
 
 conf = config.Config(initConfig())

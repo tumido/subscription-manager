@@ -78,7 +78,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires:  python-ethtool
 Requires:  python-iniparse
 Requires:  virt-what
-Requires:  python-rhsm >= 1.18.0
+Requires:  python-rhsm >= 1.18.1
 %if 0%{?sles_version}
 Requires:  dbus-1-python
 %else
@@ -332,7 +332,6 @@ rm -rf %{buildroot}
 %attr(755,root,root) %dir %{_sysconfdir}/rhsm
 %attr(755,root,root) %dir %{_sysconfdir}/rhsm/facts
 %attr(644,root,root) %config(noreplace) %{_sysconfdir}/rhsm/rhsm.conf
-%config(noreplace) %attr(644,root,root) %{_sysconfdir}/rhsm/logging.conf
 
 # PAM config
 %if !0%{?sles_version}

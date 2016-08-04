@@ -38,7 +38,7 @@ _ = gettext.gettext
 
 DIR = os.path.dirname(__file__)
 
-log = logging.getLogger('rhsm-app.' + __name__)
+log = logging.getLogger(__name__)
 
 
 class NetworkConfigDialog(widgets.SubmanBaseWidget):
@@ -227,8 +227,11 @@ class NetworkConfigDialog(widgets.SubmanBaseWidget):
     def clean_proxy_entry(self, widget=None, dummy=None):
         proxy_url = self.proxyEntry.get_text()
         proxy_host, proxy_port = self.parse_proxy_entry(proxy_url)
-        cleaned_proxy_url = "%s:%s" % (proxy_host, proxy_port)
-        self.proxyEntry.set_text(cleaned_proxy_url)
+        if proxy_host:
+            cleaned_proxy_url = proxy_host
+            if proxy_port:
+                cleaned_proxy_url = cleaned_proxy_url + ":" + proxy_port
+            self.proxyEntry.set_text(cleaned_proxy_url)
         return (proxy_host, proxy_port)
 
     def parse_proxy_entry(self, proxy_url):

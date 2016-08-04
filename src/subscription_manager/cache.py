@@ -36,7 +36,7 @@ from rhsm import ourjson as json
 from rhsmlib.services import config
 
 _ = gettext.gettext
-log = logging.getLogger('rhsm-app.' + __name__)
+log = logging.getLogger(__name__)
 
 PACKAGES_RESOURCE = "packages"
 

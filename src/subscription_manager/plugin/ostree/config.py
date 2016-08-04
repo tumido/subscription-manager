@@ -30,7 +30,7 @@ try:
 except ImportError:
     pass
 
-log = logging.getLogger("rhsm-app." + __name__)
+log = logging.getLogger(__name__)
 
 conf = config.Config(initConfig())
 

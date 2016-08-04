@@ -97,8 +97,8 @@ class TestNetworkConfigDialog(SubManFixture):
         self.nc.proxyPasswordEntry.set_text("redhatPass")
         self.nc.write_values()
 
-        actual_user = self.nc.cfg.store['server.proxy_user']
-        actual_password = self.nc.cfg.store['server.proxy_password']
+        actual_user = self.nc.cfg.store['server']['proxy_user']
+        actual_password = self.nc.cfg.store['server']['proxy_password']
         self.assertTrue(actual_user == "redhatUser")
         self.assertTrue(actual_password == "redhatPass")
 

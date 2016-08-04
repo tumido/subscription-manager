@@ -26,7 +26,7 @@ from rhsmlib.dbus.facts import client as facts_client
 
 _ = gettext.gettext
 
-log = logging.getLogger('rhsm-app.' + __name__)
+log = logging.getLogger(__name__)
 
 
 class SystemFactsDialog(widgets.SubmanBaseWidget):
