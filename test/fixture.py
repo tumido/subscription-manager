@@ -24,7 +24,6 @@ from mock import Mock, MagicMock, NonCallableMock, patch, mock_open
 from contextlib import contextmanager
 
 import stubs
-import rhsm.config
 import subscription_manager.injection as inj
 import subscription_manager.managercli
 from rhsmlib.services import config
@@ -129,6 +128,7 @@ class SubManFixture(unittest.TestCase):
         self.mock_cfg_parser = stubs.StubConfig()
 
         original_conf = subscription_manager.managercli.conf
+
         def unstub_conf():
             subscription_manager.managercli.conf = original_conf
 

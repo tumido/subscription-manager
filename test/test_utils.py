@@ -18,6 +18,7 @@ from rhsm.config import DEFAULT_PORT, DEFAULT_PREFIX, DEFAULT_HOSTNAME, \
 
 from rhsmlib.services import config
 
+
 class TestParseServerInfo(SubManFixture):
     def setUp(self):
         SubManFixture.setUp(self)

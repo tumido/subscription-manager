@@ -55,7 +55,6 @@ class PrivateService(dbus.service.Object):
 class RegisterService(PrivateService):
     _interface_name = common.REGISTER_INTERFACE
 
-
     @dbus.service.method(dbus_interface=common.REGISTER_INTERFACE,
                                     in_signature='sssa{sv}',
                                     out_signature='a{sv}')
@@ -161,7 +160,7 @@ class RegisterService(PrivateService):
         elif (options.get('username') and options.get('activation_keys')):
             error_msg = _("Error: Activation keys do not require user credentials.")
         elif (options.get('consumerid') and options.get('activation_keys')):
-            error_msg =  _("Error: Activation keys can not be used with previously registered IDs.")
+            error_msg = _("Error: Activation keys can not be used with previously registered IDs.")
         elif (options.get('environment') and options.get('activation_keys')):
             error_msg = _("Error: Activation keys do not allow environments to be specified.")
         elif (autoattach and options.get('activation_keys')):

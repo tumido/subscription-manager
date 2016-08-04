@@ -57,11 +57,14 @@ manage_repos =
 
 [rhsmcertd]
 certCheckInterval = 245
+
+[logging]
+default_log_level = DEBUG
 """
 
 
 class BaseConfigTest(unittest.TestCase):
-    expected_sections = ['foo', 'server', 'rhsm', 'rhsmcertd']
+    expected_sections = ['foo', 'server', 'rhsm', 'rhsmcertd', 'logging']
 
     def write_temp_file(self, data):
         # create a temp file for use as a config file. This should get cleaned
@@ -140,7 +143,7 @@ class TestConfig(BaseConfigTest):
 
     def test_iter(self):
         sections = [s for s in self.config]
-        self.assert_items_equals(sections, ['foo', 'rhsm', 'rhsmcertd', 'server'])
+        self.assert_items_equals(self.expected_sections, sections)
 
 
 class TestConfigSection(BaseConfigTest):
