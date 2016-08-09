@@ -95,7 +95,9 @@ class FactsCollection(object):
 
     @property
     def cache_lifetime(self):
-        return (datetime.now() - self.collection_datetime).total_seconds()
+        # delta.total_seconds() would be better but isn't in Python 2.6
+        delta = (datetime.now() - self.collection_datetime)
+        return abs(delta).seconds
 
     @classmethod
     def from_facts_collection(cls, facts_collection):

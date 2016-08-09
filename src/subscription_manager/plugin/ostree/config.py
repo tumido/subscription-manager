@@ -18,7 +18,7 @@ import os
 import re
 
 from rhsm.config import initConfig, RhsmConfigParser
-from rhsm.config import NoSectionError  # NOQA: Imported so we can catch elsewhere
+from rhsm.config import NoSectionError  # noqa: F401 Imported so we can catch elsewhere
 from subscription_manager import utils
 from rhsmlib.services import config
 

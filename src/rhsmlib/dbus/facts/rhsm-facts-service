@@ -13,51 +13,58 @@
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation.
 #
+import logging
 import dbus
 import sys
 import optparse
-import logging
-import rhsmlib.dbus as common
 import rhsmlib.dbus.facts.constants as constants
-import rhsmlib.dbus.facts.root as root
+import rhsmlib.dbus.facts.base as base
 
 from rhsmlib import import_class
 from rhsmlib.dbus.server import Server
 
+log = logging.getLogger('')
 
-def main(args):
-    bus_class = dbus.SystemBus
-    bus_name = constants.FACTS_DBUS_INTERFACE
 
-    if len(args) > 0:
-        bus_class = import_class(args[0])
+def load_bus_class(option, opt_str, value, parser):
+    clazz = import_class(value)
+    parser.values.bus = clazz
 
-    if len(args) > 1:
-        bus_name = args[1]
 
+def main(options):
     object_classes = [
-        root.FactsRoot,
+        base.FactsHost,
     ]
 
     try:
+        log.debug('Starting DBus service with name %s' % options.bus_name)
         Server(
-            bus_class=bus_class,
-            bus_name=bus_name,
+            bus_class=options.bus,
+            bus_name=options.bus_name,
             object_classes=object_classes).run()
     except dbus.exceptions.DBusException as e:
         if e._dbus_error_name == "org.freedesktop.DBus.Error.AccessDenied":
             print("Access to DBus denied.  You need to edit /etc/dbus-1/system.conf to allow %s or run with "
-                "dbus-daemon and a custom config file." % bus_name)
+                "dbus-daemon and a custom config file." % options.bus_name)
     return 0
 
 
 if __name__ == "__main__":
+    log.setLevel(logging.INFO)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    log.addHandler(ch)
+
     parser = optparse.OptionParser()
+    parser.add_option("-b", "--bus",
+        action="callback", callback=load_bus_class,
+        type="string", default=dbus.SessionBus,
+        help="Bus to use (e.g. dbus.SessionBus)")
+    parser.add_option("-n", "--bus-name", default=constants.FACTS_DBUS_NAME)
     parser.add_option("-v", "--verbose", action="store_true")
-    (options, args) = parser.parse_args()
+    (options, _args) = parser.parse_args()
 
     if options.verbose:
-        logger = logging.getLogger('')
-        logger.setLevel(logging.DEBUG)
+        log.setLevel(logging.DEBUG)
 
-    sys.exit(main(args))
+    sys.exit(main(options))

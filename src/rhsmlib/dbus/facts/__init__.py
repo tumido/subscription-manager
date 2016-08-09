@@ -1,5 +1,3 @@
-from rhsmlib.dbus.facts.host import FactsHost  # NOQA
-from rhsmlib.dbus.facts.client import FactsClient, FactsHostClient, FactsClientAuthenticationError  # NOQA
-
-from rhsmlib.dbus.facts.constants import FACTS_BUS_NAME, FACTS_DBUS_INTERFACE, \
-    FACTS_ROOT_DBUS_PATH, FACTS_HOST_DBUS_PATH
+from rhsmlib.dbus.facts.base import FactsHost  # noqa: F401
+from rhsmlib.dbus.facts.client import FactsClient, FactsClientAuthenticationError  # noqa: F401
+from rhsmlib.dbus.facts.constants import FACTS_DBUS_NAME, FACTS_DBUS_INTERFACE, FACTS_DBUS_PATH  # noqa: F401

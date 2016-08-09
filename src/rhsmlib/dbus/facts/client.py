@@ -17,17 +17,8 @@
 #
 
 import logging
-import sys
-import optparse
-
 import dbus.mainloop.glib
 
-from subscription_manager import ga_loader
-ga_loader.init_ga()
-from subscription_manager.ga import GLib
-
-
-from rhsmlib import import_class
 # from rhsmlib.dbus import gi_kluge
 # gi_kluge.kluge_it()
 
@@ -53,13 +44,11 @@ class FactsClientAuthenticationError(Exception):
 
 
 class FactsClient(object):
-    bus_name = facts_constants.FACTS_BUS_NAME
-    object_path = facts_constants.FACTS_ROOT_DBUS_PATH
+    bus_name = facts_constants.FACTS_DBUS_NAME
+    object_path = facts_constants.FACTS_DBUS_PATH
     interface_name = facts_constants.FACTS_DBUS_INTERFACE
 
     def __init__(self, bus=None, bus_name=None, object_path=None, interface_name=None):
-        log = logging.getLogger(__name__ + '.' + self.__class__.__name__)
-
         # use default mainloop for dbus
         dbus.mainloop.glib.threads_init()
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
@@ -75,25 +64,26 @@ class FactsClient(object):
         if interface_name:
             self.interface_name = interface_name
 
-        self.dbus_proxy_object = self.bus.get_object(self.bus_name, self.object_path, follow_name_owner_changes=True)
+        self.dbus_proxy_object = self.bus.get_object(self.bus_name, self.object_path,
+            follow_name_owner_changes=True)
 
         self.interface = dbus.Interface(self.dbus_proxy_object,
-                                        dbus_interface=self.interface_name)
+            dbus_interface=self.interface_name)
 
         self.props_interface = dbus.Interface(self.dbus_proxy_object,
-                                             dbus_interface=dbus.PROPERTIES_IFACE)
+            dbus_interface=dbus.PROPERTIES_IFACE)
 
         self.interface.connect_to_signal("PropertiesChanged", self._on_properties_changed,
-                                         dbus_interface=dbus.PROPERTIES_IFACE,
-                                         sender_keyword='sender', destination_keyword='destination',
-                                         interface_keyword='interface', member_keyword='member',
-                                         path_keyword='path')
+            dbus_interface=dbus.PROPERTIES_IFACE,
+            sender_keyword='sender', destination_keyword='destination',
+            interface_keyword='interface', member_keyword='member',
+            path_keyword='path')
 
         self.bus.call_on_disconnection(self._on_bus_disconnect)
         self.interface.connect_to_signal("ServiceStarted", self._on_service_started,
-                                         sender_keyword='sender', destination_keyword='destination',
-                                         interface_keyword='interface', member_keyword='member',
-                                         path_keyword='path')
+            sender_keyword='sender', destination_keyword='destination',
+            interface_keyword='interface', member_keyword='member',
+            path_keyword='path')
 
     def GetFacts(self, *args, **kwargs):
         log.debug("GetFacts pre")
@@ -131,70 +121,3 @@ class FactsClient(object):
     def _on_service_started(self, *args, **kwargs):
         log.debug("ServiceStarted")
         self.signal_handler(*args, **kwargs)
-
-
-class FactsHostClient(FactsClient):
-    object_path = facts_constants.FACTS_HOST_DBUS_PATH
-
-
-def main():
-    from subscription_manager import logutil
-    logutil.init_logger()
-
-    # ick, but otherwise logger name is __main__
-    global log
-    log = logging.getLogger('rhsm.dbus.clients.facts.client')
-
-    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-    dbus.mainloop.glib.threads_init()
-
-    mainloop = GLib.MainLoop()
-
-    if len(args) > 0:
-        bus_class = import_class(args[0])
-
-    facts_client = FactsClient(bus_class=bus_class)
-    facts_host_client = FactsHostClient()
-
-    # Test passing in the object path
-    # facts_read_write_client = FactsClient(object_path=facts_constants.FACTS_READ_WRITE_DBUS_PATH)
-
-    def get_facts():
-        facts_host_client.GetFacts()
-        facts_client.GetFacts()
-        # facts_read_write_client.GetFacts()
-        return False
-
-    def get_all_properties():
-        facts_client.GetAll()
-        # facts_read_write_client.GetAll()
-
-    GLib.idle_add(get_facts)
-    GLib.idle_add(get_all_properties)
-
-    GLib.timeout_add_seconds(9, facts_client.GetFacts)
-    GLib.timeout_add_seconds(11, facts_host_client.GetFacts)
-    # GLib.timeout_add_seconds(13, facts_read_write_client.GetAll)
-
-    try:
-        mainloop.run()
-    except KeyboardInterrupt as e:
-        log.exception(e)
-    except SystemExit as e:
-        log.exception(e)
-        log.debug("system exit")
-    except Exception as e:
-        log.exception(e)
-
-    mainloop.quit()
-
-if __name__ == "__main__":
-    parser = optparse.OptionParser()
-    parser.add_option("-v", "--verbose", action="store_true")
-    (options, args) = parser.parse_args()
-
-    if options.verbose:
-        logger = logging.getLogger('')
-        logger.setLevel(logging.DEBUG)
-
-    sys.exit(main())

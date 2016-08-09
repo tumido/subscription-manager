@@ -28,7 +28,7 @@ INTERFACE_BASE = BUS_NAME
 # /com/redhat/RHSM1
 ROOT_DBUS_PATH = '/' + string.replace(BUS_NAME, '.', '/')
 
-SERVICE_VAR_PATH = os.path.join('var', 'lib', 'rhsm', 'cache')
+SERVICE_VAR_PATH = os.path.join('/', 'var', 'lib', 'rhsm', 'cache')
 DBUS_SERVICE_CACHE_PATH = os.path.join(SERVICE_VAR_PATH, 'dbus')
 
 MAIN_INTERFACE = INTERFACE_BASE

@@ -5,16 +5,17 @@ import dbus
 
 import rhsmlib.dbus as common
 
-from rhsmlib.facts import collector
+from rhsmlib.facts import collector, host_collector
 from rhsmlib.dbus.base_object import BaseObject, BaseProperties, Property
-from rhsmlib.dbus.facts import constants
+from rhsmlib.dbus.facts import constants, cache
 
 log = logging.getLogger(__name__)
 
 
 class BaseFacts(BaseObject):
     interface_name = constants.FACTS_DBUS_INTERFACE
-    default_dbus_path = constants.FACTS_ROOT_DBUS_PATH
+    default_dbus_path = constants.FACTS_DBUS_PATH
+    default_props_data = {}
     _default_facts_collector_class = collector.FactsCollector
 
     def __init__(self, conn=None, object_path=None, bus_name=None):
@@ -90,3 +91,22 @@ class BaseFacts(BaseObject):
     #
     #       - facts.CheckUpdate(), emit FactsChecked() (and bool for 'yes, new facst' in signal?)
     #       - track a 'factsMayNeedToBeSyncedToCandlepin' prop?
+
+
+class FactsCacheFile(cache.JsonFileCache):
+    CACHE_FILE = constants.FACTS_CACHE_FILE
+    default_duration_seconds = constants.FACTS_CACHE_DURATION
+
+
+class FactsHost(BaseFacts):
+    persistent = True
+    default_props_data = {
+        'version': constants.FACTS_VERSION,
+        'name': constants.FACTS_NAME,
+    }
+
+    def __init__(self, conn=None, object_path=None, bus_name=None):
+        super(FactsHost, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
+
+        host_cache = FactsCacheFile()
+        self.facts_collector = host_collector.HostCollector(cache=host_cache)

@@ -86,6 +86,10 @@ class FileStore(Store):
     def __init__(self, path=None):
         self.path = path
         self.fd = None
+        try:
+            os.makedirs(os.path.dirname(path))
+        except OSError as e:
+            pass
 
     def read(self):
         try:
