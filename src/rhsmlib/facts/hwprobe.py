@@ -72,7 +72,7 @@ def parse_range(range_str):
 # util to total up the values represented by a cpu siblings list
 # ala /sys/devices/cpu/cpu0/topology/core_siblings_list
 #
-# which can be a comma seperated list of ranges
+# which can be a comma separated list of ranges
 #  1,2,3,4
 #  1-2, 4-6, 8-10, 12-14
 #
@@ -99,11 +99,11 @@ class GenericPlatformSpecificInfoProvider(object):
         pass
 
 
-class Hardware(collector.FactsCollector):
+class HardwareCollector(collector.FactsCollector):
 
     def __init__(self, arch=None, prefix=None, testing=None,
                  collected_hw_info=None):
-        super(Hardware, self).__init__(arch=arch, prefix=prefix,
+        super(HardwareCollector, self).__init__(arch=arch, prefix=prefix,
                                        testing=testing,
                                        collected_hw_info=None)
 
@@ -727,7 +727,7 @@ if __name__ == '__main__':
     from subscription_manager import logutil
     logutil.init_logger()
 
-    hw = Hardware(prefix=sys.argv[1], testing=True)
+    hw = HardwareCollector(prefix=sys.argv[1], testing=True)
 
     if len(sys.argv) > 1:
         hw.prefix = sys.argv[1]

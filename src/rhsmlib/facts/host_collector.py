@@ -24,7 +24,7 @@ class HostCollector(cached_collector.CachedFactsCollector):
     a non-linux hypervisor, etc.
 
     This in turns runs:
-        hwprobe.Hardware()      [regular hardware facts]
+        hwprobe.HardwareCollector()      [regular hardware facts]
         virt.VirtCollector()    [virt facts, results from virt-what etc]
         firmware_info.FirmwareCollector()  [dmiinfo, devicetree, etc]
         cleanup.CleanupCollector()  [Collapse redundant facts, alter any
@@ -38,7 +38,7 @@ class HostCollector(cached_collector.CachedFactsCollector):
 
     def get_all(self):
         host_facts = {}
-        hardware_collector = hwprobe.Hardware(prefix=self.prefix,
+        hardware_collector = hwprobe.HardwareCollector(prefix=self.prefix,
                                               testing=self.testing,
                                               collected_hw_info=self._collected_hw_info)
         hardware_info = hardware_collector.get_all()
