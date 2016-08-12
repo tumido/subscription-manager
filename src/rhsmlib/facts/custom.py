@@ -1,3 +1,4 @@
+import os
 import glob
 import logging
 
@@ -59,7 +60,7 @@ class CustomFactsDirectory(object):
         self.glob_pattern = glob_pattern
 
     def fact_file_path_iterator(self):
-        facts_file_glob = "%s/%s" % (self.path, self.glob_pattern)
+        facts_file_glob = os.path.join(self.path, self.glob_pattern)
         return glob.iglob(facts_file_glob)
 
     def fact_file_iterator(self, fact_file_path_iterator):

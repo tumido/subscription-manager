@@ -49,7 +49,7 @@ from subscription_manager.gui.autobind import DryRunResult, \
         NoProductsException
 from subscription_manager.jsonwrapper import PoolWrapper
 
-from rhsmlib.dbus.facts import client as facts_client
+import rhsmlib.dbus.facts as facts
 
 _ = lambda x: gettext.ldgettext("rhsm", x)
 
@@ -1971,7 +1971,7 @@ class AsyncBackend(object):
             installed_mgr = require(INSTALLED_PRODUCTS_MANAGER)
 
             # A proxy to the dbus service
-            facts_dbus_client = facts_client.FactsHostClient()
+            facts_dbus_client = facts.FactsClient()
 
             # Note: for now, this is blocking. Maybe we should do it
             #       in the gui mainthread async and pass it in?

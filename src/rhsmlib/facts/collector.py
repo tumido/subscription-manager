@@ -73,12 +73,9 @@ class FactsCollector(object):
         facts_dict = collection.FactsDict()
         facts_dict.update(self.get_all())
         facts_collection = collection.FactsCollection(facts_dict=facts_dict)
-        log.debug("facts_collection=%s", facts_collection)
-
         return facts_collection
 
     def get_all(self):
-
         # try each hardware method, and try/except around, since
         # these tend to be fragile
         all_hw_info = {}
@@ -87,8 +84,7 @@ class FactsCollector(object):
             try:
                 info_dict = hardware_method()
             except Exception as e:
-                log.warn("%s" % hardware_method)
-                log.warn("Hardware detection failed: %s" % e)
+                log.warn("Hardware detection [%s] failed: %s" % (hardware_method.__name__, e))
 
             all_hw_info.update(info_dict)
 

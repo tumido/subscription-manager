@@ -21,8 +21,8 @@ import logging
 from certlib import Locker, ActionReport
 from subscription_manager import injection as inj
 
-from rhsmlib.dbus.facts import client as facts_client
-from rhsmlib.candlepin import api as candlepin_api
+import rhsmlib.dbus.facts as facts
+import rhsmlib.candlepin.api as candlepin_api
 
 _ = gettext.gettext
 
@@ -82,7 +82,7 @@ class FactsActionCommand(object):
     """
     def __init__(self):
         self.report = FactsActionReport()
-        self.facts_client = facts_client.FactsHostClient()
+        self.facts_client = facts.FactsClient()
 
     def _on_facts_changed(self, changed_properties, invalidated_properties):
         if 'facts' in changed_properties:

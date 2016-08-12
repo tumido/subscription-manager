@@ -22,7 +22,7 @@ from subscription_manager.gui import widgets
 from subscription_manager.gui.utils import handle_gui_exception, linkify
 from subscription_manager import injection as inj
 
-from rhsmlib.dbus.facts import client as facts_client
+import rhsmlib.dbus.facts as facts
 
 _ = gettext.gettext
 
@@ -48,7 +48,7 @@ class SystemFactsDialog(widgets.SubmanBaseWidget):
         self.identity = inj.require(inj.IDENTITY)
         self.cp_provider = inj.require(inj.CP_PROVIDER)
 
-        self.facts = facts_client.FactsHostClient()
+        self.facts = facts.FactsClient()
 
         self.connect_signals({
                 "on_system_facts_dialog_delete_event": self._hide_callback,

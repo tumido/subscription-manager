@@ -108,7 +108,6 @@ class FactsCollection(object):
         fc.data.update(facts_collection.data)
         # The FactsCollector subclass needs to set dirty in it's init.
         # Here, we don't need to be persisted, so dirty is by default False.
-        log.debug("FC.from_facts_collection fc=%s", fc)
         return fc
 
     @classmethod
@@ -116,7 +115,6 @@ class FactsCollection(object):
         """Create a FactsCollection from a Cache object.
 
         Any errors reading the Cache can raise CacheError exceptions."""
-        log.debug("FC.from_cache")
         if not cache.exists:
             log.debug('Cache does not exist, creating expired Facts collection')
             # Create an expired Facts Collection so that we create the cache
@@ -132,8 +130,6 @@ class FactsCollection(object):
 
     def cache_save_start(self, facts_collection):
         # Create a new FactsCollection with new timestamp
-        log.debug("save_to_cache facts_collection=%s", facts_collection)
-        # We are not persisted, nothing to do.
         self.cache_save_finished(facts_collection)
 
     def cache_save_finished(self, facts_collection):

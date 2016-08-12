@@ -40,7 +40,6 @@ class Server(object):
         bus_class = bus_class or dbus.SystemBus
         bus = bus_class()
 
-        log.debug("object_classes=%s", object_classes)
         for clazz in object_classes:
             connection_name = dbus.service.BusName(bus_name, bus)
             clazz(object_path=clazz.default_dbus_path, bus_name=connection_name)

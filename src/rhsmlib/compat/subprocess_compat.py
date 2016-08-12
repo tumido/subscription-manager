@@ -26,21 +26,14 @@ def check_output_2_6(*args, **kwargs):
 
     log.debug("Running '%s'" % cmd_args)
 
-    process = subprocess.Popen(*args,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE,
-                               **kwargs)
+    process = subprocess.Popen(*args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
     (std_output, std_error) = process.communicate()
-
-    log.debug("%s stdout: %s" % (cmd_args, std_output))
-    log.debug("%s stderr: %s" % (cmd_args, std_error))
 
     output = std_output.strip()
 
     returncode = process.poll()
     if returncode:
-        raise CalledProcessError(returncode, cmd_args,
-                                 output=output)
+        raise CalledProcessError(returncode, cmd_args, output=output)
 
     return output
 

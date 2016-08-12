@@ -70,7 +70,7 @@ class Store(object):
     def exists(self):
         return None
 
-    def write(self):
+    def write(self, data):
         pass
 
     def read(self):
@@ -79,9 +79,8 @@ class Store(object):
     def clear(self):
         pass
 
+
 # Will we need to make this prefix/chroot aware?
-
-
 class FileStore(Store):
     def __init__(self, path=None):
         self.path = path
@@ -91,30 +90,44 @@ class FileStore(Store):
         except OSError as e:
             pass
 
+        try:
+            open(path, 'a').close()
+        except EnvironmentError as e:
+            log.warn("Could not open cache: ", exc_info=e)
+
     def read(self):
+        if not self.exists:
+            return ""
+
         try:
             with open(self.path) as fd:
                 return fd.read()
         except EnvironmentError as e:
             log.exception(e)
             msg = 'Unable to read cache store at %s: %s' % (self.path, e)
-            # FIXME: raise a specific useful exception
             raise CacheReadError(msg)
 
     def write(self, data):
+        if not self.exists:
+            return
+
         try:
             with open(self.path, 'w') as fd:
                 fd.write(data)
         except EnvironmentError as e:
             log.exception(e)
             log.error('Unable to write cache store at %s: %s', self.path, e)
-            # FIXME: raise useful exception
+            raise
 
     def delete(self):
+        if not self.exists:
+            return
+
         try:
             os.remove(self.path)
         except EnvironmentError as e:
             log.debug('Unable to delete cache store at %s: %s', self.path, e)
+            raise
 
     # TODO: write properties (ie, set mtime on cache file to match the collection time)
     @property
@@ -132,8 +145,6 @@ class FileStore(Store):
         try:
             return os.access(self.path, os.R_OK)
         except EnvironmentError as e:
-            log.debug('Unable to access cache store at %s: %s', self.path, e)
-            # TODO: raise something useful...
             return False
 
 
@@ -153,7 +164,6 @@ class JsonFileCache(FileCache):
         self._json_decoder = json.JSONDecoder()
 
     def write(self, data):
-        log.debug("writing json file cache to %s", self.store.path)
         self.store.write(self._json_encode(data))
 
     # TODO: add CacheReadError / CacheDecodeError ?

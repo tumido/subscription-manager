@@ -1,28 +1,36 @@
+import os
 import logging
 import time
 
 import dbus
 
+import rhsm.config
+
 import rhsmlib.dbus as common
 
-from rhsmlib.facts import collector, host_collector
+from rhsmlib.facts import collector, host_collector, hwprobe, custom
 from rhsmlib.dbus.base_object import BaseObject, BaseProperties, Property
 from rhsmlib.dbus.facts import constants, cache
 
 log = logging.getLogger(__name__)
 
 
+class FactsCacheFile(cache.JsonFileCache):
+    CACHE_FILE = constants.FACTS_CACHE_FILE
+    default_duration_seconds = constants.FACTS_CACHE_DURATION
+
+
 class BaseFacts(BaseObject):
     interface_name = constants.FACTS_DBUS_INTERFACE
-    default_dbus_path = constants.FACTS_DBUS_PATH
     default_props_data = {}
-    _default_facts_collector_class = collector.FactsCollector
+    facts_collector_class = collector.FactsCollector
 
     def __init__(self, conn=None, object_path=None, bus_name=None):
+        self.dbus_path = object_path
         super(BaseFacts, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
 
         # Default is an empty FactsCollector
-        self.facts_collector = self._default_facts_collector_class()
+        self.facts_collector = self.facts_collector_class()
 
     def _create_properties(self, interface_name):
         properties = BaseProperties.create_instance(
@@ -47,8 +55,6 @@ class BaseFacts(BaseObject):
     @common.dbus_service_method(dbus_interface=constants.FACTS_DBUS_INTERFACE, out_signature='a{ss}')
     @common.dbus_handle_exceptions
     def GetFacts(self, sender=None):
-        log.debug("GetFacts")
-
         # Are we using the cache or force?
 
         # If using the cache, load the CachedFactsCollection if possible
@@ -93,12 +99,39 @@ class BaseFacts(BaseObject):
     #       - track a 'factsMayNeedToBeSyncedToCandlepin' prop?
 
 
-class FactsCacheFile(cache.JsonFileCache):
-    CACHE_FILE = constants.FACTS_CACHE_FILE
-    default_duration_seconds = constants.FACTS_CACHE_DURATION
+class AllFacts(BaseObject):
+    interface_name = constants.FACTS_DBUS_INTERFACE
+    default_dbus_path = constants.FACTS_DBUS_PATH
+
+    def __init__(self, conn=None, object_path=None, bus_name=None):
+        super(AllFacts, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
+
+        # Why aren't we using a dictionary here? Because we want to control the order and OrderedDict
+        # isn't in Python 2.6.  By controlling the order and putting CustomFacts last, we can ensure
+        # that users can override any fact.
+        collector_definitions = [
+            ("Host", HostFacts),
+            ("Hardware", HardwareFacts),
+            ("Custom", CustomFacts),
+        ]
+
+        self.collectors = []
+        for path, clazz in collector_definitions:
+            sub_path = self.default_dbus_path + "/" + path
+            self.collectors.append(
+                (path, clazz(conn=conn, object_path=sub_path, bus_name=bus_name))
+            )
+
+    @common.dbus_service_method(dbus_interface=constants.FACTS_DBUS_INTERFACE, out_signature='a{ss}')
+    @common.dbus_handle_exceptions
+    def GetFacts(self, sender=None):
+        results = {}
+        for name, collector in self.collectors:
+            results.update(collector.GetFacts())
+        return results
 
 
-class FactsHost(BaseFacts):
+class HostFacts(BaseFacts):
     persistent = True
     default_props_data = {
         'version': constants.FACTS_VERSION,
@@ -106,7 +139,33 @@ class FactsHost(BaseFacts):
     }
 
     def __init__(self, conn=None, object_path=None, bus_name=None):
-        super(FactsHost, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
+        super(HostFacts, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
+        self.facts_collector = host_collector.HostCollector(cache=FactsCacheFile())
 
-        host_cache = FactsCacheFile()
-        self.facts_collector = host_collector.HostCollector(cache=host_cache)
+
+class HardwareFacts(BaseFacts):
+    persistent = True
+    default_props_data = {
+        'version': constants.FACTS_VERSION,
+        'name': constants.FACTS_NAME,
+    }
+
+    def __init__(self, conn=None, object_path=None, bus_name=None):
+        super(HardwareFacts, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
+        self.facts_collector = hwprobe.HardwareCollector()
+
+
+class CustomFacts(BaseFacts):
+    persistent = True
+    default_props_data = {
+        'version': constants.FACTS_VERSION,
+        'name': constants.FACTS_NAME,
+    }
+
+    def __init__(self, conn=None, object_path=None, bus_name=None):
+        super(CustomFacts, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
+
+        paths_and_globs = [
+            (os.path.join(rhsm.config.DEFAULT_CONFIG_DIR, 'facts'), '*.facts'),
+        ]
+        self.facts_collector = custom.CustomFactsCollector(path_and_globs=paths_and_globs)

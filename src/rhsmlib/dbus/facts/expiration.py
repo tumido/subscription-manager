@@ -31,10 +31,6 @@ class Expiration(object):
 
     def expired(self, at_time=None):
         at_time = at_time or datetime.datetime.utcnow()
-        log.debug("Self=%s", self)
-        log.debug("FC    expire check expdt=%s at_time=%s", repr(self.expiry_datetime), repr(at_time))
-        log.debug("FC    expire check expdt=%s at_time=%s", self.expiry_datetime, at_time)
-        log.debug("FC    expire check exp < at_time = %s", self.expiry_datetime < at_time)
         return self.expiry_datetime < at_time
 
     @property

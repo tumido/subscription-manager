@@ -33,7 +33,7 @@ def load_bus_class(option, opt_str, value, parser):
 
 def main(options):
     object_classes = [
-        base.FactsHost,
+        base.AllFacts,
     ]
 
     try:
@@ -50,10 +50,8 @@ def main(options):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG, format="%(levelname)5s [%(name)s:%(lineno)s] %(message)s")
     log.setLevel(logging.INFO)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    log.addHandler(ch)
 
     parser = optparse.OptionParser()
     parser.add_option("-b", "--bus",

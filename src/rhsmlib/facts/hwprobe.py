@@ -513,7 +513,6 @@ class HardwareCollector(collector.FactsCollector):
             cpu_info["cpu.socket(s)_per_book"] = sockets_per_book
             cpu_info["cpu.book(s)"] = book_count
 
-        log.debug("cpu info: %s" % cpu_info)
         return cpu_info
 
     def get_ls_cpu_info(self):

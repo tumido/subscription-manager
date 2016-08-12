@@ -1093,7 +1093,7 @@ class RegisterCommand(UserPassCommand):
         self.cp_provider.clean()
 
         # A proxy to the dbus service
-        facts_dbus_client = facts.FactsHostClient()
+        facts_dbus_client = facts.FactsClient()
 
         # Proceed with new registration:
         try:
@@ -1849,7 +1849,7 @@ class FactsCommand(CliCommand):
 
         if self.options.list:
             # A proxy to the dbus service
-            facts_dbus_client = facts.FactsHostClient()
+            facts_dbus_client = facts.FactsClient()
 
             facts_dict = facts_dbus_client.GetFacts()
             facts_keys = facts_dict.keys()
@@ -1864,7 +1864,7 @@ class FactsCommand(CliCommand):
         if self.options.update:
             #identity = inj.require(inj.IDENTITY)
             # A proxy to the dbus service
-            facts_dbus_client = facts.FactsHostClient()
+            facts_dbus_client = facts.FactsClient()
             facts_action_command = FactsActionCommand()
             facts_action_command.update_force()
 

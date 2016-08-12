@@ -106,14 +106,14 @@ class DmiFirmwareInfoCollector(collector.FactsCollector):
                 # keep track of any cpu socket info we find, we have to do
                 # it here, since we flatten it and lose the info creating nkey
                 if tag == 'dmi.processor.' and key1 == 'Socket Designation':
-                    self.socket_designation.append(value1)
+                    self._socket_designation.append(value1)
 
                 nkey = ''.join([tag, key1.lower()]).replace(" ", "_")
                 ddict[nkey] = str(value1)
 
         # Populate how many socket descriptions we saw in a faux-fact, so we can
         # use it to munge lscpu info later if needed.
-        if self.socket_designation:
-            ddict['dmi.meta.cpu_socket_count'] = str(len(self.socket_designation))
+        if self._socket_designation:
+            ddict['dmi.meta.cpu_socket_count'] = str(len(self._socket_designation))
 
         return ddict
