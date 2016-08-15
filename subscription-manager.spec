@@ -77,6 +77,8 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 Requires:  python-ethtool
 Requires:  python-iniparse
+Requires:  python-decorator
+Requires:  dbus-x11
 Requires:  virt-what
 Requires:  python-rhsm >= 1.18.1
 %if 0%{?sles_version}
@@ -404,33 +406,14 @@ rm -rf %{buildroot}
 %{_prefix}/lib/yum-plugins/search-disabled-repos.py*
 
 # rhsmlib
-%dir %{python_sitelib}/rhsmlib
-%dir %{python_sitelib}/rhsmlib/facts
-%dir %{python_sitelib}/rhsmlib/compat
-%dir %{python_sitelib}/rhsmlib/candlepin
-%dir %{python_sitelib}/rhsmlib/dbus
-%dir %{python_sitelib}/rhsmlib/dbus/clients
-%dir %{python_sitelib}/rhsmlib/dbus/clients/facts
-%dir %{python_sitelib}/rhsmlib/dbus/common
-%dir %{python_sitelib}/rhsmlib/dbus/private
-%dir %{python_sitelib}/rhsmlib/dbus/services
-%dir %{python_sitelib}/rhsmlib/dbus/services/facts
-%dir %{python_sitelib}/rhsmlib/dbus/services/submand
-%dir %{python_sitelib}/rhsmlib/dbus/services/subscriptions
-
 %{python_sitelib}/rhsmlib/*.py*
-%{python_sitelib}/rhsmlib/facts/*.py*
-%{python_sitelib}/rhsmlib/compat/*.py*
 %{python_sitelib}/rhsmlib/candlepin/*.py*
+%{python_sitelib}/rhsmlib/compat/*.py*
+%{python_sitelib}/rhsmlib/facts/*.py*
+%{python_sitelib}/rhsmlib/services/*.py*
 %{python_sitelib}/rhsmlib/dbus/*.py*
-%{python_sitelib}/rhsmlib/dbus/clients/*.py*
-%{python_sitelib}/rhsmlib/dbus/clients/facts/*.py*
-%{python_sitelib}/rhsmlib/dbus/common/*.py*
-%{python_sitelib}/rhsmlib/dbus/private/*.py*
-%{python_sitelib}/rhsmlib/dbus/services/*.py*
-%{python_sitelib}/rhsmlib/dbus/services/facts/*.py*
-%{python_sitelib}/rhsmlib/dbus/services/submand/*.py*
-%{python_sitelib}/rhsmlib/dbus/services/subscriptions/*.py*
+%{python_sitelib}/rhsmlib/dbus/facts/*.py*
+%{python_sitelib}/rhsmlib/dbus/objects/*.py*
 
 %{_datadir}/polkit-1/actions/com.redhat.*.policy
 %{_datadir}/dbus-1/system-services/com.redhat.*.service
