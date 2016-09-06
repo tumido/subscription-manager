@@ -1,3 +1,4 @@
+-r test-requirements.txt
 yanc
 nose-randomly
 xtraceback

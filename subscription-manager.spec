@@ -368,12 +368,7 @@ rm -rf %{buildroot}
 %{_sysconfdir}/bash_completion.d/rhsm-icon
 %{_sysconfdir}/bash_completion.d/rhsmcertd
 
-%dir %{python_sitelib}/
 %dir %{python_sitelib}/subscription_manager
-%dir %{python_sitelib}/subscription_manager/api
-%dir %{python_sitelib}/subscription_manager/branding
-%dir %{python_sitelib}/subscription_manager/model
-%dir %{python_sitelib}/subscription_manager/plugin
 
 # code, python modules and packages
 %{python_sitelib}/subscription_manager-*.egg-info/*
@@ -406,6 +401,7 @@ rm -rf %{buildroot}
 %{_prefix}/lib/yum-plugins/search-disabled-repos.py*
 
 # rhsmlib
+%dir %{python_sitelib}/rhsmlib
 %{python_sitelib}/rhsmlib/*.py*
 %{python_sitelib}/rhsmlib/candlepin/*.py*
 %{python_sitelib}/rhsmlib/compat/*.py*
