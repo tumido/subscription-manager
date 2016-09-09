@@ -100,7 +100,7 @@ class Failed(dbus.DBusException):
     include_traceback = True
 
     def __init__(self, msg=None):
-        super(InvalidArguments, self).__init__(
+        super(Failed, self).__init__(
             msg or "Operation failed",
             name="org.freedesktop.DBus.Error.Failed"
         )
