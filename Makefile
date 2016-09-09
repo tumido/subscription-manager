@@ -13,7 +13,7 @@
 #   just the fastest or easiest way.
 
 SHELL := /bin/bash
-PREFIX ?=
+PREFIX ?= /
 SYSCONF ?= etc
 INSTALL_DIR = usr/share
 
