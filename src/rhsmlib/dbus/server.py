@@ -38,7 +38,11 @@ class Server(object):
         dbus.mainloop.glib.threads_init()
 
         bus_class = bus_class or dbus.SystemBus
-        bus = bus_class()
+        try:
+            bus = bus_class()
+        except dbus.exceptions.DBusException:
+            log.exception("Could not create bus class")
+            raise
 
         for clazz in object_classes:
             connection_name = dbus.service.BusName(bus_name, bus)

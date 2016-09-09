@@ -14,6 +14,11 @@
 # in this software or its documentation.
 #
 import logging
+
+logging.basicConfig(level=logging.DEBUG, format="%(levelname)5s [%(name)s:%(lineno)s] %(message)s")
+log = logging.getLogger('')
+log.setLevel(logging.INFO)
+
 import dbus
 import sys
 import optparse
@@ -22,8 +27,6 @@ import rhsmlib.dbus.facts.base as base
 
 from rhsmlib import import_class
 from rhsmlib.dbus.server import Server
-
-log = logging.getLogger('')
 
 
 def load_bus_class(option, opt_str, value, parser):
@@ -50,9 +53,6 @@ def main(options):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG, format="%(levelname)5s [%(name)s:%(lineno)s] %(message)s")
-    log.setLevel(logging.INFO)
-
     parser = optparse.OptionParser()
     parser.add_option("-b", "--bus",
         action="callback", callback=load_bus_class,
@@ -65,4 +65,13 @@ if __name__ == "__main__":
     if options.verbose:
         log.setLevel(logging.DEBUG)
 
-    sys.exit(main(options))
+    try:
+        sys.exit(main(options))
+    except Exception:
+        log.exception("DBus service startup failed")
+
+else:
+    # Importing this module would screw up the importer's logging configuration since
+    # we're setting up logging very early in module scope to catch any log messages that
+    # occur during the loading of the dependent modules.
+    raise NotImplementedError("This module is not meant to be imported")

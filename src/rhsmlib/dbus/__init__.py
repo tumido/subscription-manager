@@ -8,7 +8,6 @@ import dbus.service
 import dbus.exceptions
 
 log = logging.getLogger(__name__)
-logger_initialized = False
 
 NAME_BASE = "com.redhat.RHSM"
 VERSION = "1"
