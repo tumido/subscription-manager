@@ -10,10 +10,10 @@ from rhsmlib.facts import virt
 from rhsmlib.facts import firmware_info
 
 
-from rhsmlib.dbus.facts import cached_collector
+from rhsmlib.facts import collector
 
 
-class HostCollector(cached_collector.CachedFactsCollector):
+class HostCollector(collector.FactsCollector):
     """Collect facts for a host system.
 
     'host' in this case means approx something running

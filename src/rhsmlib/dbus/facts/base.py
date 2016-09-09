@@ -10,14 +10,9 @@ import rhsmlib.dbus as common
 
 from rhsmlib.facts import collector, host_collector, hwprobe, custom
 from rhsmlib.dbus.base_object import BaseObject, BaseProperties, Property
-from rhsmlib.dbus.facts import constants, cache
+from rhsmlib.dbus.facts import constants
 
 log = logging.getLogger(__name__)
-
-
-class FactsCacheFile(cache.JsonFileCache):
-    CACHE_FILE = constants.FACTS_CACHE_FILE
-    default_duration_seconds = constants.FACTS_CACHE_DURATION
 
 
 class BaseFacts(BaseObject):
@@ -140,7 +135,7 @@ class HostFacts(BaseFacts):
 
     def __init__(self, conn=None, object_path=None, bus_name=None):
         super(HostFacts, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
-        self.facts_collector = host_collector.HostCollector(cache=FactsCacheFile())
+        self.facts_collector = host_collector.HostCollector()
 
 
 class HardwareFacts(BaseFacts):
