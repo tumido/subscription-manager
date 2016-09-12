@@ -13,41 +13,27 @@
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation.
 #
-import dbus
-import sys
-import optparse
 import logging
 
-from subscription_manager import logutil
-logutil.init_logger()
+# Init logging very early so we can log any issues that occur at import time
+logging.basicConfig(level=logging.DEBUG, format="%(levelname)5s [%(name)s:%(lineno)s] %(message)s")
+log = logging.getLogger('')
+log.setLevel(logging.INFO)
 
-import rhsmlib.dbus as common
-
-from rhsmlib import import_class
-from rhsmlib.dbus.server import PrivateServer
-from rhsmlib.dbus.objects import RegisterService
-
-
-def main(args):
-    bus_name = common.BUS_NAME
-
-    if len(args) > 1:
-        bus_name = args[0]
-
-    object_classes = [
-        RegisterService
-    ]
-
-    PrivateServer(object_classes=object_classes).run()
-    return 0
+import sys
+from rhsmlib.dbus import service_wrapper
+from rhsmlib.dbus import objects
 
 if __name__ == "__main__":
-    parser = optparse.OptionParser()
-    parser.add_option("-v", "--verbose", action="store_true")
-    (options, args) = parser.parse_args()
-
-    if options.verbose:
-        logger = logging.getLogger('')
-        logger.setLevel(logging.DEBUG)
-
-    sys.exit(main(args))
+    try:
+        object_classes = [
+            objects.RegisterService,
+        ]
+        sys.exit(service_wrapper.main(sys.argv, object_classes=object_classes))
+    except Exception:
+        log.exception("DBus service startup failed")
+else:
+    # Importing this module would screw up the importer's logging configuration since
+    # we're setting up logging very early in module scope to catch any log messages that
+    # occur during the loading of the dependent modules.
+    raise ImportError("This module is not meant to be imported")

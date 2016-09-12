@@ -10,17 +10,17 @@
 # Red Hat trademarks are not licensed under GPLv2. No permission is
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation.
-
+import imp
 
 def import_class(name):
     """Load a class from a string.  Thanks http://stackoverflow.com/a/547867/61248 """
     components = name.split('.')
     current_level = components[0]
-    module = __import__(current_level)
+    module_tuple = imp.find_module(current_level)
+    module = imp.load_module(current_level, *module_tuple)
     for comp in components[1:-1]:
         # import all the way down to the class
-        current_level = ".".join([current_level, comp])
-        __import__(current_level)
-        # the class will be an attribute on the lowest level module
-        module = getattr(module, comp)
+        module_tuple = imp.find_module(comp, module.__path__)
+        module = imp.load_module(comp, *module_tuple)
+    # the class will be an attribute on the lowest level module
     return getattr(module, components[-1])

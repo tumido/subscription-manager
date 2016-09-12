@@ -15,63 +15,29 @@
 #
 import logging
 
+# Init logging very early so we can log any issues that occur at import time
 logging.basicConfig(level=logging.DEBUG, format="%(levelname)5s [%(name)s:%(lineno)s] %(message)s")
 log = logging.getLogger('')
 log.setLevel(logging.INFO)
 
-import dbus
 import sys
-import optparse
-import rhsmlib.dbus.facts.constants as constants
-import rhsmlib.dbus.facts.base as base
-
-from rhsmlib import import_class
-from rhsmlib.dbus.server import Server
-
-
-def load_bus_class(option, opt_str, value, parser):
-    clazz = import_class(value)
-    parser.values.bus = clazz
-
-
-def main(options):
-    object_classes = [
-        base.AllFacts,
-    ]
-
-    try:
-        log.debug('Starting DBus service with name %s' % options.bus_name)
-        Server(
-            bus_class=options.bus,
-            bus_name=options.bus_name,
-            object_classes=object_classes).run()
-    except dbus.exceptions.DBusException as e:
-        if e._dbus_error_name == "org.freedesktop.DBus.Error.AccessDenied":
-            print("Access to DBus denied.  You need to edit /etc/dbus-1/system.conf to allow %s or run with "
-                "dbus-daemon and a custom config file." % options.bus_name)
-    return 0
-
+from rhsmlib.dbus import service_wrapper
+from rhsmlib.dbus.facts import base, constants
 
 if __name__ == "__main__":
-    parser = optparse.OptionParser()
-    parser.add_option("-b", "--bus",
-        action="callback", callback=load_bus_class,
-        type="string", default=dbus.SessionBus,
-        help="Bus to use (e.g. dbus.SessionBus)")
-    parser.add_option("-n", "--bus-name", default=constants.FACTS_DBUS_NAME)
-    parser.add_option("-v", "--verbose", action="store_true")
-    (options, _args) = parser.parse_args()
-
-    if options.verbose:
-        log.setLevel(logging.DEBUG)
-
     try:
-        sys.exit(main(options))
+        object_classes = [
+            base.AllFacts,
+        ]
+        sys.exit(service_wrapper.main(
+            sys.argv,
+            object_classes=object_classes,
+            default_bus_name=constants.FACTS_DBUS_NAME)
+        )
     except Exception:
         log.exception("DBus service startup failed")
-
 else:
     # Importing this module would screw up the importer's logging configuration since
     # we're setting up logging very early in module scope to catch any log messages that
     # occur during the loading of the dependent modules.
-    raise NotImplementedError("This module is not meant to be imported")
+    raise ImportError("This module is not meant to be imported")

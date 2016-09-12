@@ -7,6 +7,7 @@ import string
 import dbus.service
 import dbus.exceptions
 
+
 log = logging.getLogger(__name__)
 
 NAME_BASE = "com.redhat.RHSM"
