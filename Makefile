@@ -85,10 +85,10 @@ MAIN_INST_DBUS_SERVICE_FILE = $(DBUS_SERVICES_CONF_INST_DIR)/com.redhat.RHSM1.se
 # custom install_data class we have in setup.py
 ifeq ($(DBUS_SERVICE_FILE_TYPE),dbus)
 FACTS_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.RHSM1.Facts.service-dbus
-MAIN_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/main/com.redhat.RHSM1.service-dbus
+MAIN_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/com.redhat.RHSM1.service-dbus
 else
 FACTS_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.RHSM1.Facts.service
-MAIN_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/main/com.redhat.RHSM1.service
+MAIN_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/com.redhat.RHSM1.service
 endif
 
 # always true until fedora is just dnf
@@ -168,16 +168,16 @@ dbus-facts-service-install: dbus-common-install
 	install -m 755 $(DBUS_SERVICES_SRC_DIR)/facts/rhsm-facts-service $(PREFIX)/usr/libexec/rhsm-facts-service
 
 dbus-main-service-install: dbus-common-install
-	install -m 644 $(DBUS_SERVICES_SRC_DIR)/main/com.redhat.RHSM1.conf $(PREFIX)/etc/dbus-1/system.d
+	install -m 644 $(DBUS_SERVICES_SRC_DIR)/com.redhat.RHSM1.conf $(PREFIX)/etc/dbus-1/system.d
 	if [ "$(DBUS_SERVICE_FILE_TYPE)" == "systemd" ]; then \
-		install -m 644 $(DBUS_SERVICES_SRC_DIR)/main/rhsm-main.service $(SYSTEMD_INST_DIR) ; \
+		install -m 644 $(DBUS_SERVICES_SRC_DIR)/rhsm.service $(SYSTEMD_INST_DIR) ; \
 	fi
 	install -m 644 $(MAIN_SRC_DBUS_SERVICE_FILE) $(MAIN_INST_DBUS_SERVICE_FILE)
-	install -m 755 $(DBUS_SERVICES_SRC_DIR)/main/rhsm-main-service \
-		$(PREFIX)/$(LIBEXEC_DIR)/rhsm-main-service
+	install -m 755 $(DBUS_SERVICES_SRC_DIR)/rhsm-service \
+		$(PREFIX)/$(LIBEXEC_DIR)/rhsm-service
 
 .PHONY: dbus-install
-dbus-install: dbus-facts-service-install dbus-rhsmd-service-install
+dbus-install: dbus-facts-service-install dbus-rhsmd-service-install dbus-main-service-install
 
 .PHONY: install-conf
 install-conf:
