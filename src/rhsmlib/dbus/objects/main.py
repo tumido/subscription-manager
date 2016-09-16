@@ -30,13 +30,6 @@ class Main(dbus.service.Object):
 
     @dbus.service.method(
         dbus_interface=common.MAIN_INTERFACE,
-        in_signature='s',
-        out_signature='o')
-    def get_object_for_interface(self, interface):
-        return self.interface_to_service.get(interface, None)
-
-    @dbus.service.method(
-        dbus_interface=common.MAIN_INTERFACE,
         out_signature='s')
     def start_registration(self):
         log.debug('start_registration called')

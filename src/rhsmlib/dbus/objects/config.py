@@ -55,7 +55,7 @@ class ConfigDBusObject(BaseObject):
         if not property_name:
             raise DBusException("Setting an entire section is not supported.  Use 'section.property' format.")
 
-        self.config[section][property_name]
+        self.config[section][property_name] = new_value
         self.config.persist()
 
     @common.dbus_service_method(

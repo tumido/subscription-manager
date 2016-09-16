@@ -1,4 +1,4 @@
 [D-BUS Service]
 Name=com.redhat.RHSM1
-Exec=/usr/libexec/rhsm-main-service
+Exec=/usr/libexec/rhsm-service
 User=root
