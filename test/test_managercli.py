@@ -1170,6 +1170,12 @@ class TestFactsCommand(TestCliProxyCommand):
 class TestImportCertCommand(TestCliCommand):
     command_class = managercli.ImportCertCommand
 
+    def setUp(self):
+        super(TestImportCertCommand, self).setUp()
+        argv_patcher = patch.object(sys, 'argv', ['subscription-manager', 'import'])
+        argv_patcher.start()
+        self.addCleanup(argv_patcher.stop)
+
     def test_certificates(self):
         self.cc.main(["--certificate", "one", "--certificate", "two"])
         self.cc._validate_options()
