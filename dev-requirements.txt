@@ -1,5 +1,3 @@
 -r test-requirements.txt
 yanc
-nose-randomly
 xtraceback
-git+git://github.com/nvie/nose-machineout.git#egg=nose_machineout
