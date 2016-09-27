@@ -14,12 +14,19 @@ import signal
 
 from rhsmlib import dbus as common
 from rhsmlib.dbus import service_wrapper
+from rhsmlib import import_class  # NOQA Surface this method here and have all tests reference it from here
 
 
 class DBusObjectTest(unittest.TestCase):
     def setUp(self):
         self.bus_name = common.BUS_NAME
-        command = ['python', __file__, '-n', self.bus_name, '-b', 'dbus.SessionBus']
+
+        if os.geteuid() == 0:
+            self.bus_class_name = 'dbus.SystemBus'
+        else:
+            self.bus_class_name = 'dbus.SessionBus'
+
+        command = ['python', __file__, '-n', self.bus_name, '-b', self.bus_class_name]
 
         object_classes = self.dbus_objects()
         for clazz in object_classes:

@@ -23,7 +23,7 @@ from rhsmlib.services.config import Config, ConfigSection
 from rhsm.config import RhsmConfigParser, NoOptionError
 from rhsmlib.dbus.objects.config import ConfigDBusObject
 
-from .base import DBusObjectTest
+from .base import DBusObjectTest, import_class
 
 TEST_CONFIG = """
 [foo]
@@ -195,7 +195,7 @@ class TestConfigSection(BaseConfigTest):
 
 class TestConfigDBusObject(DBusObjectTest):
     def postServerSetUp(self):
-        self.bus = dbus.SessionBus()
+        self.bus = import_class(self.bus_class_name)()
         self.proxy = self.bus.get_object(
             self.bus_name, ConfigDBusObject.default_dbus_path)
         self.interface = dbus.Interface(self.proxy, dbus_interface=dbus.PROPERTIES_IFACE)
