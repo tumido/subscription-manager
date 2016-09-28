@@ -12,6 +12,7 @@
 # in this software or its documentation.
 import imp
 
+
 def import_class(name):
     """Load a class from a string.  Thanks http://stackoverflow.com/a/547867/61248 """
     components = name.split('.')

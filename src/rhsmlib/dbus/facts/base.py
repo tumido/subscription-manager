@@ -121,8 +121,8 @@ class AllFacts(BaseObject):
     @common.dbus_handle_exceptions
     def GetFacts(self, sender=None):
         results = {}
-        for name, collector in self.collectors:
-            results.update(collector.GetFacts())
+        for name, fact_collector in self.collectors:
+            results.update(fact_collector.GetFacts())
         return results
 
 
