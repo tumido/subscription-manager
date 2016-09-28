@@ -21,8 +21,7 @@ log = logging.getLogger('')
 log.setLevel(logging.INFO)
 
 import sys
-from rhsmlib.dbus import service_wrapper
-from rhsmlib.dbus import objects
+from rhsmlib.dbus import service_wrapper, objects
 
 if __name__ == "__main__":
     try:

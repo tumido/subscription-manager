@@ -11,18 +11,19 @@
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation.
 #
-import rhsmlib.dbus as common
 import gettext
 import socket
 import json
 import logging
 import dbus.service
 
-import subscription_manager.managerlib as managerlib
-import rhsm.connection as connection
-from rhsmlib.dbus import dbus_utils
+from rhsmlib.dbus import constants, exceptions, dbus_utils
+
+from subscription_manager import managerlib
+from rhsm import connection
 
 from subscription_manager import injection as inj
+
 _ = gettext.gettext
 log = logging.getLogger(__name__)
 
@@ -31,9 +32,9 @@ class PrivateService(dbus.service.Object):
     """ The base class for service objects to be exposed on either a private connection
         or a bus."""
     _interface_name = None
-    _default_dbus_path = common.ROOT_DBUS_PATH
+    _default_dbus_path = constants.ROOT_DBUS_PATH
     _default_dbus_path += ("/" + _interface_name) if _interface_name else ""
-    _default_bus_name = common.BUS_NAME
+    _default_bus_name = constants.BUS_NAME
 
     def __init__(self, conn=None, bus=None, object_path=None):
         if object_path is None or object_path == "":
@@ -53,9 +54,9 @@ class PrivateService(dbus.service.Object):
 
 
 class RegisterService(PrivateService):
-    _interface_name = common.REGISTER_INTERFACE
+    _interface_name = constants.REGISTER_INTERFACE
 
-    @dbus.service.method(dbus_interface=common.REGISTER_INTERFACE,
+    @dbus.service.method(dbus_interface=constants.REGISTER_INTERFACE,
                                     in_signature='sssa{sv}',
                                     out_signature='a{sv}')
     def register(self, username, password, org, options):
@@ -89,7 +90,7 @@ class RegisterService(PrivateService):
         registration_output['content'] = RegisterService._persist_and_sanitize_consumer(registration_output['content'])
         return dbus_utils.dict_to_variant_dict(registration_output)
 
-    @dbus.service.method(dbus_interface=common.REGISTER_INTERFACE,
+    @dbus.service.method(dbus_interface=constants.REGISTER_INTERFACE,
                                     in_signature='sa(s)a{ss}',
                                     out_signature='a{sv}')
     def register_with_activation_keys(self, org, activation_keys, options):
@@ -176,7 +177,7 @@ class RegisterService(PrivateService):
             error_msg = _("Error: Can not force registration while attempting to recover registration with consumerid. Please use --force without --consumerid to re-register or use the clean command and try again without --force.")
 
         if error_msg:
-            raise common.Failed(msg=error_msg)
+            raise exceptions.Failed(msg=error_msg)
         if not 'name' in options or not options['name']:
             options['name'] = socket.gethostname()
         return options

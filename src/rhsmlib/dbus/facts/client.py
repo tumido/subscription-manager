@@ -19,14 +19,9 @@
 import logging
 import dbus.mainloop.glib
 
-# from rhsmlib.dbus import gi_kluge
-# gi_kluge.kluge_it()
-
 # TODO: This is very glib2/dbus-python based. That is likely a requirement
 #       for the services, but it may be worthwhile to use something more
 #       modern for the client (ie, GIO based dbus support).
-
-# TODO: maybe common.constants should just import all the constants
 
 # FIXME: This makes client code depend on the services code being installed
 #        (which it will be, but...)
@@ -86,38 +81,27 @@ class FactsClient(object):
             path_keyword='path')
 
     def GetFacts(self, *args, **kwargs):
-        log.debug("GetFacts pre")
-        ret = self.interface.GetFacts(*args, **kwargs)
-        return ret
+        return self.interface.GetFacts(*args, **kwargs)
 
     def GetAll(self, *args, **kwargs):
-        log.debug("GetAll")
-        ret = self.props_interface.GetAll(facts_constants.FACTS_DBUS_INTERFACE,
-                                          *args, **kwargs)
-        log.debug("GetAll res=%s", ret)
-        return ret
+        return self.props_interface.GetAll(facts_constants.FACTS_DBUS_INTERFACE, *args, **kwargs)
 
     def Get(self, property_name):
-        log.debug("Get %s", property_name)
-        ret = self.props_interface.Get(facts_constants.FACTS_DBUS_INTERFACE,
-                                       property_name=property_name)
-        return ret
+        return self.props_interface.Get(facts_constants.FACTS_DBUS_INTERFACE, property_name=property_name)
 
     def signal_handler(self, *args, **kwargs):
-        log.debug("signal_handler args=%s kwargs=%s", args, kwargs)
+        pass
 
     def _on_properties_changed(self, *args, **kwargs):
-        log.debug("PropertiesChanged")
         self.signal_handler(*args, **kwargs)
 
     def _on_name_owner_changed(self, *args, **kwargs):
-        log.debug("NameOwnerChanged")
         self.signal_handler(*args, **kwargs)
 
     def _on_bus_disconnect(self, connection):
         self.dbus_proxy_object = None
-        log.debug("disconnected")
+        log.debug("Disconnected from FactsService")
 
     def _on_service_started(self, *args, **kwargs):
-        log.debug("ServiceStarted")
+        log.debug("FactsService Started")
         self.signal_handler(*args, **kwargs)

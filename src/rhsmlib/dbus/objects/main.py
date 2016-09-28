@@ -13,10 +13,10 @@
 #
 import logging
 import dbus.service
-import rhsmlib.dbus as common
+
+from rhsmlib.dbus import constants, server
 from subscription_manager.injectioninit import init_dep_injection
 
-from rhsmlib.dbus.server import PrivateServer
 from rhsmlib.dbus.objects.private import RegisterService
 
 from functools import partial
@@ -26,10 +26,10 @@ init_dep_injection()
 
 
 class Main(dbus.service.Object):
-    default_dbus_path = common.MAIN_DBUS_PATH
+    default_dbus_path = constants.MAIN_DBUS_PATH
 
     @dbus.service.method(
-        dbus_interface=common.MAIN_INTERFACE,
+        dbus_interface=constants.MAIN_INTERFACE,
         out_signature='s')
     def start_registration(self):
         log.debug('start_registration called')
@@ -48,7 +48,7 @@ class Main(dbus.service.Object):
 
     def _create_registration_server(self):
         log.debug('Attempting to create new server')
-        server = PrivateServer().create_server([RegisterService])
-        server.on_connection_removed.append(partial(self._disconnect_on_last_connection, server))
-        log.debug('Server created and listening on "%s"', server.address)
-        return server
+        priv_server = server.PrivateServer().create_server([RegisterService])
+        priv_server.on_connection_removed.append(partial(self._disconnect_on_last_connection, priv_server))
+        log.debug('Server created and listening on "%s"', priv_server.address)
+        return priv_server

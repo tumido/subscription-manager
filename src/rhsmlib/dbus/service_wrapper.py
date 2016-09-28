@@ -14,9 +14,9 @@ import sys
 import optparse
 import dbus
 import rhsmlib
-import rhsmlib.dbus
-import rhsmlib.dbus.server
 import logging
+
+from rhsmlib.dbus import server
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ def parse_argv(argv, default_dbus_name):
 
 def main(argv=sys.argv, object_classes=None, default_bus_name=None):
     if not default_bus_name:
-        default_bus_name = rhsmlib.dbus.BUS_NAME
+        default_bus_name = rhsmlib.dbus.constants.BUS_NAME
 
     options, args = parse_argv(argv, default_bus_name)
 
@@ -58,7 +58,7 @@ def main(argv=sys.argv, object_classes=None, default_bus_name=None):
 
     try:
         log.debug('Starting DBus service with name %s' % options.bus_name)
-        rhsmlib.dbus.server.Server(
+        server.Server(
             bus_class=options.bus,
             bus_name=options.bus_name,
             object_classes=object_classes).run()

@@ -1,4 +1,5 @@
 # note there are also rpm packaged deps that aren't
 # setup in pypi or with setup.py
 ../python-rhsm
+decorator
 #git+https://github.com/candlepin/python-rhsm.git#eggver=python-rhsm

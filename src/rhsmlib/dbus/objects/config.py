@@ -13,19 +13,17 @@
 #
 import dbus
 import logging
-import rhsmlib.dbus as common
 
-from rhsmlib.dbus.base_object import BaseObject, BaseProperties
+from rhsmlib.dbus import constants, base_object, util, dbus_utils
 from rhsmlib.services.config import Config
-from dbus import DBusException
-from rhsmlib.dbus import dbus_utils
 
+from dbus import DBusException
 log = logging.getLogger(__name__)
 
 
-class ConfigDBusObject(BaseObject):
-    default_dbus_path = common.CONFIG_DBUS_PATH
-    interface_name = common.CONFIG_INTERFACE
+class ConfigDBusObject(base_object.BaseObject):
+    default_dbus_path = constants.CONFIG_DBUS_PATH
+    interface_name = constants.CONFIG_INTERFACE
 
     def __init__(self, conn=None, object_path=None, bus_name=None):
         self.config = Config()
@@ -38,13 +36,13 @@ class ConfigDBusObject(BaseObject):
             for kk, vv in v.iteritems():
                 d[k][kk] = vv
 
-        properties = BaseProperties.create_instance(interface_name, d, self.PropertiesChanged)
+        properties = base_object.BaseProperties.create_instance(interface_name, d, self.PropertiesChanged)
         return properties
 
-    @common.dbus_service_method(
+    @util.dbus_service_method(
         dbus.PROPERTIES_IFACE,
         in_signature='ssv')
-    @common.dbus_handle_exceptions
+    @util.dbus_handle_exceptions
     def Set(self, interface_name, property_name, new_value, sender=None):
         self._check_interface(interface_name)
 
@@ -58,11 +56,11 @@ class ConfigDBusObject(BaseObject):
         self.config[section][property_name] = new_value
         self.config.persist()
 
-    @common.dbus_service_method(
+    @util.dbus_service_method(
         dbus.PROPERTIES_IFACE,
         in_signature='s',
         out_signature='a{sv}')
-    @common.dbus_handle_exceptions
+    @util.dbus_handle_exceptions
     def GetAll(self, interface_name, sender=None):
         self._check_interface(interface_name)
         d = dbus.Dictionary({}, signature='sv')
@@ -73,11 +71,11 @@ class ConfigDBusObject(BaseObject):
 
         return d
 
-    @common.dbus_service_method(
+    @util.dbus_service_method(
         dbus.PROPERTIES_IFACE,
         in_signature='ss',
         out_signature='v')
-    @common.dbus_handle_exceptions
+    @util.dbus_handle_exceptions
     def Get(self, interface_name, property_name, sender=None):
         self._check_interface(interface_name)
 

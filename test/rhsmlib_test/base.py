@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-
 try:
     import unittest2 as unittest
 except ImportError:
@@ -12,14 +11,13 @@ import logging
 import time
 import signal
 
-from rhsmlib import dbus as common
-from rhsmlib.dbus import service_wrapper
+from rhsmlib.dbus import service_wrapper, constants
 from rhsmlib import import_class  # NOQA Surface this method here and have all tests reference it from here
 
 
 class DBusObjectTest(unittest.TestCase):
     def setUp(self):
-        self.bus_name = common.BUS_NAME
+        self.bus_name = constants.BUS_NAME
 
         if os.geteuid() == 0:
             self.bus_class_name = 'dbus.SystemBus'

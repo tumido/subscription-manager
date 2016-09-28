@@ -15,9 +15,8 @@
 import logging
 import collections
 import dbus.service
-import rhsmlib.dbus as common
 
-from rhsmlib.dbus import dbus_utils
+from rhsmlib.dbus import constants, exceptions, util, dbus_utils
 
 log = logging.getLogger(__name__)
 
@@ -54,9 +53,9 @@ class BaseProperties(collections.Mapping):
             if v and v.access != 'read':
                 self.props_data[key] = dbus_utils.dbus_to_python(value)
             else:
-                raise common.AccessDenied(key, self.interface_name)
+                raise exceptions.AccessDenied(key, self.interface_name)
         else:
-            raise common.PropertyMissing(key, self.interface_name)
+            raise exceptions.PropertyMissing(key, self.interface_name)
 
     def __delitem__(self, key):
         del self.props_data[key]
@@ -120,7 +119,7 @@ class BaseProperties(collections.Mapping):
 
     def _check_property(self, property_name):
         if property_name not in self:
-            raise common.UnknownProperty(property_name)
+            raise exceptions.UnknownProperty(property_name)
 
     def _emit_properties_changed(self, properties_iterable):
         if not self.properties_changed_callback:
@@ -143,7 +142,7 @@ class ReadWriteProperties(BaseProperties):
 
     def __setitem__(self, key, value):
         if self.access_mask(key) != 'write':
-            raise common.AccessDenied(key, self.interface_name)
+            raise exceptions.AccessDenied(key, self.interface_name)
         self[key] = value
 
     # FIXME: track read/write per property
@@ -153,8 +152,8 @@ class ReadWriteProperties(BaseProperties):
 
 class BaseObject(dbus.service.Object):
     # Name of the DBus interface provided by this object
-    interface_name = common.INTERFACE_BASE
-    default_dbus_path = common.ROOT_DBUS_PATH
+    interface_name = constants.INTERFACE_BASE
+    default_dbus_path = constants.ROOT_DBUS_PATH
 
     def __init__(self, conn=None, object_path=None, bus_name=None):
         super(BaseObject, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
@@ -168,35 +167,35 @@ class BaseObject(dbus.service.Object):
 
     def _check_interface(self, interface_name):
         if interface_name != self.interface_name:
-            raise common.UnknownInterface(interface_name)
+            raise exceptions.UnknownInterface(interface_name)
 
     @dbus.service.signal(dbus.PROPERTIES_IFACE, signature='sa{sv}as')
     def PropertiesChanged(self, interface_name, changed_properties, invalidated_properties):
         # TODO: Do something here
         log.debug("Properties Changed emitted.")
 
-    @common.dbus_service_method(
+    @util.dbus_service_method(
         dbus.PROPERTIES_IFACE,
         in_signature='s',
         out_signature='a{sv}')
-    @common.dbus_handle_exceptions
+    @util.dbus_handle_exceptions
     def GetAll(self, interface_name, sender=None):
         self._check_interface(interface_name)
         return dbus.Dictionary(self.properties[interface_name].get_all(), signature='sv')
 
-    @common.dbus_service_method(
+    @util.dbus_service_method(
         dbus.PROPERTIES_IFACE,
         in_signature='ss',
         out_signature='v')
-    @common.dbus_handle_exceptions
+    @util.dbus_handle_exceptions
     def Get(self, interface_name, property_name, sender=None):
         self._check_interface(interface_name)
         return self.properties[interface_name][property_name]
 
-    @common.dbus_service_method(
+    @util.dbus_service_method(
         dbus.PROPERTIES_IFACE,
         in_signature='ssv')
-    @common.dbus_handle_exceptions
+    @util.dbus_handle_exceptions
     def Set(self, interface_name, property_name, new_value, sender=None):
         """Set a DBus property on this object.
 

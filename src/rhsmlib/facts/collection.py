@@ -13,7 +13,6 @@
 from datetime import datetime
 import collections
 import logging
-from rhsmlib.dbus.facts.expiration import Expiration
 
 log = logging.getLogger(__name__)
 
@@ -74,94 +73,22 @@ def compare_with_graylist(dict_a, dict_b, graylist):
 
 
 class FactsCollection(object):
-    def __init__(self, facts_dict=None, expiration=None):
-        """expiration needs to be a FactsCollectionExpiration like instance.
-
-        Not providing one means the FactsCollection has an infinite expiration
-        and will never expire."""
-
+    def __init__(self, facts_dict=None):
         self.data = facts_dict or FactsDict()
-        self.expiration = expiration
-
-        # If the cache has been persisted, or doesn't need to be persisted
-        # then dirty = False
-        self.dirty = False
         self.collection_datetime = datetime.now()
 
     def __repr__(self):
-        buf = "%s(facts_dict=%s, collection_datetime=%s, cache_lifetime=%s)" % \
-            (self.__class__.__name__, self.data, self.collection_datetime, self.cache_lifetime)
+        buf = "%s(facts_dict=%s, collection_datetime=%s)" % \
+            (self.__class__.__name__, self.data, self.collection_datetime)
         return buf
-
-    @property
-    def cache_lifetime(self):
-        # delta.total_seconds() would be better but isn't in Python 2.6
-        delta = (datetime.now() - self.collection_datetime)
-        return abs(delta).seconds
 
     @classmethod
     def from_facts_collection(cls, facts_collection):
         """Create a FactsCollection with the data from facts_collection, but new timestamps.
-
         ie, a copy(), more or less."""
         fc = cls()
         fc.data.update(facts_collection.data)
-        # The FactsCollector subclass needs to set dirty in it's init.
-        # Here, we don't need to be persisted, so dirty is by default False.
         return fc
-
-    @classmethod
-    def from_cache(cls, cache):
-        """Create a FactsCollection from a Cache object.
-
-        Any errors reading the Cache can raise CacheError exceptions."""
-        if not cache.exists:
-            log.debug('Cache does not exist, creating expired Facts collection')
-            # Create an expired Facts Collection so that we create the cache
-            # immediately from newly gathered facts
-            fc = cls(None, Expiration(duration_seconds=0))
-            fc.dirty = True
-        else:
-            # Cache exists, we'll read from it for this collection
-            log.debug('Cache exists, reading from it')
-            fc = cls(cache.read(), cache.expiration)
-            fc.dirty = False
-        return fc
-
-    def cache_save_start(self, facts_collection):
-        # Create a new FactsCollection with new timestamp
-        self.cache_save_finished(facts_collection)
-
-    def cache_save_finished(self, facts_collection):
-        # Set dirty flag to False, though non-persistent classes are always False
-        self.dirty = False
-
-    def merge(self, other):
-        """Combine a cached collection and a fresh collection according to caching rules."""
-        if other is None:
-            return self
-
-        if not hasattr(other, 'data'):
-            return self
-
-        # If current time isn't within either collections valid lifetime, they are
-        # not equals
-        if self.expired() and other.expired():
-            log.debug("FactsCollection cache expire for %s and %s", self, other)
-            raise Exception("Both facts collections are expired and invalid: %s and %s", self, other)
-
-        if self.expired():
-            other.dirty = True
-            return other
-
-        # We are not expired and that is all that matters.
-        return self
 
     def __iter__(self):
         return self.data
-
-    def expired(self):
-        """Check expiration for expired, no expiration means expired() is never True."""
-        if self.expiration:
-            return self.expiration.expired()
-        return False

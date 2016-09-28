@@ -15,7 +15,8 @@ import logging
 import dbus.service
 import dbus.server
 import dbus.mainloop.glib
-import rhsmlib.dbus as common
+
+from rhsmlib.dbus import constants
 
 from subscription_manager import ga_loader
 ga_loader.init_ga()
@@ -32,7 +33,7 @@ class Server(object):
         object_class is the the class implementing a DBus Object"""
 
         object_classes = object_classes or []
-        bus_name = bus_name or common.BUS_NAME
+        bus_name = bus_name or constants.BUS_NAME
 
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
         dbus.mainloop.glib.threads_init()
