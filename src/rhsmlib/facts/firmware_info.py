@@ -45,18 +45,22 @@ class NullFirmwareInfoCollector(object):
 
 class FirmwareCollector(collector.FactsCollector):
     def __init__(self, prefix=None, testing=None, collected_hw_info=None):
-        super(FirmwareCollector, self).__init__(prefix=prefix,
-                                                testing=testing,
-                                                collected_hw_info=collected_hw_info)
+        super(FirmwareCollector, self).__init__(
+            prefix=prefix,
+            testing=testing,
+            collected_hw_info=collected_hw_info
+        )
 
     def get_firmware_info(self):
         """Read and parse data that comes from platform specific interfaces.
 
         This is only dmi/smbios data for now (which isn't on ppc/s390).
         """
-        firmware_info_collector = get_firmware_collector(arch=self.arch,
-                                                         prefix=self.prefix,
-                                                         testing=self.testing)
+        firmware_info_collector = get_firmware_collector(
+            arch=self.arch,
+            prefix=self.prefix,
+            testing=self.testing
+        )
 
         # Pass in collected hardware so DMI etc can potentially override it
         firmware_info_dict = firmware_info_collector.get_all()
@@ -98,8 +102,10 @@ def get_firmware_collector(arch, prefix=None, testing=None,
         else:
             firmware_provider_class = NullFirmwareInfoCollector
 
-    firmware_provider = firmware_provider_class(prefix=prefix,
-                                                testing=testing,
-                                                collected_hw_info=collected_hw_info)
+    firmware_provider = firmware_provider_class(
+        prefix=prefix,
+        testing=testing,
+        collected_hw_info=collected_hw_info
+    )
 
     return firmware_provider

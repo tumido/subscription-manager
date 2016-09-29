@@ -46,7 +46,6 @@ class CustomFactsFile(object):
             raise
 
     def read(self):
-
         custom_facts_data = self._open_and_read()
         return custom_facts_data
 
@@ -85,9 +84,11 @@ class CustomFactsDirectories(object):
 class CustomFactsCollector(FactsCollector):
     def __init__(self, prefix=None, testing=None, collected_hw_info=None,
                  path_and_globs=None):
-        super(CustomFactsCollector, self).__init__(prefix=prefix,
-                                                   testing=testing,
-                                                   collected_hw_info=collected_hw_info)
+        super(CustomFactsCollector, self).__init__(
+            prefix=prefix,
+            testing=testing,
+            collected_hw_info=collected_hw_info
+        )
         self.path_and_globs = path_and_globs
         self.facts_directories = CustomFactsDirectories(self.path_and_globs)
 

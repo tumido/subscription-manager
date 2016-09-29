@@ -37,11 +37,12 @@ FIRMWARE_DUMP_FILENAME = "dmi.dump"
 
 
 class DmiFirmwareInfoCollector(collector.FactsCollector):
-
     def __init__(self, prefix=None, testing=None, collected_hw_info=None):
-        super(DmiFirmwareInfoCollector, self).__init__(prefix=prefix,
-                                                       testing=testing,
-                                                       collected_hw_info=collected_hw_info)
+        super(DmiFirmwareInfoCollector, self).__init__(
+            prefix=prefix,
+            testing=testing,
+            collected_hw_info=collected_hw_info
+        )
 
         self._socket_designation = []
         self._socket_counter = 0
@@ -66,7 +67,6 @@ class DmiFirmwareInfoCollector(collector.FactsCollector):
     # This needs all of the previously collected hwinfo, so it can decide
     # what is bogus enough that the DMI info is better.
     def get_all(self):
-
         dmiinfo = {}
         dmi_data = {
             "dmi.bios.": self._read_dmi(dmidecode.bios),

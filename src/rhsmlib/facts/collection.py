@@ -63,9 +63,6 @@ class FactsDict(collections.MutableMapping):
         return '%s(%r)' % (self.__class__.__name__, self.items())
 
 
-# Support a @from_previous_collection could also populate a list/map of changed facts...
-
-
 def compare_with_graylist(dict_a, dict_b, graylist):
     ka = set(dict_a).difference(graylist)
     kb = set(dict_b).difference(graylist)

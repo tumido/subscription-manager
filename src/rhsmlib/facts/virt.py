@@ -138,16 +138,17 @@ class VirtUuidCollector(collector.FactsCollector):
 
 class VirtCollector(collector.FactsCollector):
     def get_all(self):
-        virt_what_collector = VirtWhatCollector(prefix=self.prefix,
-                                                testing=self.testing)
+        virt_what_collector = VirtWhatCollector(prefix=self.prefix, testing=self.testing)
 
         virt_what_info = virt_what_collector.get_all()
 
         # Pass virt_what_info to the uuid collector since it needs to know
         # what hypervisor the host is.
-        virt_uuid_collector = VirtUuidCollector(prefix=self.prefix,
-                                                testing=self.testing,
-                                                collected_hw_info=virt_what_info)
+        virt_uuid_collector = VirtUuidCollector(
+            prefix=self.prefix,
+            testing=self.testing,
+            collected_hw_info=virt_what_info
+        )
         virt_uuid_info = virt_uuid_collector.get_all()
         virt_info = {}
         virt_info.update(virt_what_info)

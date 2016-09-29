@@ -38,20 +38,27 @@ class HostCollector(collector.FactsCollector):
 
     def get_all(self):
         host_facts = {}
-        hardware_collector = hwprobe.HardwareCollector(prefix=self.prefix,
-                                              testing=self.testing,
-                                              collected_hw_info=self._collected_hw_info)
+        hardware_collector = hwprobe.HardwareCollector(
+            prefix=self.prefix,
+            testing=self.testing,
+            collected_hw_info=self._collected_hw_info
+        )
         hardware_info = hardware_collector.get_all()
 
-        virt_collector = virt.VirtCollector(prefix=self.prefix, testing=self.testing,
-                                            collected_hw_info=self._collected_hw_info)
+        virt_collector = virt.VirtCollector(
+            prefix=self.prefix,
+            testing=self.testing,
+            collected_hw_info=self._collected_hw_info
+        )
 
         virt_collector_info = virt_collector.get_all()
 
         # AdminFacts includes VirtCollector and firmware facts collection
-        firmware_collector = firmware_info.FirmwareCollector(prefix=self.prefix,
-                                                         testing=self.testing,
-                                                         collected_hw_info=virt_collector_info)
+        firmware_collector = firmware_info.FirmwareCollector(
+            prefix=self.prefix,
+            testing=self.testing,
+            collected_hw_info=virt_collector_info
+        )
 
         # rename firmware.py
         firmware_info_dict = firmware_collector.get_all()
@@ -64,10 +71,12 @@ class HostCollector(collector.FactsCollector):
         custom_facts_dir = os.path.join(default_rhsm_dir, self.facts_sub_dir)
         path_and_globs = [(custom_facts_dir, self.facts_glob)]
 
-        custom_facts = custom.CustomFactsCollector(prefix=self.prefix,
-                                                   testing=self.testing,
-                                                   collected_hw_info=self._collected_hw_info,
-                                                   path_and_globs=path_and_globs)
+        custom_facts = custom.CustomFactsCollector(
+            prefix=self.prefix,
+            testing=self.testing,
+            collected_hw_info=self._collected_hw_info,
+            path_and_globs=path_and_globs
+        )
         custom_facts_dict = custom_facts.get_all()
         host_facts.update(custom_facts_dict)
 
@@ -75,9 +84,11 @@ class HostCollector(collector.FactsCollector):
         # NOTE: we are passing the facts we've already collected into
         # cleanup_collector.
         # FIXME: remove having to pass these args around
-        cleanup_collector = cleanup.CleanupCollector(prefix=self.prefix,
-                                                     testing=self.testing,
-                                                     collected_hw_info=host_facts)
+        cleanup_collector = cleanup.CleanupCollector(
+            prefix=self.prefix,
+            testing=self.testing,
+            collected_hw_info=host_facts
+        )
         cleanup_info = cleanup_collector.get_all()
 
         host_facts.update(cleanup_info)

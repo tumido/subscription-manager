@@ -115,7 +115,7 @@ class ConfigSection(collections.MutableMapping):
         if key in self:
             self._parser.remove_option(self._section, key)
             if self.auto_persist:
-                self.persist()
+                self._persist()
         else:
             raise KeyError("Property '%s' does not exist in section '%s'" % (key, self._section))
 

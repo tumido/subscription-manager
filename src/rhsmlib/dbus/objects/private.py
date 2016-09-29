@@ -82,17 +82,21 @@ class RegisterService(PrivateService):
         options['username'] = username
         options['password'] = password
         cp = RegisterService._get_uep_from_options(options)
-        registration_output = cp.registerConsumer(name=options['name'],
-                                                  owner=org,
-                                                  installed_products=installed_mgr.format_for_server(),
-                                                  content_tags=installed_mgr.tags)
+        registration_output = cp.registerConsumer(
+            name=options['name'],
+            owner=org,
+            installed_products=installed_mgr.format_for_server(),
+            content_tags=installed_mgr.tags
+        )
         installed_mgr.write_cache()
-        registration_output['content'] = RegisterService._persist_and_sanitize_consumer(registration_output['content'])
+        registration_output['content'] = RegisterService._persist_and_sanitize_consumer(
+            registration_output['content']
+        )
         return dbus_utils.dict_to_variant_dict(registration_output)
 
     @dbus.service.method(dbus_interface=constants.REGISTER_INTERFACE,
-                                    in_signature='sa(s)a{ss}',
-                                    out_signature='a{sv}')
+        in_signature='sa(s)a{ss}',
+        out_signature='a{sv}')
     def register_with_activation_keys(self, org, activation_keys, options):
         """ This method registers a system with the given options, using
             an activation key."""
@@ -111,7 +115,8 @@ class RegisterService(PrivateService):
             keys=activation_keys,
             owner=org,
             installed_products=installed_mgr.format_for_server(),
-            content_tags=installed_mgr.tags)
+            content_tags=installed_mgr.tags
+        )
 
         installed_mgr.write_cache()
         registration_output['content'] = RegisterService._persist_and_sanitize_consumer(registration_output['content'])

@@ -16,7 +16,6 @@
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation.
 #
-
 from __future__ import print_function
 
 import gettext
@@ -47,7 +46,6 @@ from rhsmlib.compat import CalledProcessError
 
 
 class ClassicCheck:
-
     def is_registered_with_classic(self):
         try:
             sys.path.append('/usr/share/rhn')
@@ -107,29 +105,38 @@ class HardwareCollector(collector.FactsCollector):
                                        testing=testing,
                                        collected_hw_info=None)
 
-        self.hardware_methods = [self.get_uname_info,
-                                 self.get_release_info,
-                                 self.get_mem_info,
-                                 self.get_proc_cpuinfo,
-                                 self.get_cpu_info,
-                                 self.get_ls_cpu_info,
-                                 self.get_network_info,
-                                 self.get_network_interfaces]
+        self.hardware_methods = [
+            self.get_uname_info,
+            self.get_release_info,
+            self.get_mem_info,
+            self.get_proc_cpuinfo,
+            self.get_cpu_info,
+            self.get_ls_cpu_info,
+            self.get_network_info,
+            self.get_network_interfaces,
+        ]
 
     def get_uname_info(self):
         uname_info = {}
         uname_data = os.uname()
-        uname_keys = ('uname.sysname', 'uname.nodename', 'uname.release',
-                      'uname.version', 'uname.machine')
+        uname_keys = (
+            'uname.sysname',
+            'uname.nodename',
+            'uname.release',
+            'uname.version',
+            'uname.machine',
+        )
         uname_info = dict(zip(uname_keys, uname_data))
         return uname_info
 
     def get_release_info(self):
         distro_info = self.get_distribution()
-        release_info = {'distribution.name': distro_info[0],
-                        'distribution.version': distro_info[1],
-                        'distribution.id': distro_info[2],
-                        'distribution.version.modifier': distro_info[3]}
+        release_info = {
+            'distribution.name': distro_info[0],
+            'distribution.version': distro_info[1],
+            'distribution.id': distro_info[2],
+            'distribution.version.modifier': distro_info[3],
+        }
         return release_info
 
     def _open_release(self, filename):
@@ -147,12 +154,14 @@ class HardwareCollector(collector.FactsCollector):
             f = open('/etc/os-release', 'r')
             os_release = f.readlines()
             f.close()
-            data = {'PRETTY_NAME': 'Unknown',
-                    'NAME': distname,
-                    'ID': 'Unknown',
-                    'VERSION': dist_id,
-                    'VERSION_ID': version,
-                    'CPE_NAME': 'Unknown'}
+            data = {
+                'PRETTY_NAME': 'Unknown',
+                'NAME': distname,
+                'ID': 'Unknown',
+                'VERSION': dist_id,
+                'VERSION_ID': version,
+                'CPE_NAME': 'Unknown',
+            }
             for line in os_release:
                 split = map(lambda piece: piece.strip('"\n '), line.split('='))
                 if len(split) != 2:
@@ -169,14 +178,9 @@ class HardwareCollector(collector.FactsCollector):
             vers_mod_data = re.split('(?<!\\\):', data['CPE_NAME'])
             if len(vers_mod_data) >= 6:
                 version_modifier = vers_mod_data[5].lower().replace('\\:', ':')
-
         elif os.path.exists('/etc/redhat-release'):
             # from platform.py from python2.
-            _lsb_release_version = re.compile(r'(.+)'
-                                              ' release '
-                                              '([\d.]+)'
-                                              '\s*(?!\()(\S*)\s*'
-                                              '[^(]*(?:\((.+)\))?')
+            _lsb_release_version = re.compile(r'(.+) release ([\d.]+)\s*(?!\()(\S*)\s*[^(]*(?:\((.+)\))?')
             f = self._open_release('/etc/redhat-release')
             firstline = f.readline()
             f.close()
@@ -265,19 +269,18 @@ class HardwareCollector(collector.FactsCollector):
                 socket_count = book_count * sockets_per_book
                 cores_count = socket_count * cores_per_socket
 
-                return {'socket_count': socket_count,
-                        'cores_count': cores_count,
-                        'book_count': book_count,
-                        'sockets_per_book': sockets_per_book,
-                        'cores_per_socket': cores_per_socket}
+                return {
+                    'socket_count': socket_count,
+                    'cores_count': cores_count,
+                    'book_count': book_count,
+                    'sockets_per_book': sockets_per_book,
+                    'cores_per_socket': cores_per_socket
+                }
         log.debug("Looking for 'CPU Topology SW' in sysinfo, but it was not found")
         return None
 
     def has_s390x_sysinfo(self, proc_sysinfo):
-        if not os.access(proc_sysinfo, os.R_OK):
-            return False
-
-        return True
+        return os.access(proc_sysinfo, os.R_OK)
 
     def read_s390x_sysinfo(self, cpu_count, proc_sysinfo):
         lines = []
@@ -335,8 +338,10 @@ class HardwareCollector(collector.FactsCollector):
         proc_cpuinfo = {}
         fact_namespace = 'proc_cpuinfo'
 
-        proc_cpuinfo_source = cpuinfo.SystemCpuInfoFactory.from_uname_machine(self.arch,
-                                                                              prefix=self.prefix)
+        proc_cpuinfo_source = cpuinfo.SystemCpuInfoFactory.from_uname_machine(
+            self.arch,
+            prefix=self.prefix
+        )
 
         for key, value in proc_cpuinfo_source.cpu_info.common.items():
             proc_cpuinfo['%s.common.%s' % (fact_namespace, key)] = value
@@ -399,10 +404,8 @@ class HardwareCollector(collector.FactsCollector):
         # This is not actually true sometimes... *cough*s390x*cough*
         # but lscpu makes the same assumption
 
-        threads_per_core = self.count_cpumask_entries(cpu_files[0],
-                                                      'thread_siblings_list')
-        cores_per_cpu = self.count_cpumask_entries(cpu_files[0],
-                                                   'core_siblings_list')
+        threads_per_core = self.count_cpumask_entries(cpu_files[0], 'thread_siblings_list')
+        cores_per_cpu = self.count_cpumask_entries(cpu_files[0], 'core_siblings_list')
 
         # if we find valid values in cpu/cpuN/topology/*siblings_list
         # sometimes it's not there, particularly on rhel5
@@ -432,7 +435,7 @@ class HardwareCollector(collector.FactsCollector):
 
                         # we can have a mismatch between /sys and /sysinfo. We
                         # defer to sysinfo in this case even for cpu_count
-        #                cpu_count = sysinfo['cores_count'] * threads_per_core
+                        # cpu_count = sysinfo['cores_count'] * threads_per_core
                         books = True
 
         else:
@@ -487,8 +490,7 @@ class HardwareCollector(collector.FactsCollector):
         # if we got book info from sysinfo, prefer it
         book_siblings_per_cpu = None
         if not books:
-            book_siblings_per_cpu = self.count_cpumask_entries(cpu_files[0],
-                                                            'book_siblings_list')
+            book_siblings_per_cpu = self.count_cpumask_entries(cpu_files[0], 'book_siblings_list')
             if book_siblings_per_cpu:
                 book_count = cpu_count / book_siblings_per_cpu
                 sockets_per_book = book_count / socket_count
@@ -594,9 +596,7 @@ class HardwareCollector(collector.FactsCollector):
         return netinfo
 
     def _should_get_mac_address(self, device):
-        if (device.startswith('sit') or device.startswith('lo')):
-            return False
-        return True
+        return not (device.startswith('sit') or device.startswith('lo'))
 
     def get_network_interfaces(self):
         netinfdict = {}
@@ -717,7 +717,6 @@ class HardwareCollector(collector.FactsCollector):
 
 
 if __name__ == '__main__':
-
     _LIBPATH = "/usr/share/rhsm"
     # add to the path if need be
     if _LIBPATH not in sys.path:
@@ -743,14 +742,16 @@ if __name__ == '__main__':
         sys.exit(0)
 
     # verify the cpu socket info collection we use for rhel5 matches lscpu
-    cpu_items = [('cpu.core(s)_per_socket', 'lscpu.core(s)_per_socket'),
-                 ('cpu.cpu(s)', 'lscpu.cpu(s)'),
-                 # NOTE: the substring is different for these two folks...
-                 # FIXME: follow up to see if this has changed
-                 ('cpu.cpu_socket(s)', 'lscpu.socket(s)'),
-                 ('cpu.book(s)', 'lscpu.book(s)'),
-                 ('cpu.thread(s)_per_core', 'lscpu.thread(s)_per_core'),
-                 ('cpu.socket(s)_per_book', 'lscpu.socket(s)_per_book')]
+    cpu_items = [
+        ('cpu.core(s)_per_socket', 'lscpu.core(s)_per_socket'),
+        ('cpu.cpu(s)', 'lscpu.cpu(s)'),
+        # NOTE: the substring is different for these two folks...
+        # FIXME: follow up to see if this has changed
+        ('cpu.cpu_socket(s)', 'lscpu.socket(s)'),
+        ('cpu.book(s)', 'lscpu.book(s)'),
+        ('cpu.thread(s)_per_core', 'lscpu.thread(s)_per_core'),
+        ('cpu.socket(s)_per_book', 'lscpu.socket(s)_per_book')
+    ]
     failed = False
     failed_list = []
     for cpu_item in cpu_items:
@@ -768,8 +769,7 @@ if __name__ == '__main__':
     if failed:
         print("cpu detection error")
     for failed in failed_list:
-        print("The values %s %s do not match (|%s| != |%s|)" % (failed[0], failed[1],
-                                                                failed[2], failed[3]))
+        print("The values %s %s do not match (|%s| != |%s|)" % (failed[0], failed[1], failed[2], failed[3]))
     if missing_set:
         for missing in missing_set:
             print("cpu info fact: %s was missing" % missing)
