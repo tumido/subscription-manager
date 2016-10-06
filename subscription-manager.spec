@@ -414,7 +414,7 @@ rm -rf %{buildroot}
 
 %{_datadir}/polkit-1/actions/com.redhat.*.policy
 %{_datadir}/dbus-1/system-services/com.redhat.*.service
-%attr(755,root,root) %{_libexecdir}/rhsm-*-service
+%attr(755,root,root) %{_libexecdir}/rhsm*-service
 
 %if %use_systemd
     %attr(644,root,root) %{_unitdir}/*.service
@@ -453,11 +453,6 @@ rm -rf %{buildroot}
 %{_bindir}/rhsm-icon
 
 %dir %{python_sitelib}/subscription_manager/gui
-%dir %{python_sitelib}/subscription_manager/gui/data
-%dir %{python_sitelib}/subscription_manager/gui/data/ui
-%dir %{python_sitelib}/subscription_manager/gui/data/glade
-%dir %{python_sitelib}/subscription_manager/gui/data/icons
-
 %{python_sitelib}/subscription_manager/gui/*.py*
 %{python_sitelib}/subscription_manager/gui/data/ui/*.ui
 %{python_sitelib}/subscription_manager/gui/data/glade/*.glade
@@ -526,10 +521,6 @@ rm -rf %{buildroot}
 %files -n subscription-manager-initial-setup-addon
 %defattr(-,root,root,-)
 %dir %{_datadir}/anaconda/addons/com_redhat_subscription_manager/
-%dir %{_datadir}/anaconda/addons/com_redhat_subscription_manager/gui/
-%dir %{_datadir}/anaconda/addons/com_redhat_subscription_manager/gui/spokes/
-%dir %{_datadir}/anaconda/addons/com_redhat_subscription_manager/categories/
-%dir %{_datadir}/anaconda/addons/com_redhat_subscription_manager/ks/
 %{_datadir}/anaconda/addons/com_redhat_subscription_manager/*.py*
 %{_datadir}/anaconda/addons/com_redhat_subscription_manager/gui/*.py*
 %{_datadir}/anaconda/addons/com_redhat_subscription_manager/gui/spokes/*.ui
