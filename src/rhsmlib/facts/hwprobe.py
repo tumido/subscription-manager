@@ -42,7 +42,7 @@ except ImportError as e:
 
 # For python2.6 that doesn't have subprocess.check_output
 from rhsmlib.compat import check_output as compat_check_output
-from rhsmlib.compat import CalledProcessError
+from subprocess import CalledProcessError
 
 
 class ClassicCheck:

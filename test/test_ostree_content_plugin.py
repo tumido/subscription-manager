@@ -27,7 +27,7 @@ from subscription_manager.plugin.ostree import action_invoker
 
 from rhsm import certificate2
 
-from rhsmlib.compat import CalledProcessError
+from subprocess import CalledProcessError
 
 
 class StubPluginManager(object):
