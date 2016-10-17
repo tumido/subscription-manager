@@ -33,10 +33,16 @@ from threading import RLock
 
 
 @contextmanager
-def open_mock(content, **kwargs):
-    m = mock_open(read_data=content)
-    with patch('__builtin__.open', m, create=True, **kwargs) as m:
-        yield m
+def open_mock(content=None, **kwargs):
+  content_out = StringIO.StringIO()
+  m = mock_open(read_data=content)
+  with patch('__builtin__.open', m, create=True, **kwargs) as mo:
+    stream = StringIO.StringIO(content)
+    rv = mo.return_value
+    rv.write = lambda x: content_out.write(x)
+    rv.content_out = lambda: content_out.getvalue()
+    rv.__iter__ = lambda x: iter(stream.readlines())
+    yield rv
 
 
 @contextmanager
