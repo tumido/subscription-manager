@@ -10,12 +10,6 @@
 # Red Hat trademarks are not licensed under GPLv2. No permission is
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation.
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
 import mock
 import dbus
 from . import test_config
@@ -49,7 +43,7 @@ class ConfigDBusObjectTest(test_config.BaseConfigTest):
 
     def test_set(self):
         config_dbus = objects.ConfigDBusObject()
-        result = config_dbus.Set(constants.CONFIG_INTERFACE, 'foo.quux', 'new')
+        config_dbus.Set(constants.CONFIG_INTERFACE, 'foo.quux', 'new')
         self.assertEqual('new', self.config['foo']['quux'])
 
     def test_set_section_fails(self):

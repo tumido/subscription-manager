@@ -33,4 +33,3 @@ class GetArchTest(unittest.TestCase):
         with open_mock(content="hello_arch"):
             arch = collector.get_arch(prefix="/does/not/exist")
             self.assertEqual("hello_arch", arch)
-
