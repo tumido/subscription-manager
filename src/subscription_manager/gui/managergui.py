@@ -29,7 +29,6 @@ import webbrowser
 import os
 import socket
 
-
 import rhsm.config as config
 
 from subscription_manager.ga import Gtk as ga_Gtk
@@ -137,7 +136,8 @@ class MainWindow(widgets.SubmanBaseWidget):
     """
     widget_names = ['main_window', 'notebook', 'system_name_label',
                     'register_menu_item', 'unregister_menu_item',
-                    'redeem_menu_item', 'settings_menu_item', 'repos_menu_item']
+                    'redeem_menu_item', 'settings_menu_item', 'repos_menu_item',
+                    'import_cert_menu_item']
     gui_file = "mainwindow"
 
     def log_server_version(self, uep):
@@ -152,7 +152,7 @@ class MainWindow(widgets.SubmanBaseWidget):
         super(MainWindow, self).__init__()
 
         if not self.test_proxy_connection():
-            system_exit(os.EX_UNAVAILABLE, _("Proxy connnection failed, please check your settings."))
+            system_exit(os.EX_UNAVAILABLE, _("Proxy connection failed, please check your settings."))
         self.backend = backend or Backend()
         self.identity = require(IDENTITY)
 
@@ -170,10 +170,12 @@ class MainWindow(widgets.SubmanBaseWidget):
         settings.set_long_property('gtk-recent-files-max-age', 0,
                                    "%s:%s" % (__name__, type(self).__name__))
 
+        ga_Gtk.Window.set_default_icon_name("subscription-manager")
+
         self.product_dir = prod_dir or self.backend.product_dir
         self.entitlement_dir = ent_dir or self.backend.entitlement_dir
 
-        self.system_facts_dialog = factsgui.SystemFactsDialog()
+        self.system_facts_dialog = factsgui.SystemFactsDialog(update_callback=self._handle_facts_updated)
 
         self.preferences_dialog = PreferencesDialog(self.backend,
                                                     self._get_window())
@@ -324,10 +326,12 @@ class MainWindow(widgets.SubmanBaseWidget):
             self.register_menu_item.set_sensitive(False)
             self.unregister_menu_item.set_sensitive(True)
             self.settings_menu_item.set_sensitive(True)  # preferences
+            self.import_cert_menu_item.set_sensitive(False)
         else:
             self.register_menu_item.set_sensitive(True)
             self.unregister_menu_item.set_sensitive(False)
             self.settings_menu_item.set_sensitive(False)
+            self.import_cert_menu_item.set_sensitive(True)
 
         show_overrides = False
         try:
@@ -373,7 +377,8 @@ class MainWindow(widgets.SubmanBaseWidget):
         registration_dialog.show()
 
     def _on_dialog_destroy(self, obj, widget):
-        if widget:
+        # bz#1382897 make sure register menu item is left in appropriate state
+        if (widget is not self.register_menu_item or not self.registered()) and widget:
             widget.set_sensitive(True)
         return False
 
@@ -504,6 +509,11 @@ class MainWindow(widgets.SubmanBaseWidget):
             # Use the default if there is no translation.
             url = ONLINE_DOC_FALLBACK_URL
         return url
+
+    def _handle_facts_updated(self):
+        # see bz 1323271 - update compliance on update of facts
+        self.backend.cs.load()
+        self.backend.cs.notify()
 
     def test_proxy_connection(self):
         result = None

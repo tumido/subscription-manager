@@ -1177,8 +1177,16 @@ class TestImportCertCommand(TestCliCommand):
         self.addCleanup(argv_patcher.stop)
 
     def test_certificates(self):
+        self.cc.is_registered = Mock(return_value=False)
         self.cc.main(["--certificate", "one", "--certificate", "two"])
         self.cc._validate_options()
+
+    def test_registered(self):
+        self.cc.is_registered = Mock(return_value=True)
+        self.cc.main(["--certificate", "one", "--certificate", "two"])
+        with self.assertRaises(SystemExit) as e:
+            self.cc._validate_options()
+        self.assertEquals(os.EX_USAGE, e.exception.code)
 
     def test_no_certificates(self):
         try:
@@ -1319,6 +1327,21 @@ class TestOverrideCommand(TestCliProxyCommand):
         self.assertEquals(self.cc.options.repos, ['x', 'y'])
         self.assertEquals(self.cc.options.additions, {'a': 'b'})
         self.assertEquals(self.cc.options.removals, ['a'])
+
+    def test_remove_empty_arg(self):
+        self._test_exception(["--repo", "x", "--remove", ""])
+
+    def test_remove_multiple_args_empty_arg(self):
+        self._test_exception(["--repo", "x", "--remove", "foo", "--remove", ""])
+
+    def test_add_empty_arg(self):
+        self.assertRaises(SystemExit, self.cc.main, ["--repo", "x", "--add", ""])
+
+    def test_add_empty_name(self):
+        self.assertRaises(SystemExit, self.cc.main, ["--repo", "x", "--add", ":foo"])
+
+    def test_add_multiple_args_empty_arg(self):
+        self.assertRaises(SystemExit, self.cc.main, ["--repo", "x", "--add", "foo:bar", "--add", ""])
 
     def test_list_and_remove_all_work_with_repos(self):
         self.cc.main(["--repo", "x", "--list"])

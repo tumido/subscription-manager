@@ -424,6 +424,7 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         try:
             last = self.applied_screen_history.pop()
             self._set_screen(last)
+            self._screens[last].back_handler()
         except IndexError:
             pass
 
@@ -900,7 +901,7 @@ class Screen(widgets.SubmanBaseWidget):
         super(Screen, self).__init__()
 
         self.pre_message = ""
-        self.button_label = _("Register")
+        self.button_label = _("_Register")
         self.needs_gui = True
         self.index = -1
         # REMOVE self._error_screen = self.index
@@ -916,6 +917,9 @@ class Screen(widgets.SubmanBaseWidget):
     def pre(self):
         self.pre_done()
         return False
+
+    def back_handler(self):
+        return
 
     def pre_done(self):
         self.set_property('ready', True)
@@ -977,6 +981,9 @@ class NoGuiScreen(ga_GObject.GObject):
         self.pre_done()
         return True
 
+    def back_handler(self):
+        self.info.set_property('register-state', RegisterState.REGISTERING)
+
     def pre_done(self):
         self.set_property('ready', True)
 
@@ -1029,7 +1036,13 @@ class PerformRegisterScreen(NoGuiScreen):
         # screen before it.
         self.async.backend.cs.force_cert_check()
 
+        # NOTE: Assume we want to try to upload package profile even with
+        # activation keys
+        self.emit('move-to-screen', UPLOAD_PACKAGE_PROFILE_PAGE)
         # Done with the registration stuff, now on to attach
+        # NOTE: the signal register-finished should come after any
+        # move-to-screen signals to ensure we end up at the done screen if we
+        # end up skipping the attach step. See bz 1372673
         self.emit('register-finished')
         # TODO: After register-finished, there is still a whole
         # series of steps before we start attaching, most of which
@@ -1039,10 +1052,6 @@ class PerformRegisterScreen(NoGuiScreen):
         #  - uploading package profile
         #  - potentially getting/setting SLA
         #  - reset'ing cert sorter and friends
-
-        # NOTE: Assume we want to try to upload package profile even with
-        # activation keys
-        self.emit('move-to-screen', UPLOAD_PACKAGE_PROFILE_PAGE)
         self.pre_done()
         return
 
@@ -1059,6 +1068,9 @@ class PerformRegisterScreen(NoGuiScreen):
                                      self._on_registration_finished_cb)
 
         return True
+
+    def back_handler(self):
+        self.info.set_property('register-state', RegisterState.REGISTERING)
 
 
 class PerformUnregisterScreen(NoGuiScreen):
@@ -1095,6 +1107,9 @@ class PerformUnregisterScreen(NoGuiScreen):
         self.emit('move-to-screen', OWNER_SELECT_PAGE)
         self.pre_done()
         return False
+
+    def back_handler(self):
+        self.info.set_property('register-state', RegisterState.REGISTERING)
 
 
 # After registering, we can upload package profiles.
@@ -1163,6 +1178,7 @@ class PerformSubscribeScreen(NoGuiScreen):
 
     def pre(self):
         self.info.set_property('details-label-txt', self.pre_message)
+        self.info.set_property('register-state', RegisterState.SUBSCRIBING)
         self.async.subscribe(self.info.identity.uuid,
                              self.info.get_property('current-sla'),
                              self.info.get_property('dry-run-result'),
@@ -1181,7 +1197,7 @@ class ConfirmSubscriptionsScreen(Screen):
 
     def __init__(self, reg_info, async_backend, parent_window):
         super(ConfirmSubscriptionsScreen, self).__init__(reg_info, async_backend, parent_window)
-        self.button_label = _("Attach")
+        self.button_label = _("_Attach")
 
         self.store = ga_Gtk.ListStore(str, bool, str)
         self.subs_treeview.set_model(self.store)
@@ -1247,7 +1263,7 @@ class SelectSLAScreen(Screen):
         super(SelectSLAScreen, self).__init__(reg_info, async_backend, parent_window)
 
         self.pre_message = _("Finding suitable service levels")
-        self.button_label = _("Next")
+        self.button_label = _("_Next")
 
         self.list_store = ga_Gtk.ListStore(str, ga_GObject.TYPE_PYOBJECT)
         self.sla_combobox.set_model(self.list_store)
@@ -1463,6 +1479,9 @@ class EnvironmentScreen(Screen):
                                         self._on_get_environment_list_cb)
         return True
 
+    def back_handler(self):
+        self.info.set_property('register-state', RegisterState.REGISTERING)
+
     def apply(self):
         model, tree_iter = self.environment_treeview.get_selection().get_selected()
         self.set_environment(model.get_value(tree_iter, 0))
@@ -1533,6 +1552,9 @@ class OrganizationScreen(Screen):
         self.async.get_owner_list(self.info.get_property('username'),
                                   self._on_get_owner_list_cb)
         return True
+
+    def back_handler(self):
+        self.info.set_property('register-state', RegisterState.REGISTERING)
 
     def apply(self):
         # check for selection exists
@@ -1653,6 +1675,9 @@ class CredentialsScreen(Screen):
         self._initialize_consumer_name()
         self.skip_auto_bind.set_active(False)
 
+    def back_handler(self):
+        self.info.set_property('register-state', RegisterState.REGISTERING)
+
 
 class ActivationKeyScreen(Screen):
     screen_enum = ACTIVATION_KEY_PAGE
@@ -1734,6 +1759,9 @@ class ActivationKeyScreen(Screen):
         self.pre_done()
         return False
 
+    def back_handler(self):
+        self.info.set_property('register-state', RegisterState.REGISTERING)
+
 
 class RefreshSubscriptionsScreen(NoGuiScreen):
 
@@ -1755,6 +1783,7 @@ class RefreshSubscriptionsScreen(NoGuiScreen):
 
     def pre(self):
         self.info.set_property('details-label-txt', self.pre_message)
+        self.info.set_property('register-state', RegisterState.SUBSCRIBING)
         self.async.refresh(self._on_refresh_cb)
         return True
 
@@ -1768,7 +1797,7 @@ class ChooseServerScreen(Screen):
     def __init__(self, reg_info, async_backend, parent_window):
         super(ChooseServerScreen, self).__init__(reg_info, async_backend, parent_window)
 
-        self.button_label = _("Next")
+        self.button_label = _("_Next")
 
         callbacks = {
             "on_default_button_clicked": self._on_default_button_clicked,
@@ -1831,7 +1860,8 @@ class ChooseServerScreen(Screen):
             self.reset_resolver()
 
             try:
-                if not is_valid_server_info(hostname, port, prefix):
+                conn = UEPConnection(hostname, int(port), prefix)
+                if not is_valid_server_info(conn):
                     self.emit('register-error',
                               _("Unable to reach the server at %s:%s%s") %
                                 (hostname, port, prefix),
@@ -1865,6 +1895,7 @@ class ChooseServerScreen(Screen):
 
         else:
             self.emit('move-to-screen', CREDENTIALS_PAGE)
+            self.info.set_property('activation-keys', None)
             return True
 
     def set_server_entry(self, hostname, port, prefix):
@@ -1886,6 +1917,16 @@ class AsyncBackend(object):
         self.backend = backend
         self.plugin_manager = require(PLUGIN_MANAGER)
         self.queue = Queue.Queue()
+        self._threads = []
+
+    def block_until_complete(self):
+        """Complete outstanding requests."""
+        for thread in self._threads:
+            thread.join()
+
+    def _start_thread(self, thread):
+        thread.start()
+        self._threads.append(thread)
 
     def update(self):
         self.backend.update()
@@ -2183,58 +2224,60 @@ class AsyncBackend(object):
 
     def get_owner_list(self, username, callback):
         ga_GObject.idle_add(self._watch_thread)
-        threading.Thread(target=self._get_owner_list,
-                         name="GetOwnerListThread",
-                         args=(username, callback)).start()
+        self._start_thread(threading.Thread(target=self._get_owner_list,
+                                            name="GetOwnerListThread",
+                                            args=(username, callback)))
 
     def get_environment_list(self, owner_key, callback):
         ga_GObject.idle_add(self._watch_thread)
-        threading.Thread(target=self._get_environment_list,
-                         name="GetEnvironmentListThread",
-                         args=(owner_key, callback)).start()
+        self._start_thread(threading.Thread(target=self._get_environment_list,
+                                            name="GetEnvironmentListThread",
+                                            args=(owner_key, callback)))
 
     def register_consumer(self, name, owner, env, activation_keys, callback):
         """
         Run consumer registration asyncronously
         """
         ga_GObject.idle_add(self._watch_thread)
-        threading.Thread(target=self._register_consumer,
-                         name="RegisterConsumerThread",
-                         args=(name, owner,
-                               env, activation_keys, callback)).start()
+        self._start_thread(threading.Thread(
+            target=self._register_consumer,
+            name="RegisterConsumerThread",
+            args=(name, owner, env, activation_keys, callback)))
 
     def update_package_profile(self, uuid, callback):
         ga_GObject.idle_add(self._watch_thread)
-        threading.Thread(target=self._update_package_profile,
-                         name="UpdatePackageProfileThread",
-                         args=(uuid, callback)).start()
+        self._start_thread(threading.Thread(
+            target=self._update_package_profile,
+            name="UpdatePackageProfileThread",
+            args=(uuid, callback)))
 
     def subscribe(self, uuid, current_sla, dry_run_result, callback):
         ga_GObject.idle_add(self._watch_thread)
-        threading.Thread(target=self._subscribe,
-                         name="SubscribeThread",
-                         args=(uuid, current_sla,
-                               dry_run_result, callback)).start()
+        self._start_thread(threading.Thread(
+            target=self._subscribe,
+            name="SubscribeThread",
+            args=(uuid, current_sla, dry_run_result, callback)))
 
     def find_service_levels(self, consumer_uuid, callback):
         ga_GObject.idle_add(self._watch_thread)
-        threading.Thread(target=self._find_service_levels,
-                         name="FindServiceLevelsThread",
-                         args=(consumer_uuid, callback)).start()
+        self._start_thread(threading.Thread(
+            target=self._find_service_levels,
+            name="FindServiceLevelsThread",
+            args=(consumer_uuid, callback)))
 
     def refresh(self, callback):
         ga_GObject.idle_add(self._watch_thread)
-        threading.Thread(target=self._refresh,
-                         name="RefreshThread",
-                         args=(callback,)).start()
+        self._start_thread(threading.Thread(target=self._refresh,
+                                            name="RefreshThread",
+                                            args=(callback,)))
 
     def unregister_consumer(self, consumer_uuid, server_info, callback):
         ga_GObject.idle_add(self._watch_thread)
-        threading.Thread(target=self._unregister_consumer,
-                         name="UnregisterThread",
-                         args=(consumer_uuid,
-                               server_info,
-                               callback)).start()
+        self._start_thread(threading.Thread(target=self._unregister_consumer,
+                                            name="UnregisterThread",
+                                            args=(consumer_uuid,
+                                                  server_info,
+                                                  callback)))
 
 
 # TODO: make this a more informative 'summary' page.
@@ -2268,7 +2311,7 @@ class InfoScreen(Screen):
 
     def __init__(self, reg_info, async_backend, parent_window):
         super(InfoScreen, self).__init__(reg_info, async_backend, parent_window)
-        self.button_label = _("Next")
+        self.button_label = _("_Next")
         callbacks = {"on_why_register_button_clicked":
                      self._on_why_register_button_clicked,
                      "on_back_to_reg_button_clicked":

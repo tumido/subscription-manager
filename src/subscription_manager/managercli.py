@@ -33,6 +33,7 @@ from M2Crypto import X509
 
 import rhsm.config
 import rhsm.connection as connection
+from rhsm.connection import ProxyException
 from rhsm.utils import remove_scheme, ServerUrlParseError
 from rhsm.certificate import GMT
 
@@ -204,6 +205,7 @@ def autosubscribe(cp, consumer_uuid, service_level=None):
     except Exception, e:
         log.warning("Error during auto-attach.")
         log.exception(e)
+        raise
 
 
 def show_autosubscribe_output(uep):
@@ -323,6 +325,7 @@ class CliCommand(AbstractCLICommand):
             result = s.connect_ex((self.proxy_hostname or conf["server"]["proxy_hostname"], int(self.proxy_port or rhsm.config.DEFAULT_PROXY_PORT)))
         except Exception as e:
             log.info("Attempted bad proxy: %s" % e)
+            return False
         finally:
             s.close()
         if result:
@@ -432,16 +435,6 @@ class CliCommand(AbstractCLICommand):
             except ServerUrlParseError, e:
                 print _("Error parsing serverurl:")
                 handle_exception("Error parsing serverurl:", e)
-            # this trys to actually connect to the server and ping it
-            try:
-                if not is_valid_server_info(self.server_hostname, self.server_port, self.server_prefix):
-                    system_exit(os.EX_UNAVAILABLE, _("Unable to reach the server at %s:%s%s") % (
-                        self.server_hostname,
-                        self.server_port,
-                        self.server_prefix
-                    ))
-            except MissingCaCertException:
-                system_exit(os.EX_CONFIG, _("Error: CA certificate for subscription service has not been installed."))
 
             conf["server"]["hostname"] = self.server_hostname
             conf["server"]["port"] = self.server_port
@@ -519,7 +512,23 @@ class CliCommand(AbstractCLICommand):
             self.entcertlib = EntCertActionInvoker()
 
             if config_changed:
-                if not self.test_proxy_connection():
+                try:
+                    # catch host/port issues; does not catch auth issues
+                    if not self.test_proxy_connection():
+                        system_exit(os.EX_UNAVAILABLE, _("Proxy connection failed, please check your settings."))
+
+                    # this tries to actually connect to the server and ping it
+                    if not is_valid_server_info(self.no_auth_cp):
+                        system_exit(os.EX_UNAVAILABLE, _("Unable to reach the server at %s:%s%s") % (
+                            self.no_auth_cp.host,
+                            self.no_auth_cp.ssl_port,
+                            self.no_auth_cp.handler
+                        ))
+
+                except MissingCaCertException:
+                    system_exit(os.EX_CONFIG,
+                                _("Error: CA certificate for subscription service has not been installed."))
+                except ProxyException:
                     system_exit(os.EX_UNAVAILABLE, _("Proxy connection failed, please check your settings."))
 
         else:
@@ -651,9 +660,13 @@ class RefreshCommand(CliCommand):
             identity = inj.require(inj.IDENTITY)
 
             # Force a regen of the entitlement certs for this consumer
-            self.cp.regenEntitlementCertificates(identity.uuid, True)
+            # TODO: Eventually migrate this to capability recognition. Currently it will silently return
+            #   false if an error occurs
+            if not self.cp.regenEntitlementCertificates(identity.uuid, True):
+                log.debug("Warning: Unable to refresh entitlement certificates; service likely unavailable")
 
             self.entcertlib.update()
+
             log.info("Refreshed local data")
             print (_("All local data refreshed"))
         except connection.RestlibException, re:
@@ -1532,6 +1545,7 @@ class AttachCommand(CliCommand):
 
         # If a pools file was specified, process its contents and append it to options.pool
         if self.options.file:
+            self.options.file = os.path.expanduser(self.options.file)
             if self.options.file == '-' or os.path.isfile(self.options.file):
                 self._read_pool_ids(self.options.file)
 
@@ -1912,6 +1926,8 @@ class ImportCertCommand(CliCommand):
                                help=_("certificate file to import (can be specified more than once)"))
 
     def _validate_options(self):
+        if self.is_registered():
+            system_exit(os.EX_USAGE, _("Error: You may not import certificates into a system that is registered to a subscription management service."))
         if not self.options.certificate_file:
             system_exit(os.EX_USAGE, _("Error: This command requires that you specify a certificate with --certificate."))
 
@@ -1920,6 +1936,7 @@ class ImportCertCommand(CliCommand):
         # Return code
         imported_certs = []
         for src_cert_file in self.options.certificate_file:
+            src_cert_file = os.path.expanduser(src_cert_file)
             if os.path.exists(src_cert_file):
                 try:
                     extractor = managerlib.ImportFileExtractor(src_cert_file)
@@ -1943,7 +1960,7 @@ class ImportCertCommand(CliCommand):
                             "Please check log file for more information."))
             else:
                 log.error("Supplied certificate file does not exist: %s" % src_cert_file)
-                print(_("%s is not a valid certificate file. Please use a valid certificate.") %
+                print(_("%s: file not found.") %
                     os.path.basename(src_cert_file))
 
         # update branding info for the imported certs, if needed
@@ -2606,9 +2623,11 @@ class OverrideCommand(CliCommand):
     def _colon_split(self, option, opt_str, value, parser):
         if parser.values.additions is None:
             parser.values.additions = {}
+        if value.strip() == '':
+            raise OptionValueError(_("You must specify an override in the form of \"name:value\" with --add."))
 
         k, _colon, v = value.partition(':')
-        if not v:
+        if not v or not k:
             raise OptionValueError(_("--add arguments should be in the form of \"name:value\""))
 
         parser.values.additions[k] = v
@@ -2624,6 +2643,10 @@ class OverrideCommand(CliCommand):
         if self.options.repos and not (self.options.list or self.options.additions or
                                        self.options.removals or self.options.remove_all):
             system_exit(os.EX_USAGE, _("Error: The --repo option must be used with --list or --add or --remove."))
+        if self.options.removals:
+            stripped_removals = [removal.strip() for removal in self.options.removals]
+            if '' in stripped_removals:
+                system_exit(os.EX_USAGE, _("Error: You must specify an override name with --remove."))
         # If no relevant options were given, just show a list
         if not (self.options.repos or self.options.additions or
                 self.options.removals or self.options.remove_all or self.options.list):

@@ -188,7 +188,7 @@ class HasSortableWidget(object):
     def compare_text(str1, str2):
         # Ensure our text fields are compared properly
         # 'Unlimited' is greater than all except 'Unlimited'
-        # All other strings will be converted to an int or None
+        # Strings will be converted to an int if possible
 
         if str1 == 'Unlimited':
             if str2 == 'Unlimited':
@@ -196,9 +196,9 @@ class HasSortableWidget(object):
             return 1
         elif str2 == 'Unlimited':
             return -1
-        int1 = safe_int(str1)
-        int2 = safe_int(str2)
-        return cmp(int1, int2)
+        value1 = safe_int(str1, str1)
+        value2 = safe_int(str2, str2)
+        return cmp(value1, value2)
 
     def sort_date(self, model, row1, row2, key):
         date1 = model.get_value(row1, model[key]) \
@@ -971,14 +971,19 @@ class QuantitySelectionColumn(ga_Gtk.TreeViewColumn):
 
         if self.available_store_idx is not None:
             available = tree_model.get_value(tree_iter, self.available_store_idx)
-            if available and available != -1:
-                if self.quantity_increment_idx is not None:
-                    increment = tree_model.get_value(tree_iter, self.quantity_increment_idx)
-                else:
-                    increment = 1
 
-                cell_renderer.set_property("adjustment",
-                    ga_Gtk.Adjustment(lower=int(increment), upper=int(available), step_incr=int(increment)))
+            if self.quantity_increment_idx is not None:
+                increment = tree_model.get_value(tree_iter, self.quantity_increment_idx)
+            else:
+                increment = 1
+
+            if available:
+                if available != -1:
+                    cell_renderer.set_property("adjustment",
+                        ga_Gtk.Adjustment(lower=int(increment), upper=int(available), step_incr=int(increment)))
+                else:
+                    cell_renderer.set_property("adjustment",
+                        ga_Gtk.Adjustment(lower=int(increment), upper=100, step_incr=int(increment)))
 
 
 class TextTreeViewColumn(ga_Gtk.TreeViewColumn):

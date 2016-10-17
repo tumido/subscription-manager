@@ -22,11 +22,20 @@ _rct()
             COMPREPLY=( $( compgen -o filenames -- "$cur" ) )
             return 0
             ;;
-    stat-cert|\
-    cat-manifest)
+    stat-cert)
         case "${cur}" in
             -*)
                 COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
+                return 0
+                ;;
+        esac
+            COMPREPLY=( $( compgen -o filenames -- "$cur" ) )
+            return 0
+            ;;
+    cat-manifest)
+        case "${cur}" in
+            -*)
+                COMPREPLY=( $( compgen -W "-h --help --no-content" -- "$cur" ) )
                 return 0
                 ;;
         esac

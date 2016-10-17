@@ -19,18 +19,16 @@
         <property name="valign">start</property>
         <property name="hexpand">True</property>
         <property name="resize_mode">immediate</property>
+        <property name="spacing">5</property>
         <child>
           <object class="GtkLabel" id="choose_server_label">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="valign">center</property>
-            <property name="hexpand">True</property>
+            <property name="hexpand">False</property>
             <property name="vexpand">True</property>
             <property name="label" translatable="yes">The subscription management service you register with will provide your system with updates and allow additional management.</property>
             <property name="wrap">True</property>
             <property name="selectable">True</property>
-            <property name="ellipsize">end</property>
-            <property name="max_width_chars">64</property>
             <property name="lines">3</property>
             <property name="xalign">0</property>
             <child internal-child="accessible">
@@ -40,8 +38,8 @@
             </child>
           </object>
           <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
             <property name="position">0</property>
           </packing>
         </child>
@@ -92,7 +90,9 @@
             <property name="can_focus">False</property>
             <property name="valign">center</property>
             <property name="margin_right">4</property>
-            <property name="label" translatable="yes">I will register with:</property>
+            <property name="label" translatable="yes">I will register _with:</property>
+            <property name="use_underline">True</property>
+            <property name="mnemonic_widget">server_entry</property>
             <property name="xalign">0</property>
             <child internal-child="accessible">
               <object class="AtkObject" id="server_label-atkobject">
@@ -129,13 +129,14 @@
         </child>
         <child>
           <object class="GtkButton" id="default_button">
-            <property name="label" translatable="yes">Default</property>
+            <property name="label" translatable="yes">_Default</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
             <property name="tooltip_text" translatable="yes">Reset to register with Customer Portal.</property>
             <property name="valign">center</property>
             <property name="margin_left">4</property>
+            <property name="use_underline">True</property>
             <property name="xalign">0.46000000834465027</property>
             <signal name="clicked" handler="on_default_button_clicked" swapped="no"/>
             <child internal-child="accessible">
@@ -158,11 +159,12 @@
             <property name="spacing">5</property>
             <child>
               <object class="GtkCheckButton" id="activation_key_checkbox">
-                <property name="label" translatable="yes">I will use an Activation Key</property>
+                <property name="label" translatable="yes">I will use an Activation _Key</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">False</property>
                 <property name="halign">start</property>
+                <property name="use_underline">True</property>
                 <property name="xalign">0</property>
                 <property name="draw_indicator">True</property>
               </object>
@@ -230,12 +232,11 @@
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="halign">start</property>
-                    <property name="valign">start</property>
+                    <property name="valign">center</property>
                     <property name="label" translatable="yes">If required, please configure your proxy before moving forward. </property>
                     <property name="wrap">True</property>
                     <property name="wrap_mode">word-char</property>
                     <property name="ellipsize">end</property>
-                    <property name="max_width_chars">60</property>
                     <property name="lines">8</property>
                   </object>
                   <packing>
@@ -246,7 +247,7 @@
                 </child>
                 <child>
                   <object class="GtkButton" id="proxy_button">
-                    <property name="label" translatable="yes">Configure Proxy</property>
+                    <property name="label" translatable="yes">Configure Pro_xy</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
@@ -254,6 +255,7 @@
                     <property name="valign">center</property>
                     <property name="margin_left">4</property>
                     <property name="margin_right">4</property>
+                    <property name="use_underline">True</property>
                     <signal name="clicked" handler="on_proxy_button_clicked" swapped="no"/>
                     <child internal-child="accessible">
                       <object class="AtkObject" id="proxy_button-atkobject">
