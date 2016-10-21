@@ -566,7 +566,7 @@ class HardwareCollector(collector.FactsCollector):
         except Exception as e:
             log.warn('Error reading system CPU information: %s', e)
         if errors:
-            log.debuf('Errors while parsing lscpu output: %s', errors)
+            log.debug('Errors while parsing lscpu output: %s', errors)
 
         return lscpu_info
 

@@ -28,6 +28,11 @@ log = logging.getLogger(__name__)
 
 
 class Server(object):
+    """This class sets up a DBus server on a domain socket. That server can then be used to perform
+    registration. The issue is that we can't send registration credentials over the regular system or
+    session bus since those aren't really locked down. The work-around is the client asks our service
+    to open another server on a domain socket, gets socket information back, and then connects and sends
+    the register command (with the credentials) to the server on the domain socket."""
     def __init__(self, bus_class=None, bus_name=None, object_classes=None):
         """bus == dbus.SystemBus() etc.
         object_class is the the class implementing a DBus Object"""

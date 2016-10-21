@@ -1,7 +1,3 @@
-#!/usr/bin/python
-#
-# Client DBus proxy for rhsm facts service
-#
 # Copyright (c) 2010-2016 Red Hat, Inc.
 #
 # This software is licensed to you under the GNU General Public License,
