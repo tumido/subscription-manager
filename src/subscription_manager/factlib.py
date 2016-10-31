@@ -124,7 +124,6 @@ class FactsActionCommand(object):
         log.debug("sync_facts_to_server candlepin api res=%s", res)
 
     def perform(self):
-
         # figure out the diff between latest facts and
         # report that as updates
         self.update()

@@ -17,7 +17,7 @@ except ImportError:
     import unittest
 
 import mock
-from ..fixture import open_mock
+from test.fixture import open_mock
 
 from rhsmlib.facts import collector
 

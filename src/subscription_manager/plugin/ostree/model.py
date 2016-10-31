@@ -18,7 +18,7 @@ import re
 import os
 
 # For python2.6 that doesn't have subprocess.check_output
-from rhsmlib.compat import check_output as compat_check_output
+from rhsmlib.compat import check_output
 from subprocess import CalledProcessError
 
 from subscription_manager.plugin.ostree import config
@@ -372,7 +372,7 @@ class OstreeOriginUpdater(object):
         cmd_args = ['python', gi_wrapper_path, gi_wrapper_arg]
 
         try:
-            output = compat_check_output(cmd_args)
+            output = check_output(cmd_args)
             return output.strip()
         except CalledProcessError, e:
             # Is this an OSTree system? Does it have pygobject3?

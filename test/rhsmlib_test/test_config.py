@@ -23,7 +23,7 @@ from rhsmlib.services.config import Config, ConfigSection
 from rhsm.config import RhsmConfigParser, NoOptionError
 from rhsmlib.dbus.objects.config import ConfigDBusObject
 
-from .base import DBusObjectTest, import_class
+from test.rhsmlib_test.base import DBusObjectTest, import_class
 
 TEST_CONFIG = """
 [foo]

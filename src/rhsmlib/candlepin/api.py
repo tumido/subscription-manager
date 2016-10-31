@@ -87,10 +87,11 @@ class Candlepin(object):
             self.last_error = ex
             raise CandlepinApiRestlibError('Error from candlepin: %s' % ex)
         except rhsm.connection.AuthenticationException as ex:
-            log.error("Could not authenticate with server, check registration status.")
+            log.error("Could not authenticate with server. Check registration status.")
             log.exception(ex)
             self.last_error = ex
-            raise CandlepinApiAuthenticationError("Could not authenticate with server, check registration status.: %s" % ex)
+            raise CandlepinApiAuthenticationError("Could not authenticate with server. "
+                  "Check registration status.: %s" % ex)
         except rhsm.connection.ExpiredIdentityCertException as ex:
             log.exception(ex)
             self.last_error = ex
@@ -100,13 +101,11 @@ class Candlepin(object):
             raise
         # Most of the above are subclasses of ConnectionException that
         # get handled first
-        except (rhsm.connection.ConnectionException,
-                socket.error) as ex:
-
+        except (rhsm.connection.ConnectionException, socket.error) as ex:
             log.error(ex)
             self.last_error = ex
 
-            msg = "Unable to reach server, using cached status."
+            msg = "Unable to reach server."
             log.warn(msg)
             raise CandlepinApiNetworkError('%s: %s' % (msg, ex))
 

@@ -41,5 +41,7 @@ def dbus_handle_exceptions(func, *args, **kwargs):
 
 
 def dbus_service_method(*args, **kwargs):
+    # Tell python-dbus that "sender" will be the keyword to use for the sender unless otherwise
+    # defined.
     kwargs.setdefault("sender_keyword", "sender")
     return dbus.service.method(*args, **kwargs)

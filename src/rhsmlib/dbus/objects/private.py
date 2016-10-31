@@ -37,6 +37,7 @@ class PrivateService(dbus.service.Object):
     _default_bus_name = constants.BUS_NAME
 
     def __init__(self, conn=None, bus=None, object_path=None):
+        # Note that the bus parameter is not a bus name but an actual instance of a Bus.  E.g. dbus.SystemBus
         if object_path is None or object_path == "":
             # If not given a path to be exposed on, use class defaults
             _interface_name = self.__class__._interface_name or ""

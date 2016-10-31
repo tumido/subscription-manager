@@ -12,7 +12,8 @@
 # in this software or its documentation.
 import mock
 import dbus
-from . import test_config
+
+from test.rhsmlib_test import test_config
 from rhsmlib.dbus import objects, constants
 
 
