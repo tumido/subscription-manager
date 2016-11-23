@@ -25,8 +25,8 @@ class ConfigDBusObject(base_object.BaseObject):
     default_dbus_path = constants.CONFIG_DBUS_PATH
     interface_name = constants.CONFIG_INTERFACE
 
-    def __init__(self, conn=None, object_path=None, bus_name=None):
-        self.config = Config()
+    def __init__(self, conn=None, object_path=None, bus_name=None, parser=None):
+        self.config = Config(parser)
         super(ConfigDBusObject, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
 
     def _create_properties(self, interface_name):

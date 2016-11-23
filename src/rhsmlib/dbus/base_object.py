@@ -80,7 +80,7 @@ class BaseProperties(collections.Mapping):
         return instance
 
     def get_all(self):
-        return dict([(name, p_v.value) for name, p_v in iter(self)])
+        return dict([(name, p_v.value) for name, p_v in self.items()])
 
     def add_introspection_xml(self, interface_xml):
         ret = dbus_utils.add_properties(interface_xml, self.interface_name, self.to_introspection_props())

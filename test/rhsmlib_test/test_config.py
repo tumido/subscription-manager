@@ -22,8 +22,9 @@ from tempfile import NamedTemporaryFile
 from rhsmlib.services.config import Config, ConfigSection
 from rhsm.config import RhsmConfigParser, NoOptionError
 from rhsmlib.dbus.objects.config import ConfigDBusObject
+from rhsmlib.dbus import constants
 
-from test.rhsmlib_test.base import DBusObjectTest, import_class
+from test.rhsmlib_test.base import DBusObjectTest
 
 TEST_CONFIG = """
 [foo]
@@ -33,7 +34,7 @@ bigger_than_32_bit = 21474836470
 bigger_than_64_bit = 123456789009876543211234567890
 
 [server]
-hostname = server.example.conf
+hostname = server.example.com
 prefix = /candlepin
 port = 8443
 insecure = 1
@@ -63,8 +64,12 @@ default_log_level = DEBUG
 """
 
 
-class BaseConfigTest(unittest.TestCase):
-    expected_sections = ['foo', 'server', 'rhsm', 'rhsmcertd', 'logging']
+class TestUtilsMixin(object):
+    def assert_items_equals(self, a, b):
+        """Assert that two lists contain the same items regardless of order."""
+        if sorted(a) != sorted(b):
+            self.fail("%s != %s" % (a, b))
+        return True
 
     def write_temp_file(self, data):
         # create a temp file for use as a config file. This should get cleaned
@@ -74,16 +79,15 @@ class BaseConfigTest(unittest.TestCase):
         fid.seek(0)
         return fid
 
+
+class BaseConfigTest(unittest.TestCase, TestUtilsMixin):
+    expected_sections = ['foo', 'server', 'rhsm', 'rhsmcertd', 'logging']
+
     def setUp(self):
+        super(BaseConfigTest, self).setUp()
         self.fid = self.write_temp_file(TEST_CONFIG)
         self.parser = RhsmConfigParser(self.fid.name)
         self.config = Config(self.parser)
-
-    def assert_items_equals(self, a, b):
-        """Assert that two lists contain the same items regardless of order."""
-        if sorted(a) != sorted(b):
-            self.fail("%s != %s" % (a, b))
-        return True
 
 
 class TestConfig(BaseConfigTest):
@@ -193,23 +197,44 @@ class TestConfigSection(BaseConfigTest):
         self.assertNotIn("missing", self.config['foo'])
 
 
-class TestConfigDBusObject(DBusObjectTest):
-    def postServerSetUp(self):
-        self.bus = import_class(self.bus_class_name)()
-        self.proxy = self.bus.get_object(
-            self.bus_name, ConfigDBusObject.default_dbus_path)
-        self.interface = dbus.Interface(self.proxy, dbus_interface=dbus.PROPERTIES_IFACE)
+class TestConfigDBusObject(DBusObjectTest, TestUtilsMixin):
+    def setUp(self):
+        super(TestConfigDBusObject, self).setUp()
+        self.proxy = self.proxy_for(ConfigDBusObject.default_dbus_path)
 
     def dbus_objects(self):
-        return [ConfigDBusObject]
+        self.fid = self.write_temp_file(TEST_CONFIG)
+        return [(ConfigDBusObject, {'parser': RhsmConfigParser(self.fid.name)})]
+
+    def bus_name(self):
+        return constants.BUS_NAME
 
     def test_get_all(self):
-        config = self.interface.GetAll(ConfigDBusObject.interface_name)
-        self.assertIn("server", config)
+        config = self.proxy.get_dbus_method('GetAll', dbus.PROPERTIES_IFACE)
+        dbus_method_args = [ConfigDBusObject.interface_name]
+
+        def assertions(*args):
+            result = args[0]
+            self.assertIn("server", result)
+
+        self.dbus_request(assertions, config, dbus_method_args)
 
     def test_get_property(self):
-        self.interface.Get(ConfigDBusObject.interface_name, 'server.hostname')
+        config = self.proxy.get_dbus_method('Get', dbus.PROPERTIES_IFACE)
+        dbus_method_args = [ConfigDBusObject.interface_name, 'server.hostname']
+
+        def assertions(*args):
+            result = args[0]
+            self.assertIn('server.example.com', result)
+
+        self.dbus_request(assertions, config, dbus_method_args)
 
     def test_get_section(self):
-        config = self.interface.Get(ConfigDBusObject.interface_name, 'server')
-        self.assertIn('hostname', config)
+        config = self.proxy.get_dbus_method('Get', dbus.PROPERTIES_IFACE)
+        dbus_method_args = [ConfigDBusObject.interface_name, 'server']
+
+        def assertions(*args):
+            result = args[0]
+            self.assertIn('hostname', result)
+
+        self.dbus_request(assertions, config, dbus_method_args)

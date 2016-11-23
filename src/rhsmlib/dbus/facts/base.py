@@ -104,6 +104,15 @@ class AllFacts(base_object.BaseObject):
             results.update(fact_collector.GetFacts())
         return results
 
+    def remove_from_connection(self, connection=None, path=None):
+        for sub_path, obj in self.collectors:
+            if path:
+                child_path = path + "/" + sub_path
+            else:
+                child_path = None
+            obj.remove_from_connection(connection, child_path)
+        super(AllFacts, self).remove_from_connection(connection, path)
+
 
 class HostFacts(BaseFacts):
     persistent = True
