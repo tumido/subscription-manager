@@ -25,11 +25,13 @@ import logging
 from optparse import OptionValueError
 import os
 import re
+import readline
 import socket
 import sys
 from time import localtime, strftime, strptime
 
-from M2Crypto import X509
+from rhsm.certificate import CertificateException
+from rhsm.https import ssl
 
 import rhsm.config
 import rhsm.connection as connection
@@ -545,7 +547,7 @@ class CliCommand(AbstractCLICommand):
 
             if return_code is not None:
                 return return_code
-        except X509.X509Error, e:
+        except (CertificateException, ssl.SSLError) as e:
             log.error(e)
             system_exit(os.EX_SOFTWARE, _('System certificates corrupted. Please reregister.'))
         except connection.GoneException, ge:
@@ -581,6 +583,7 @@ class UserPassCommand(CliCommand):
         """
         while not username:
             username = raw_input(_("Username: "))
+            readline.clear_history()
         while not password:
             password = getpass.getpass(_("Password: "))
         return (username.strip(), password.strip())
@@ -619,6 +622,7 @@ class OrgCommand(UserPassCommand):
     def _get_org(org):
         while not org:
             org = raw_input(_("Organization: "))
+            readline.clear_history()
         return org
 
     @property
@@ -1239,7 +1243,9 @@ class RegisterCommand(UserPassCommand):
         """
         By breaking this code out, we can write cleaner tests
         """
-        return raw_input(_("Environment: ")).strip() or self._prompt_for_environment()
+        environment = raw_input(_("Environment: ")).strip()
+        readline.clear_history()
+        return environment or self._prompt_for_environment()
 
     def _get_environment_id(self, cp, owner_key, environment_name):
         # If none specified on CLI and the server doesn't support environments,
@@ -1302,6 +1308,7 @@ class RegisterCommand(UserPassCommand):
         owner_key = None
         while not owner_key:
             owner_key = raw_input(_("Organization: "))
+            readline.clear_history()
         return owner_key
 
 

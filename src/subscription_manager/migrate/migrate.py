@@ -20,12 +20,13 @@ import libxml2
 import logging
 import os
 import re
+import readline
 import shutil
 import subprocess
 import sys
 
 from datetime import datetime
-from M2Crypto.SSL import SSLError
+from rhsm.https import ssl
 
 from rhn import rpclib
 
@@ -117,6 +118,7 @@ class Menu(object):
         while True:
             self.display()
             selection = raw_input("? ").strip()
+            readline.clear_history()
             try:
                 return self._get_item(selection)
             except InvalidChoiceError:
@@ -184,6 +186,7 @@ class MigrationEngine(object):
     def authenticate(self, username, password, user_prompt, pw_prompt):
         if not username:
             username = raw_input(user_prompt).strip()
+            readline.clear_history()
 
         if not password:
             password = getpass.getpass(prompt=pw_prompt)
@@ -282,7 +285,7 @@ class MigrationEngine(object):
 
         try:
             self.cp.getStatus()
-        except SSLError, e:
+        except ssl.SSLError as e:
             print _("The CA certificate for the destination server has not been installed.")
             system_exit(os.EX_SOFTWARE, CONNECTION_FAILURE % e)
         except Exception, e:
@@ -305,6 +308,7 @@ class MigrationEngine(object):
                 org_input = owner_list[0]['key']
             else:
                 org_input = raw_input(_("Org: ")).strip()
+                readline.clear_history()
 
             org = None
             for owner_data in owner_list:
@@ -334,6 +338,7 @@ class MigrationEngine(object):
                 env_input = environment_list[0]['name']
             else:
                 env_input = raw_input(_("Environment: ")).strip()
+                readline.clear_history()
 
             for env_data in environment_list:
                 # See BZ #978001
@@ -791,12 +796,26 @@ class MigrationEngine(object):
         release_number = int(self.get_release().partition('-')[-1])
         return release_number > 6
 
+    def is_daemon_installed(self, daemon, using_systemd):
+        if using_systemd:
+            return subprocess.call("systemctl list-unit-files %s.service | grep %s > /dev/null 2>&1" % (daemon, daemon), shell=True) == 0
+        else:
+            return os.path.exists("/etc/init.d/%s" % daemon)
+
+    def is_daemon_running(self, daemon, using_systemd):
+        if using_systemd:
+            return subprocess.call("systemctl is-active --quiet %s" % daemon, shell=True) == 0
+        else:
+            return subprocess.call("service %s status > /dev/null 2>&1" % daemon, shell=True) == 0
+
     def handle_legacy_daemons(self, using_systemd):
         print _("Stopping and disabling legacy services...")
         log.info("Attempting to stop and disable legacy services: %s" % " ".join(LEGACY_DAEMONS))
         for daemon in LEGACY_DAEMONS:
-            self.stop_daemon(daemon, using_systemd)
-            self.disable_daemon(daemon, using_systemd)
+            if self.is_daemon_installed(daemon, using_systemd):
+                self.disable_daemon(daemon, using_systemd)
+                if self.is_daemon_running(daemon, using_systemd):
+                    self.stop_daemon(daemon, using_systemd)
 
     def stop_daemon(self, daemon, using_systemd):
         if using_systemd:
@@ -808,7 +827,7 @@ class MigrationEngine(object):
         if using_systemd:
             subprocess.call(["systemctl", "disable", daemon])
         else:
-            subprocess.call(["service", daemon, "disable"])
+            subprocess.call(["chkconfig", daemon, "off"])
 
     def remove_legacy_packages(self):
         print _("Removing legacy packages...")
@@ -934,6 +953,12 @@ def validate_options(options):
     if options.service_level and not options.auto:
         # TODO Need to explain why this restriction exists.
         system_exit(os.EX_USAGE, _("The --servicelevel and --no-auto options cannot be used together."))
+
+    if options.remove_legacy_packages and options.registration_state == 'keep' and not options.five_to_six:
+        system_exit(os.EX_USAGE, _("The --remove-rhn-packages and --keep options cannot be used together."))
+
+    if options.remove_legacy_packages and options.registration_state in ['keep', 'unentitle'] and options.five_to_six:
+        system_exit(os.EX_USAGE, _("The --remove-rhn-packages option must be used with --registration-state=purge."))
 
 
 def is_hosted():

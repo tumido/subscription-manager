@@ -31,6 +31,7 @@ from mock import patch, Mock, call
 
 # for some exceptions
 from rhsm import connection
+from rhsm.https import ssl
 from M2Crypto import SSL
 
 
@@ -1535,7 +1536,7 @@ class HandleExceptionTests(unittest.TestCase):
             self.assertEquals(e.code, os.EX_SOFTWARE)
 
     def test_he_ssl_error(self):
-        e = SSL.SSLError()
+        e = ssl.SSLError()
         try:
             managercli.handle_exception("huh", e)
         except SystemExit, e:

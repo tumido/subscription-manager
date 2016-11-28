@@ -60,7 +60,7 @@
 %endif
 
 Name: subscription-manager
-Version: 1.18.3
+Version: 1.18.5
 Release: 1%{?dist}
 Summary: Tools and libraries for subscription and repository management
 Group:   System Environment/Base
@@ -81,6 +81,8 @@ Requires:  python-decorator
 Requires:  dbus-x11
 Requires:  virt-what
 Requires:  python-rhsm > 1.18.4
+Requires:  python-decorator
+
 %if 0%{?sles_version}
 Requires:  dbus-1-python
 %else
@@ -598,6 +600,25 @@ fi
 gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 
 %changelog
+* Fri Nov 25 2016 Vritant Jain <adarshvritant@gmail.com> 1.18.5-1
+- 1395659: Handle ProxyExceptions that occur during GUI operation
+  (csnyder@redhat.com)
+- 1395662: Properly parses exc_info based on type (csnyder@redhat.com)
+- 1395794: Include python-decorator as a required dependency
+  (csnyder@redhat.com)
+- 1378495: Do not touch OSTree Origin files. (csnyder@redhat.com)
+- Replace m2crypto references (khowell@redhat.com)
+- 1390258: Validate --remove-rhn-packages conflicting options
+  (khowell@redhat.com)
+- 1390341: Disable SysV/systemd services properly (khowell@redhat.com)
+- 1268033: Add progress screen for validate server (khowell@redhat.com)
+* Tue Nov 08 2016 Vritant Jain <adarshvritant@gmail.com> 1.18.4-1
+- Rev zanata version to 1.18.X (adarshvritant@gmail.com)
+- 1389559: Parse log levels properly from config (khowell@redhat.com)
+- 1390549: Force input prompts to use stdout (khowell@redhat.com)
+- debrand so my Katello server errors don't point to real RHSM
+  (riehecky@fnal.gov)
+
 * Mon Oct 17 2016 Vritant Jain <adarshvritant@gmail.com> 1.18.3-1
 - 1367128, 1367126: Add network.fqdn fact (khowell@redhat.com)
 - 1305729: Improve dnf-plugin package metadata (khowell@redhat.com)

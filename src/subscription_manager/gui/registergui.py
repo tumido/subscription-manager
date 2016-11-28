@@ -31,7 +31,8 @@ from subscription_manager.ga import GObject as ga_GObject
 
 import rhsm.config as base_config
 from rhsm.utils import ServerUrlParseError
-from rhsm.connection import GoneException, RestlibException, UEPConnection
+from rhsm.connection import GoneException, RestlibException, UEPConnection, \
+        ProxyException
 
 from subscription_manager.branding import get_branding
 from subscription_manager.action_client import ActionClient
@@ -69,19 +70,20 @@ ERROR_SCREEN = -3
 DONT_CHANGE = -2
 PROGRESS_PAGE = -1
 CHOOSE_SERVER_PAGE = 0
-ACTIVATION_KEY_PAGE = 1
-CREDENTIALS_PAGE = 2
-PERFORM_UNREGISTER_PAGE = 3
-OWNER_SELECT_PAGE = 4
-ENVIRONMENT_SELECT_PAGE = 5
-PERFORM_REGISTER_PAGE = 6
-UPLOAD_PACKAGE_PROFILE_PAGE = 7
-SELECT_SLA_PAGE = 8
-CONFIRM_SUBS_PAGE = 9
-PERFORM_SUBSCRIBE_PAGE = 10
-REFRESH_SUBSCRIPTIONS_PAGE = 11
-INFO_PAGE = 12
-DONE_PAGE = 13
+VALIDATE_SERVER_PAGE = 1
+ACTIVATION_KEY_PAGE = 2
+CREDENTIALS_PAGE = 3
+PERFORM_UNREGISTER_PAGE = 4
+OWNER_SELECT_PAGE = 5
+ENVIRONMENT_SELECT_PAGE = 6
+PERFORM_REGISTER_PAGE = 7
+UPLOAD_PACKAGE_PROFILE_PAGE = 8
+SELECT_SLA_PAGE = 9
+CONFIRM_SUBS_PAGE = 10
+PERFORM_SUBSCRIBE_PAGE = 11
+REFRESH_SUBSCRIPTIONS_PAGE = 12
+INFO_PAGE = 13
+DONE_PAGE = 14
 FINISH = 100
 
 REGISTER_ERROR = _("<b>Unable to register the system.</b>") + \
@@ -181,6 +183,7 @@ class RegisterInfo(ga_GObject.GObject):
     hostname = ga_GObject.property(type=str, default='')
     port = ga_GObject.property(type=str, default='')
     prefix = ga_GObject.property(type=str, default='')
+    use_activation_keys = ga_GObject.property(type=bool, default=False)
 
     server_info = ga_GObject.property(type=ga_GObject.TYPE_PYOBJECT, default=None)
 
@@ -311,7 +314,7 @@ class RegisterWidget(widgets.SubmanBaseWidget):
         self.register_notebook.connect('switch-page',
                                        self._on_switch_page)
 
-        screen_classes = [ChooseServerScreen, ActivationKeyScreen,
+        screen_classes = [ChooseServerScreen, ValidateServerScreen, ActivationKeyScreen,
                           CredentialsScreen, PerformUnregisterScreen,
                           OrganizationScreen, EnvironmentScreen,
                           PerformRegisterScreen,
@@ -1848,55 +1851,20 @@ class ChooseServerScreen(Screen):
     def apply(self):
         self.stay()
         server = self.server_entry.get_text()
-
-        # TODO: test the values before saving, then update
-        #       self.info and cfg if it works
         try:
             (hostname, port, prefix) = parse_server_info(server, conf)
-            conf['server']['hostname'] = hostname
-            conf['server']['port'] = port
-            conf['server']['prefix'] = prefix
-
-            self.reset_resolver()
-
-            try:
-                conn = UEPConnection(hostname, int(port), prefix)
-                if not is_valid_server_info(conn):
-                    self.emit('register-error',
-                              _("Unable to reach the server at %s:%s%s") %
-                                (hostname, port, prefix),
-                              None)
-                    return False
-            except MissingCaCertException:
-                self.emit('register-error',
-                          _("CA certificate for subscription service has not been installed."),
-                          None)
-                return False
-
+            self.info.set_property('hostname', hostname)
+            self.info.set_property('port', port)
+            self.info.set_property('prefix', prefix)
+            self.info.set_property('use_activation_keys', self.activation_key_checkbox.get_active())
         except ServerUrlParseError:
             self.emit('register-error',
                       _("Please provide a hostname with optional port and/or prefix: "
                         "hostname[:port][/prefix]"),
                       None)
             return False
-
-        # NOTE: Do not persist the new information once we validate
-        # wait until after we successfully register
-        # We are using CFG as a singleton to track changes in the config in memory
-        # between classes (including the firstboot bits in rhsm_login.py)
-
-        self.info.set_property('hostname', hostname)
-        self.info.set_property('port', port)
-        self.info.set_property('prefix', prefix)
-
-        if self.activation_key_checkbox.get_active():
-            self.emit('move-to-screen', ACTIVATION_KEY_PAGE)
-            return True
-
-        else:
-            self.emit('move-to-screen', CREDENTIALS_PAGE)
-            self.info.set_property('activation-keys', None)
-            return True
+        self.emit('move-to-screen', VALIDATE_SERVER_PAGE)
+        return True
 
     def set_server_entry(self, hostname, port, prefix):
         # No need to show port and prefix for hosted:
@@ -1909,6 +1877,65 @@ class ChooseServerScreen(Screen):
     def pre(self):
         self.pre_done()
         return False
+
+
+class ValidateServerScreen(NoGuiScreen):
+    screen_enum = VALIDATE_SERVER_PAGE
+
+    def _on_validate_server(self, info, error=None):
+        if info:
+            hostname, port, prefix, is_valid = info
+        if error is not None:
+            if isinstance(error, tuple):
+                if isinstance(error[1], MissingCaCertException):
+                    self.emit('register-error',
+                      _("CA certificate for subscription service has not been installed."),
+                      None)
+                if isinstance(error[1], ProxyException):
+                    self.emit('register-error',
+                      _("Proxy connection failed, please check your settings."),
+                      None)
+            else:
+                self.emit('register-error',
+                          _("Error validating server: %s"),
+                          error)
+            self.pre_done()
+            return
+        elif not is_valid:
+            self.emit('register-error',
+                      _("Unable to reach the server at %s:%s%s") %
+                      (hostname, port, prefix),
+                      None)
+            self.pre_done()
+            return
+        conf['server']['hostname'] = hostname
+        conf['server']['port'] = port
+        conf['server']['prefix'] = prefix
+
+        self.pre_done()
+        if self.info.get_property('use_activation_keys'):
+            self.emit('move-to-screen', ACTIVATION_KEY_PAGE)
+            return
+
+        else:
+            self.emit('move-to-screen', CREDENTIALS_PAGE)
+            self.info.set_property('activation-keys', None)
+            return
+
+    def pre(self):
+        msg = _("Validating connection")
+        self.info.set_property('register-status', msg)
+        self.info.set_property('details-label-txt', msg)
+        self.info.set_property('register-state', RegisterState.REGISTERING)
+
+        hostname = self.info.get_property('hostname')
+        port = self.info.get_property('port')
+        prefix = self.info.get_property('prefix')
+        self.async.validate_server(hostname, port=port, prefix=prefix, callback=self._on_validate_server)
+        return True
+
+    def back_handler(self):
+        self.info.set_property('register-state', RegisterState.REGISTERING)
 
 
 class AsyncBackend(object):
@@ -2222,6 +2249,18 @@ class AsyncBackend(object):
         except Exception:
             self.queue.put((callback, None, sys.exc_info()))
 
+    def _validate_server(self, hostname, port, prefix, callback):
+        try:
+            reset_resolver()
+        except Exception, e:
+            log.warn("Error from reset_resolver: %s", e)
+        try:
+            conn = UEPConnection(hostname, int(port), prefix)
+            is_valid = is_valid_server_info(conn)
+            self.queue.put((callback, (hostname, port, prefix, is_valid), None))
+        except (MissingCaCertException, ProxyException):
+            self.queue.put((callback, None, sys.exc_info()))
+
     def get_owner_list(self, username, callback):
         ga_GObject.idle_add(self._watch_thread)
         self._start_thread(threading.Thread(target=self._get_owner_list,
@@ -2278,6 +2317,12 @@ class AsyncBackend(object):
                                             args=(consumer_uuid,
                                                   server_info,
                                                   callback)))
+
+    def validate_server(self, hostname, port, prefix, callback):
+        ga_GObject.idle_add(self._watch_thread)
+        self._start_thread(threading.Thread(target=self._validate_server,
+                                            name="ValidateServerThread",
+                                            args=(hostname, port, prefix, callback)))
 
 
 # TODO: make this a more informative 'summary' page.
