@@ -29,23 +29,11 @@ class ConfigDBusObject(base_object.BaseObject):
         self.config = Config(parser)
         super(ConfigDBusObject, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
 
-    def _create_properties(self, interface_name):
-        d = {}
-        for k, v in self.config.iteritems():
-            d[k] = {}
-            for kk, vv in v.iteritems():
-                d[k][kk] = vv
-
-        properties = base_object.BaseProperties.create_instance(interface_name, d, self.PropertiesChanged)
-        return properties
-
     @util.dbus_service_method(
-        dbus.PROPERTIES_IFACE,
-        in_signature='ssv')
+        constants.CONFIG_INTERFACE,
+        in_signature='sv')
     @util.dbus_handle_exceptions
-    def Set(self, interface_name, property_name, new_value, sender=None):
-        self._check_interface(interface_name)
-
+    def Set(self, property_name, new_value, sender=None):
         property_name = dbus_utils.dbus_to_python(property_name, str)
         new_value = dbus_utils.dbus_to_python(new_value, str)
         section, _dot, property_name = property_name.partition('.')
@@ -57,12 +45,11 @@ class ConfigDBusObject(base_object.BaseObject):
         self.config.persist()
 
     @util.dbus_service_method(
-        dbus.PROPERTIES_IFACE,
-        in_signature='s',
+        constants.CONFIG_INTERFACE,
+        in_signature='',
         out_signature='a{sv}')
     @util.dbus_handle_exceptions
-    def GetAll(self, interface_name, sender=None):
-        self._check_interface(interface_name)
+    def GetAll(self, sender=None):
         d = dbus.Dictionary({}, signature='sv')
         for k, v in self.config.iteritems():
             d[k] = dbus.Dictionary({}, signature='ss')
@@ -72,13 +59,11 @@ class ConfigDBusObject(base_object.BaseObject):
         return d
 
     @util.dbus_service_method(
-        dbus.PROPERTIES_IFACE,
-        in_signature='ss',
+        constants.CONFIG_INTERFACE,
+        in_signature='s',
         out_signature='v')
     @util.dbus_handle_exceptions
-    def Get(self, interface_name, property_name, sender=None):
-        self._check_interface(interface_name)
-
+    def Get(self, property_name, sender=None):
         section, _dot, property_name = property_name.partition('.')
 
         if property_name:

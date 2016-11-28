@@ -10,16 +10,10 @@
 # Red Hat trademarks are not licensed under GPLv2. No permission is
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation.
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
 import dbus
 import dbus.exceptions
 
-from rhsmlib.dbus.facts.base import AllFacts, HostFacts
+from rhsmlib.dbus.facts.base import AllFacts
 from rhsmlib.dbus.facts import constants
 
 from test.rhsmlib_test.base import DBusObjectTest
@@ -37,7 +31,7 @@ class TestFactsDBusObject(DBusObjectTest):
         return constants.FACTS_DBUS_NAME
 
     def test_get_facts(self):
-        facts = self.proxy.get_dbus_method('GetFacts', self.bus_name())
+        facts = self.proxy.get_dbus_method('GetFacts', constants.FACTS_DBUS_INTERFACE)
 
         def assertions(*args):
             result = args[0]
@@ -46,7 +40,7 @@ class TestFactsDBusObject(DBusObjectTest):
         self.dbus_request(assertions, facts)
 
     def test_missing_method(self):
-        missing = self.proxy.get_dbus_method('MissingMethod', self.bus_name())
+        missing = self.proxy.get_dbus_method('MissingMethod', constants.FACTS_DBUS_INTERFACE)
 
         def assertions(*args):
             pass

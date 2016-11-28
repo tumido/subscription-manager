@@ -160,18 +160,21 @@ class DBusRequestThread(threading.Thread):
         self.start()
 
     def reply_wrap(self, func):
+        def dummy():
+            pass
+
+        if func is None:
+            func = dummy
+
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             try:
-                func(*args, **kwargs)
+                if func is not dummy:
+                    func(*args, **kwargs)
             except Exception:
                 self.queue.put(sys.exc_info())
             finally:
-                # On an error both the reply_handler and error_handler were being called.  This seems like
-                # a bug to me.  Regardless, we don't want to alert the blocked threads here if the
-                # error_handler (the last callback to be made) is going to get called.
-                if not isinstance(args[0], dbus.lowlevel.ErrorMessage):
-                    self.handler_complete_event.set()
+                self.handler_complete_event.set()
 
         return wrapper
 

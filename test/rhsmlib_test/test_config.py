@@ -204,14 +204,15 @@ class TestConfigDBusObject(DBusObjectTest, TestUtilsMixin):
 
     def dbus_objects(self):
         self.fid = self.write_temp_file(TEST_CONFIG)
-        return [(ConfigDBusObject, {'parser': RhsmConfigParser(self.fid.name)})]
+        self.parser = RhsmConfigParser(self.fid.name)
+        return [(ConfigDBusObject, {'parser': self.parser})]
 
     def bus_name(self):
         return constants.BUS_NAME
 
     def test_get_all(self):
-        config = self.proxy.get_dbus_method('GetAll', dbus.PROPERTIES_IFACE)
-        dbus_method_args = [ConfigDBusObject.interface_name]
+        config = self.proxy.get_dbus_method('GetAll', constants.CONFIG_INTERFACE)
+        dbus_method_args = []
 
         def assertions(*args):
             result = args[0]
@@ -220,8 +221,8 @@ class TestConfigDBusObject(DBusObjectTest, TestUtilsMixin):
         self.dbus_request(assertions, config, dbus_method_args)
 
     def test_get_property(self):
-        config = self.proxy.get_dbus_method('Get', dbus.PROPERTIES_IFACE)
-        dbus_method_args = [ConfigDBusObject.interface_name, 'server.hostname']
+        config = self.proxy.get_dbus_method('Get', constants.CONFIG_INTERFACE)
+        dbus_method_args = ['server.hostname']
 
         def assertions(*args):
             result = args[0]
@@ -230,11 +231,27 @@ class TestConfigDBusObject(DBusObjectTest, TestUtilsMixin):
         self.dbus_request(assertions, config, dbus_method_args)
 
     def test_get_section(self):
-        config = self.proxy.get_dbus_method('Get', dbus.PROPERTIES_IFACE)
-        dbus_method_args = [ConfigDBusObject.interface_name, 'server']
+        config = self.proxy.get_dbus_method('Get', constants.CONFIG_INTERFACE)
+        dbus_method_args = ['server']
 
         def assertions(*args):
             result = args[0]
             self.assertIn('hostname', result)
 
         self.dbus_request(assertions, config, dbus_method_args)
+
+    def test_set(self):
+        config = self.proxy.get_dbus_method('Set', constants.CONFIG_INTERFACE)
+        dbus_method_args = ['server.hostname', 'new']
+
+        def assertions(*args):
+            self.assertEqual('new', self.parser.get('server', 'hostname'))
+
+        self.dbus_request(assertions, config, dbus_method_args)
+
+    def test_set_section_fails(self):
+        config = self.proxy.get_dbus_method('Set', constants.CONFIG_INTERFACE)
+        dbus_method_args = ['server', 'new']
+
+        with self.assertRaisesRegexp(dbus.DBusException, r'Setting an entire section is not.*'):
+            self.dbus_request(None, config, dbus_method_args)
