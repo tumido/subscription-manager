@@ -70,8 +70,6 @@ else
    DBUS_SERVICE_FILE_TYPE?=systemd
 endif
 
-DBUS_SERVICES_SRC_DIR = src/rhsmlib/dbus/
-
 DBUS_SERVICES_CONF_INST_DIR := $(PREFIX)/usr/share/dbus-1/system-services
 FACTS_INST_DBUS_SERVICE_FILE = $(DBUS_SERVICES_CONF_INST_DIR)/com.redhat.RHSM1.Facts.service
 MAIN_INST_DBUS_SERVICE_FILE = $(DBUS_SERVICES_CONF_INST_DIR)/com.redhat.RHSM1.service
@@ -79,11 +77,11 @@ MAIN_INST_DBUS_SERVICE_FILE = $(DBUS_SERVICES_CONF_INST_DIR)/com.redhat.RHSM1.se
 # install depends on the distro we are using.  Add a --without-systemd or similar flag to the
 # custom install_data class we have in setup.py
 ifeq ($(DBUS_SERVICE_FILE_TYPE),dbus)
-FACTS_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.RHSM1.Facts.service-dbus
-MAIN_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/com.redhat.RHSM1.service-dbus
+FACTS_SRC_DBUS_SERVICE_FILE = etc-conf/dbus/com.redhat.RHSM1.Facts.service-dbus
+MAIN_SRC_DBUS_SERVICE_FILE = etc-conf/dbus/com.redhat.RHSM1.service-dbus
 else
-FACTS_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.RHSM1.Facts.service
-MAIN_SRC_DBUS_SERVICE_FILE = $(DBUS_SERVICES_SRC_DIR)/com.redhat.RHSM1.service
+FACTS_SRC_DBUS_SERVICE_FILE = etc-conf/dbus/com.redhat.RHSM1.Facts.service
+MAIN_SRC_DBUS_SERVICE_FILE = etc-conf/dbus/com.redhat.RHSM1.service
 endif
 
 # always true until fedora is just dnf
@@ -150,26 +148,23 @@ dbus-common-install:
 	install -d $(PREFIX)/etc/bash_completion.d
 
 dbus-rhsmd-service-install: dbus-common-install
-	install -m 644 etc-conf/com.redhat.SubscriptionManager.conf $(PREFIX)/etc/dbus-1/system.d
-	install -m 644 etc-conf/com.redhat.SubscriptionManager.service $(PREFIX)/$(INSTALL_DIR)/dbus-1/system-services
+	install -m 644 etc-conf/dbus/com.redhat.SubscriptionManager.conf $(PREFIX)/etc/dbus-1/system.d
+	install -m 644 etc-conf/dbus/com.redhat.SubscriptionManager.service $(PREFIX)/$(INSTALL_DIR)/dbus-1/system-services
 	install -m 744 $(DAEMONS_SRC_DIR)/rhsm_d.py $(PREFIX)/$(LIBEXEC_DIR)/rhsmd
 
 dbus-facts-service-install: dbus-common-install
-	install -m 644 $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.RHSM1.Facts.conf $(PREFIX)/etc/dbus-1/system.d
+	install -m 644 etc-conf/dbus/com.redhat.RHSM1.Facts.conf $(PREFIX)/etc/dbus-1/system.d
 	if [ "$(DBUS_SERVICE_FILE_TYPE)" == "systemd" ]; then \
-		install -m 644 $(DBUS_SERVICES_SRC_DIR)/facts/rhsm-facts.service $(SYSTEMD_INST_DIR) ; \
+		install -m 644 etc-conf/dbus/rhsm-facts.service $(SYSTEMD_INST_DIR) ; \
 	fi
 	install -m 644 $(FACTS_SRC_DBUS_SERVICE_FILE) $(FACTS_INST_DBUS_SERVICE_FILE)
-	install -m 755 $(DBUS_SERVICES_SRC_DIR)/facts/rhsm-facts-service $(PREFIX)/usr/libexec/rhsm-facts-service
 
 dbus-main-service-install: dbus-common-install
-	install -m 644 $(DBUS_SERVICES_SRC_DIR)/com.redhat.RHSM1.conf $(PREFIX)/etc/dbus-1/system.d
+	install -m 644 etc-conf/dbus/com.redhat.RHSM1.conf $(PREFIX)/etc/dbus-1/system.d
 	if [ "$(DBUS_SERVICE_FILE_TYPE)" == "systemd" ]; then \
-		install -m 644 $(DBUS_SERVICES_SRC_DIR)/rhsm.service $(SYSTEMD_INST_DIR) ; \
+		install -m 644 etc-conf/dbus/rhsm.service $(SYSTEMD_INST_DIR) ; \
 	fi
 	install -m 644 $(MAIN_SRC_DBUS_SERVICE_FILE) $(MAIN_INST_DBUS_SERVICE_FILE)
-	install -m 755 $(DBUS_SERVICES_SRC_DIR)/rhsm-service \
-		$(PREFIX)/$(LIBEXEC_DIR)/rhsm-service
 
 .PHONY: dbus-install
 dbus-install: dbus-facts-service-install dbus-rhsmd-service-install dbus-main-service-install
@@ -194,8 +189,8 @@ install-conf:
 	install -d $(PREFIX)/usr/share/appdata
 	install -m 644 etc-conf/subscription-manager-gui.appdata.xml $(PREFIX)/$(INSTALL_DIR)/appdata/subscription-manager-gui.appdata.xml
 	install -d $(POLKIT_ACTIONS_INST_DIR)
-	install -m 644 $(DBUS_SERVICES_SRC_DIR)/com.redhat.RHSM1.policy $(POLKIT_ACTIONS_INST_DIR)
-	install -m 644 $(DBUS_SERVICES_SRC_DIR)/facts/com.redhat.RHSM1.Facts.policy $(POLKIT_ACTIONS_INST_DIR)
+	install -m 644 etc-conf/dbus/com.redhat.RHSM1.policy $(POLKIT_ACTIONS_INST_DIR)
+	install -m 644 etc-conf/dbus/com.redhat.RHSM1.Facts.policy $(POLKIT_ACTIONS_INST_DIR)
 
 .PHONY: install-plugins
 install-plugins:

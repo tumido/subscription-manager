@@ -421,10 +421,11 @@ rm -rf %{buildroot}
 %{_datadir}/dbus-1/system-services/com.redhat.*.service
 %attr(755,root,root) %{_libexecdir}/rhsm*-service
 
+# Despite the name similarity dbus-1/system.d has nothing to do with systemd
+%config(noreplace) %{_sysconfdir}/dbus-1/system.d/com.redhat.*.conf
 %if %use_systemd
     %attr(644,root,root) %{_unitdir}/*.service
     %attr(644,root,root) %{_tmpfilesdir}/%{name}.conf
-    %config(noreplace) %{_sysconfdir}/dbus-1/system.d/com.redhat.*.conf
 %else
     %attr(755,root,root) %{_initrddir}/rhsmcertd
 %endif
