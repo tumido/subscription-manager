@@ -24,6 +24,7 @@ from subscription_manager.ga import GLib
 
 from functools import partial
 
+# Set the main loop at import time so this is done early in the test run
 dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
 
 log = logging.getLogger(__name__)
@@ -39,7 +40,8 @@ class Server(object):
         of a class and a dictionary of arguments to send that class's constructor.
         """
 
-        # Configure mainloop for threading
+        # Configure mainloop for threading.  We must do so in GLib and python-dbus.
+        GLib.threads_init()
         dbus.mainloop.glib.threads_init()
 
         self.bus_name = bus_name or constants.BUS_NAME
@@ -128,7 +130,7 @@ class PrivateServer(object):
         """object_class is the the class implementing a DBus Object"""
         object_classes = object_classes or []
 
-        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+        GLib.threads_init()
         dbus.mainloop.glib.threads_init()
 
         server = self.create_server(object_classes=object_classes)

@@ -15,12 +15,10 @@
 import logging
 import dbus.mainloop.glib
 
-# TODO: This is very glib2/dbus-python based. That is likely a requirement
-#       for the services, but it may be worthwhile to use something more
-#       modern for the client (ie, GIO based dbus support).
+from subscription_manager import ga_loader
+ga_loader.init_ga()
+from subscription_manager.ga import GLib
 
-# FIXME: This makes client code depend on the services code being installed
-#        (which it will be, but...)
 from rhsmlib.dbus.facts import constants as facts_constants
 
 log = logging.getLogger(__name__)
@@ -41,10 +39,13 @@ class FactsClient(object):
 
     def __init__(self, bus=None, bus_name=None, object_path=None, interface_name=None):
         # use default mainloop for dbus
-        dbus.mainloop.glib.threads_init()
-        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+        mainloop = dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
 
-        self.bus = bus or dbus.SystemBus()
+        # Configure mainloop for threading.  Future proofing here.
+        GLib.threads_init()
+        dbus.mainloop.glib.threads_init()
+
+        self.bus = bus or dbus.SystemBus(mainloop=mainloop)
 
         if bus_name:
             self.bus_name = bus_name
