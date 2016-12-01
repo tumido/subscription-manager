@@ -73,7 +73,7 @@ class TestUtilsMixin(object):
 
     def write_temp_file(self, data):
         # create a temp file for use as a config file. This should get cleaned
-        # up magically at the end of the run.
+        # up magically when it is closed so make sure to close it!
         fid = NamedTemporaryFile(mode='w+b', suffix='.tmp')
         fid.write(data)
         fid.seek(0)
@@ -88,6 +88,7 @@ class BaseConfigTest(unittest.TestCase, TestUtilsMixin):
         self.fid = self.write_temp_file(TEST_CONFIG)
         self.parser = RhsmConfigParser(self.fid.name)
         self.config = Config(self.parser)
+        self.addCleanup(self.fid.close)
 
 
 class TestConfig(BaseConfigTest):
@@ -204,6 +205,7 @@ class TestConfigDBusObject(DBusObjectTest, TestUtilsMixin):
 
     def dbus_objects(self):
         self.fid = self.write_temp_file(TEST_CONFIG)
+        self.addCleanup(self.fid.close)
         self.parser = RhsmConfigParser(self.fid.name)
         return [(ConfigDBusObject, {'parser': self.parser})]
 
