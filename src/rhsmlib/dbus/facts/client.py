@@ -45,7 +45,7 @@ class FactsClient(object):
         GLib.threads_init()
         dbus.mainloop.glib.threads_init()
 
-        self.bus = bus or dbus.SystemBus(mainloop=mainloop)
+        self.bus = bus or dbus.SystemBus()
 
         if bus_name:
             self.bus_name = bus_name
@@ -62,43 +62,11 @@ class FactsClient(object):
         self.interface = dbus.Interface(self.dbus_proxy_object,
             dbus_interface=self.interface_name)
 
-        self.props_interface = dbus.Interface(self.dbus_proxy_object,
-            dbus_interface=dbus.PROPERTIES_IFACE)
-
-        self.interface.connect_to_signal("PropertiesChanged", self._on_properties_changed,
-            dbus_interface=dbus.PROPERTIES_IFACE,
-            sender_keyword='sender', destination_keyword='destination',
-            interface_keyword='interface', member_keyword='member',
-            path_keyword='path')
-
         self.bus.call_on_disconnection(self._on_bus_disconnect)
-        self.interface.connect_to_signal("ServiceStarted", self._on_service_started,
-            sender_keyword='sender', destination_keyword='destination',
-            interface_keyword='interface', member_keyword='member',
-            path_keyword='path')
 
     def GetFacts(self, *args, **kwargs):
         return self.interface.GetFacts(*args, **kwargs)
 
-    def GetAll(self, *args, **kwargs):
-        return self.props_interface.GetAll(facts_constants.FACTS_DBUS_INTERFACE, *args, **kwargs)
-
-    def Get(self, property_name):
-        return self.props_interface.Get(facts_constants.FACTS_DBUS_INTERFACE, property_name=property_name)
-
-    def signal_handler(self, *args, **kwargs):
-        pass
-
-    def _on_properties_changed(self, *args, **kwargs):
-        self.signal_handler(*args, **kwargs)
-
-    def _on_name_owner_changed(self, *args, **kwargs):
-        self.signal_handler(*args, **kwargs)
-
     def _on_bus_disconnect(self, connection):
         self.dbus_proxy_object = None
         log.debug("Disconnected from FactsService")
-
-    def _on_service_started(self, *args, **kwargs):
-        log.debug("FactsService Started")
-        self.signal_handler(*args, **kwargs)

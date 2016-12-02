@@ -97,7 +97,7 @@ class FactsActionCommand(object):
             # FIXME:
             # Eventually, the dbus signal handler for facts changed should be
             # another dbus service that knows how to update to candlepin.
-            fact_data = self.facts_client.Get('facts')
+            fact_data = self.facts_client.GetFacts()
             self.sync_facts_to_server(fact_data)
             log.info("Facts have been updated.")
         else:
