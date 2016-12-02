@@ -58,6 +58,7 @@ class AllFacts(base_object.BaseObject):
         collector_definitions = [
             ("Host", HostFacts),
             ("Hardware", HardwareFacts),
+            ("Static", StaticFacts),
             ("Custom", CustomFacts),
         ]
 
@@ -109,3 +110,11 @@ class CustomFacts(BaseFacts):
             (os.path.join(rhsm.config.DEFAULT_CONFIG_DIR, 'facts'), '*.facts'),
         ]
         self.facts_collector = custom.CustomFactsCollector(path_and_globs=paths_and_globs)
+
+
+class StaticFacts(BaseFacts):
+    def __init__(self, conn=None, object_path=None, bus_name=None):
+        super(StaticFacts, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
+        self.facts_collector = collector.StaticFactsCollector({
+            "system.certificate_version": constants.CERT_VERSION
+        })

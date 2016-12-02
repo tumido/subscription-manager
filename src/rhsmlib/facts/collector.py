@@ -101,3 +101,12 @@ class FactsCollector(object):
             all_hw_info.update(info_dict)
 
         return all_hw_info
+
+
+class StaticFactsCollector(FactsCollector):
+    def __init__(self, static_facts, **kwargs):
+        super(FactsCollector, self).__init__(**kwargs)
+        self.static_facts = static_facts
+
+    def get_all(self):
+        return self.static_facts
