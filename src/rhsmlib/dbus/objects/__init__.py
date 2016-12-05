@@ -13,4 +13,4 @@
 #
 from rhsmlib.dbus.objects.config import ConfigDBusObject  # NOQA
 from rhsmlib.dbus.objects.main import Main  # NOQA
-from rhsmlib.dbus.objects.private import RegisterService  # NOQA
+from rhsmlib.dbus.objects.register import RegisterService  # NOQA

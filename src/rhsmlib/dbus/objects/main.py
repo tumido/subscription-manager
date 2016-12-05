@@ -17,7 +17,7 @@ import dbus.service
 from rhsmlib.dbus import constants, server
 from subscription_manager.injectioninit import init_dep_injection
 
-from rhsmlib.dbus.objects.private import RegisterService
+from rhsmlib.dbus.objects.register import RegisterService
 
 from functools import partial
 
