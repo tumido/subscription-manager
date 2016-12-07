@@ -25,6 +25,11 @@ class BaseObject(dbus.service.Object):
     interface_name = constants.INTERFACE_BASE
     default_dbus_path = constants.ROOT_DBUS_PATH
 
+    def __init__(self, conn=None, object_path=None, bus_name=None):
+        if object_path is None:
+            object_path = self.default_dbus_path
+        super(BaseObject, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
+
     def _check_interface(self, interface_name):
         if interface_name != self.interface_name:
             raise exceptions.UnknownInterface(interface_name)

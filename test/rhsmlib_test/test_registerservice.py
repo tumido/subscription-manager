@@ -20,7 +20,7 @@ import rhsm.connection
 
 from test.fixture import SubManFixture
 from rhsmlib.dbus import dbus_utils
-from rhsmlib.dbus.objects import RegisterService
+from rhsmlib.dbus.objects import DomainSocketRegisterDBusObject
 
 
 class TestRegisterService(SubManFixture):
@@ -66,14 +66,14 @@ class TestRegisterService(SubManFixture):
         del expected_consumer['idCert']
         stub_uep.return_value.registerConsumer = mock.Mock(
                 return_value=successful_registration)
-        register_service = RegisterService(self.dbus_connection)
+        register_service = DomainSocketRegisterDBusObject(conn=self.dbus_connection)
         username = password = org = 'admin'
         options = {
             'host': 'localhost',
             'port': '8443',
             'handler': '/candlepin'
         }
-        output = register_service.register(username, password, org, options)
+        output = register_service.Register(username, password, org, options)
 
         # Be sure we are persisting the consumer cert
         mock_persist_consumer.assert_called_once_with(expected_consumer)
@@ -94,7 +94,7 @@ class TestRegisterService(SubManFixture):
 
         self._inject_mock_invalid_consumer()
 
-        RegisterService._get_uep_from_options(options)
+        DomainSocketRegisterDBusObject.get_uep_from_options(options)
 
         stub_uep.assert_called_once_with(
             username=options.get('username', None),
@@ -148,7 +148,7 @@ class TestRegisterService(SubManFixture):
         del expected_consumer['idCert']
         stub_uep.return_value.registerConsumer = mock.Mock(
                 return_value=successful_registration)
-        register_service = RegisterService(self.dbus_connection)
+        register_service = DomainSocketRegisterDBusObject(self.dbus_connection)
         org = 'admin'
         keys = ['default_key']
         options = {
@@ -156,7 +156,7 @@ class TestRegisterService(SubManFixture):
             'port': '8443',
             'handler': '/candlepin'
         }
-        output = register_service.register_with_activation_keys(
+        output = register_service.RegisterWithActivationKeys(
             org,
             keys,
             options

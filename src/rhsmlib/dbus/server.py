@@ -15,6 +15,7 @@ import logging
 import dbus.service
 import dbus.server
 import dbus.mainloop.glib
+import threading
 
 from rhsmlib.dbus import constants
 
@@ -57,6 +58,7 @@ class Server(object):
             raise
 
         self.connection_name = dbus.service.BusName(self.bus_name, self.bus)
+        self.mainloop = GLib.MainLoop()
 
         for item in object_classes:
             try:
@@ -69,8 +71,6 @@ class Server(object):
                 clazz(object_path=clazz.default_dbus_path, bus_name=self.connection_name, **kwargs)
             )
 
-        self.mainloop = GLib.MainLoop()
-
     def run(self, started_event=None, stopped_event=None):
         """The two arguments, started_event and stopped_event, should be instances of threading.Event that
         will be set when the mainloop has finished starting and stopping."""
@@ -81,7 +81,6 @@ class Server(object):
             log.exception(e)
         except SystemExit as e:
             log.exception(e)
-            log.debug("system exit")
         except Exception as e:
             log.exception(e)
         finally:
@@ -91,6 +90,7 @@ class Server(object):
     def notify_started(self, started_event):
         """This callback will be run once the mainloop is up and running.  It's only purpose is to alert
         other blocked threads that the mainloop is ready."""
+        log.debug("Start notification sent")
         if started_event:
             started_event.set()
         # Only run this callback once
@@ -111,55 +111,64 @@ class Server(object):
         self.bus.release_name(self.bus_name)
 
 
-class PrivateServer(object):
+class DomainSocketServer(object):
     """This class sets up a DBus server on a domain socket. That server can then be used to perform
     registration. The issue is that we can't send registration credentials over the regular system or
     session bus since those aren't really locked down. The work-around is the client asks our service
     to open another server on a domain socket, gets socket information back, and then connects and sends
     the register command (with the credentials) to the server on the domain socket."""
     @staticmethod
-    def connection_added(service_class, conn):
-        service_class(conn=conn)
+    def connection_added(service_class, object_list, server, conn):
+        object_list.append(service_class(conn=conn))
+        with server.lock:
+            server.connection_count += 1
         print("New connection")
 
     @staticmethod
-    def connection_removed(conn):
+    def connection_removed(server, conn):
+        with server.lock:
+            server.connection_count -= 1
+            if server.connection_count == 0:
+                log.debug('No connections remain, disconnecting')
+                server.shutdown()
+            else:
+                log.debug('Server still has connections')
+
         print("Connection closed")
 
+    @property
+    def address(self):
+        if self.server:
+            return self.server.address
+        else:
+            return None
+
     def __init__(self, object_classes=None):
-        """object_class is the the class implementing a DBus Object"""
-        object_classes = object_classes or []
+        """Create a connection to a bus defined by bus_class and bus_kwargs; instantiate objects in
+        object_classes; expose them under bus_name and enter a GLib mainloop.  bus_kwargs are generally
+        only necessary if you're using dbus.bus.BusConnection
 
-        GLib.threads_init()
-        dbus.mainloop.glib.threads_init()
+        The object_classes argument is a list.  The list can contain either a class or a tuple consisting
+        of a class and a dictionary of arguments to send that class's constructor.
+        """
+        self.object_classes = object_classes or []
+        self.objects = []
 
-        server = self.create_server(object_classes=object_classes)
-        log.info("Server created: %s" % server.get_address())
-
-        self.mainloop = GLib.MainLoop()
-
-    def create_server(self, object_classes=None):
-        object_classes = object_classes or []
-        server = dbus.server.Server("unix:tmpdir=/var/run")
-        server.on_connection_removed.append(PrivateServer.connection_removed)
-        log.debug("object_classes=%s", object_classes)
-
-        for clazz in object_classes:
-            server.on_connection_added.append(partial(PrivateServer.connection_added, clazz))
-        return server
+        self.lock = threading.Lock()
+        with self.lock:
+            self.connection_count = 0
 
     def run(self):
         try:
-            self.mainloop.run()
-        except KeyboardInterrupt as e:
-            log.exception(e)
-        except SystemExit as e:
-            log.exception(e)
-            log.debug("system exit")
+            self.server = dbus.server.Server("unix:tmpdir=/var/run")
+
+            for clazz in self.object_classes:
+                self.server.on_connection_added.append(
+                    partial(DomainSocketServer.connection_added, clazz, self.objects)
+                )
+
+            self.server.on_connection_removed.append(DomainSocketServer.connection_removed)
+
+            return self.address
         except Exception as e:
             log.exception(e)
-        finally:
-            self.mainloop.quit()
-
-    def shutdown(self):
-        self.mainloop.quit()

@@ -16,51 +16,81 @@ import socket
 import json
 import logging
 import dbus.service
+import threading
 
-from rhsmlib.dbus import constants, exceptions, dbus_utils
+from rhsmlib.dbus import constants, exceptions, dbus_utils, base_object, server
 
 from subscription_manager import managerlib
 from rhsm import connection
 
 from subscription_manager import injection as inj
+from subscription_manager.injectioninit import init_dep_injection
+
+init_dep_injection()
 
 _ = gettext.gettext
 log = logging.getLogger(__name__)
 
 
-class PrivateService(dbus.service.Object):
-    """ The base class for service objects to be exposed on either a private connection
-        or a bus."""
-    _interface_name = None
-    _default_dbus_path = constants.ROOT_DBUS_PATH
-    _default_dbus_path += ("/" + _interface_name) if _interface_name else ""
-    _default_bus_name = constants.BUS_NAME
+class RegisterDBusObject(base_object.BaseObject):
+    default_dbus_path = constants.REGISTER_DBUS_PATH
+    interface_name = constants.REGISTER_INTERFACE
 
-    def __init__(self, conn=None, bus=None, object_path=None):
-        # Note that the bus parameter is not a bus name but an actual instance of a Bus.  E.g. dbus.SystemBus
-        if object_path is None or object_path == "":
-            # If not given a path to be exposed on, use class defaults
-            _interface_name = self.__class__._interface_name or ""
-            if _interface_name:
-                object_path = "/" + _interface_name.replace('.', '/')
+    def __init__(self, conn=None, object_path=None, bus_name=None):
+        super(RegisterDBusObject, self).__init__(conn=conn, object_path=object_path, bus_name=bus_name)
+        self.started_event = threading.Event()
+        self.stopped_event = threading.Event()
+        self.server = None
+        self.lock = threading.Lock()
+
+    @dbus.service.method(
+        dbus_interface=constants.REGISTER_INTERFACE,
+        out_signature='s')
+    def Start(self):
+        with self.lock:
+            if self.server:
+                return self.server.address
+
+            log.debug('Attempting to create new domain socket server')
+            self.server = server.DomainSocketServer(
+                object_classes=[DomainSocketRegisterDBusObject],
+            )
+            address = self.server.run()
+            log.debug('DomainSocketServer created and listening on "%s"', address)
+            return address
+
+    @dbus.service.method(
+        dbus_interface=constants.REGISTER_INTERFACE,
+        out_signature='b')
+    def Stop(self):
+        with self.lock:
+            if self.server:
+                del self.server
+                log.debug("Stopped DomainSocketServer")
+                return True
             else:
-                object_path = self.__class__._default_dbus_path
-
-        bus_name = None
-        if bus is not None:
-            # If we are passed in a bus, try to claim an appropriate bus name
-            bus_name = dbus.service.BusName(self.__class__._default_bus_name, bus)
-
-        super(PrivateService, self).__init__(object_path=object_path, conn=conn, bus_name=bus_name)
+                raise exceptions.Failed("No domain socket server is running")
 
 
-class RegisterService(PrivateService):
-    _interface_name = constants.REGISTER_INTERFACE
+class DomainSocketRegisterDBusObject(base_object.BaseObject):
+    interface_name = constants.REGISTER_INTERFACE
+    default_dbus_path = constants.REGISTER_DBUS_PATH
 
-    @dbus.service.method(dbus_interface=constants.REGISTER_INTERFACE,
-                                    in_signature='sssa{sv}',
-                                    out_signature='a{sv}')
-    def register(self, username, password, org, options):
+    def __init__(self, conn=None, object_path=None):
+        # On our DomainSocket DBus server since a private connection is not a "bus", we have to treat
+        # it slightly differently. In particular there are no names, no discovery and so on.
+        super(DomainSocketRegisterDBusObject, self).__init__(
+            conn=conn,
+            object_path=object_path,
+            bus_name=None
+        )
+
+    @dbus.service.method(
+        dbus_interface=constants.REGISTER_INTERFACE,
+        in_signature='sssa{sv}',
+        out_signature='a{sv}'
+    )
+    def Register(self, username, password, org, options):
         """
         This method registers the system using basic auth
         (username and password for a given org).
@@ -70,7 +100,7 @@ class RegisterService(PrivateService):
         Options is a dict of strings that modify the outcome of this method.
         """
         # TODO: Read from config if needed
-        options = RegisterService._validate_register_options(options)
+        options = DomainSocketRegisterDBusObject.validate_register_options(options)
         # We have to convert dictionaries from the dbus objects to their
         # python equivalents. Seems like the dbus dictionaries don't work
         # in quite the same way as regular python ones.
@@ -82,7 +112,7 @@ class RegisterService(PrivateService):
 
         options['username'] = username
         options['password'] = password
-        cp = RegisterService._get_uep_from_options(options)
+        cp = DomainSocketRegisterDBusObject.get_uep_from_options(options)
         registration_output = cp.registerConsumer(
             name=options['name'],
             owner=org,
@@ -90,7 +120,7 @@ class RegisterService(PrivateService):
             content_tags=installed_mgr.tags
         )
         installed_mgr.write_cache()
-        registration_output['content'] = RegisterService._persist_and_sanitize_consumer(
+        registration_output['content'] = DomainSocketRegisterDBusObject.persist_and_sanitize_consumer(
             registration_output['content']
         )
         return dbus_utils.dict_to_variant_dict(registration_output)
@@ -98,17 +128,17 @@ class RegisterService(PrivateService):
     @dbus.service.method(dbus_interface=constants.REGISTER_INTERFACE,
         in_signature='sa(s)a{ss}',
         out_signature='a{sv}')
-    def register_with_activation_keys(self, org, activation_keys, options):
+    def RegisterWithActivationKeys(self, org, activation_keys, options):
         """ This method registers a system with the given options, using
             an activation key."""
         # NOTE: We could probably manage doing this in one method with the use
         #       of variants in the in_signature (but I'd imagine that might be
         #       slightly more difficult to unit test)
-        options = RegisterService._validate_register_options(options)
+        options = DomainSocketRegisterDBusObject.validate_register_options(options)
 
         options = dbus_utils.dbus_to_python(options)
 
-        cp = RegisterService._get_uep_from_options(options)
+        cp = DomainSocketRegisterDBusObject.get_uep_from_options(options)
         installed_mgr = inj.require(inj.INSTALLED_PRODUCTS_MANAGER)
 
         registration_output = cp.registerConsumer(
@@ -120,11 +150,11 @@ class RegisterService(PrivateService):
         )
 
         installed_mgr.write_cache()
-        registration_output['content'] = RegisterService._persist_and_sanitize_consumer(registration_output['content'])
+        registration_output['content'] = DomainSocketRegisterDBusObject.persist_and_sanitize_consumer(registration_output['content'])
         return dbus_utils.dict_to_variant_dict(registration_output)
 
     @staticmethod
-    def _get_uep_from_options(options):
+    def get_uep_from_options(options):
         return connection.UEPConnection(
             username=options.get('username', None),
             password=options.get('password', None),
@@ -140,7 +170,7 @@ class RegisterService(PrivateService):
         )
 
     @staticmethod
-    def _persist_and_sanitize_consumer(consumer_json):
+    def persist_and_sanitize_consumer(consumer_json):
         """ Persists consumer and removes unnecessary keys """
         consumer = json.loads(consumer_json,
             object_hook=dbus_utils._decode_dict)
@@ -155,12 +185,12 @@ class RegisterService(PrivateService):
         return inj.require(inj.IDENTITY).is_valid()
 
     @staticmethod
-    def _validate_register_options(options):
+    def validate_register_options(options):
         # TODO: Rewrite the error messages to be more dbus specific
         # From managercli.RegisterCommand._validate_options
         error_msg = None
         autoattach = options.get('autosubscribe') or options.get('autoattach')
-        if RegisterService.is_registered() and not options.get('force'):
+        if DomainSocketRegisterDBusObject.is_registered() and not options.get('force'):
             error_msg = _("This system is already registered. Add force to options to override.")
         elif (options.get('consumername') == ''):
             error_msg = _("Error: system name can not be empty.")

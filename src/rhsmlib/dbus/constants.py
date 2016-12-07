@@ -21,6 +21,7 @@ __all__ = [
     'MAIN_INTERFACE',
     'MAIN_DBUS_PATH',
     'REGISTER_INTERFACE',
+    'REGISTER_DBUS_PATH',
     'CONFIG_INTERFACE',
     'CONFIG_DBUS_PATH',
 ]
@@ -45,6 +46,8 @@ ROOT_DBUS_PATH = '/' + string.replace(BUS_NAME, '.', '/')
 MAIN_INTERFACE = INTERFACE_BASE
 MAIN_DBUS_PATH = ROOT_DBUS_PATH
 
-REGISTER_INTERFACE = '%s.%s' % (INTERFACE_BASE, 'Register')
+REGISTER_INTERFACE = '%s.%s' % (INTERFACE_BASE, 'RegisterServer')
+REGISTER_DBUS_PATH = '%s/%s' % (ROOT_DBUS_PATH, 'RegisterServer')
+
 CONFIG_INTERFACE = '%s.%s' % (INTERFACE_BASE, 'Config')
 CONFIG_DBUS_PATH = '%s/%s' % (ROOT_DBUS_PATH, 'Config')

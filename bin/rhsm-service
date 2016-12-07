@@ -28,7 +28,8 @@ if __name__ == "__main__":
     try:
         object_classes = [
             objects.ConfigDBusObject,
-            objects.Main,
+            objects.RegisterDBusObject,
+            objects.Main
         ]
         sys.exit(service_wrapper.main(sys.argv, object_classes=object_classes))
     except Exception:

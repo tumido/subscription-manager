@@ -49,7 +49,8 @@ class DBusObjectTest(unittest.TestCase):
         self.handler_complete_event = threading.Event()
 
         # If we don't use a BusConnection and use say dbus.SessionBus() directly, each test will end up
-        # getting old bus connections since the dbus bindings cache bus connections.
+        # getting old bus connections since the dbus bindings cache bus connections.  You can use the private
+        # kwarg to tell dbus.SessionBus/SystemBus not to cache, but that's deprecated.
         self.server_thread = ServerThread(kwargs={
             'object_classes': self.dbus_objects(),
             'bus_name': self.bus_name(),
@@ -137,7 +138,7 @@ class ServerThread(threading.Thread):
             self.started_event.set()
 
     def stop(self):
-        if server:
+        if self.server:
             self.server.shutdown()
 
 
