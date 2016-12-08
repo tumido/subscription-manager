@@ -18,13 +18,11 @@ except ImportError:
 
 import dbus
 
-from tempfile import NamedTemporaryFile
-from rhsmlib.services.config import Config, ConfigSection
 from rhsm.config import RhsmConfigParser, NoOptionError
-from rhsmlib.dbus.objects.config import ConfigDBusObject
 from rhsmlib.dbus import constants
-
-from test.rhsmlib_test.base import DBusObjectTest
+from rhsmlib.dbus.objects.config import ConfigDBusObject
+from rhsmlib.services.config import Config, ConfigSection
+from test.rhsmlib_test.base import DBusObjectTest, TestUtilsMixin
 
 TEST_CONFIG = """
 [foo]
@@ -62,22 +60,6 @@ certCheckInterval = 245
 [logging]
 default_log_level = DEBUG
 """
-
-
-class TestUtilsMixin(object):
-    def assert_items_equals(self, a, b):
-        """Assert that two lists contain the same items regardless of order."""
-        if sorted(a) != sorted(b):
-            self.fail("%s != %s" % (a, b))
-        return True
-
-    def write_temp_file(self, data):
-        # create a temp file for use as a config file. This should get cleaned
-        # up magically when it is closed so make sure to close it!
-        fid = NamedTemporaryFile(mode='w+b', suffix='.tmp')
-        fid.write(data)
-        fid.seek(0)
-        return fid
 
 
 class BaseConfigTest(unittest.TestCase, TestUtilsMixin):
@@ -202,6 +184,7 @@ class TestConfigDBusObject(DBusObjectTest, TestUtilsMixin):
     def setUp(self):
         super(TestConfigDBusObject, self).setUp()
         self.proxy = self.proxy_for(ConfigDBusObject.default_dbus_path)
+        self.interface = dbus.Interface(self.proxy, constants.CONFIG_INTERFACE)
 
     def dbus_objects(self):
         self.fid = self.write_temp_file(TEST_CONFIG)
@@ -209,51 +192,39 @@ class TestConfigDBusObject(DBusObjectTest, TestUtilsMixin):
         self.parser = RhsmConfigParser(self.fid.name)
         return [(ConfigDBusObject, {'parser': self.parser})]
 
-    def bus_name(self):
-        return constants.BUS_NAME
-
     def test_get_all(self):
-        config = self.proxy.get_dbus_method('GetAll', constants.CONFIG_INTERFACE)
-        dbus_method_args = []
-
         def assertions(*args):
             result = args[0]
             self.assertIn("server", result)
 
-        self.dbus_request(assertions, config, dbus_method_args)
+        dbus_method_args = []
+        self.dbus_request(assertions, self.interface.GetAll, dbus_method_args)
 
     def test_get_property(self):
-        config = self.proxy.get_dbus_method('Get', constants.CONFIG_INTERFACE)
-        dbus_method_args = ['server.hostname']
-
         def assertions(*args):
             result = args[0]
             self.assertIn('server.example.com', result)
 
-        self.dbus_request(assertions, config, dbus_method_args)
+        dbus_method_args = ['server.hostname']
+        self.dbus_request(assertions, self.interface.Get, dbus_method_args)
 
     def test_get_section(self):
-        config = self.proxy.get_dbus_method('Get', constants.CONFIG_INTERFACE)
-        dbus_method_args = ['server']
-
         def assertions(*args):
             result = args[0]
             self.assertIn('hostname', result)
 
-        self.dbus_request(assertions, config, dbus_method_args)
+        dbus_method_args = ['server']
+        self.dbus_request(assertions, self.interface.Get, dbus_method_args)
 
     def test_set(self):
-        config = self.proxy.get_dbus_method('Set', constants.CONFIG_INTERFACE)
-        dbus_method_args = ['server.hostname', 'new']
-
         def assertions(*args):
             self.assertEqual('new', self.parser.get('server', 'hostname'))
 
-        self.dbus_request(assertions, config, dbus_method_args)
+        dbus_method_args = ['server.hostname', 'new']
+        self.dbus_request(assertions, self.interface.Set, dbus_method_args)
 
     def test_set_section_fails(self):
-        config = self.proxy.get_dbus_method('Set', constants.CONFIG_INTERFACE)
         dbus_method_args = ['server', 'new']
 
         with self.assertRaisesRegexp(dbus.DBusException, r'Setting an entire section is not.*'):
-            self.dbus_request(None, config, dbus_method_args)
+            self.dbus_request(None, self.interface.Set, dbus_method_args)

@@ -11,6 +11,7 @@
 # have received a copy of GPLv2 along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
+from tempfile import NamedTemporaryFile
 
 try:
     import unittest2 as unittest
@@ -30,6 +31,22 @@ import Queue
 from rhsmlib.dbus import constants, server
 
 logger = logging.getLogger(__name__)
+
+
+class TestUtilsMixin(object):
+    def assert_items_equals(self, a, b):
+        """Assert that two lists contain the same items regardless of order."""
+        if sorted(a) != sorted(b):
+            self.fail("%s != %s" % (a, b))
+        return True
+
+    def write_temp_file(self, data):
+        # create a temp file for use as a config file. This should get cleaned
+        # up magically when it is closed so make sure to close it!
+        fid = NamedTemporaryFile(mode='w+b', suffix='.tmp')
+        fid.write(data)
+        fid.seek(0)
+        return fid
 
 
 class DBusObjectTest(unittest.TestCase):
@@ -109,7 +126,7 @@ class DBusObjectTest(unittest.TestCase):
 
     def bus_name(self):
         '''This method should return the bus name that the server thread should use'''
-        raise NotImplementedError('Subclasses should define the bus name they want')
+        return constants.BUS_NAME
 
 
 class ServerThread(threading.Thread):

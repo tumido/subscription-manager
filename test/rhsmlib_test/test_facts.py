@@ -23,6 +23,7 @@ class TestFactsDBusObject(DBusObjectTest):
     def setUp(self):
         super(TestFactsDBusObject, self).setUp()
         self.proxy = self.proxy_for(AllFacts.default_dbus_path)
+        self.interface = dbus.Interface(self.proxy, constants.FACTS_DBUS_INTERFACE)
 
     def dbus_objects(self):
         return [AllFacts]
@@ -31,19 +32,15 @@ class TestFactsDBusObject(DBusObjectTest):
         return constants.FACTS_DBUS_NAME
 
     def test_get_facts(self):
-        facts = self.proxy.get_dbus_method('GetFacts', constants.FACTS_DBUS_INTERFACE)
-
         def assertions(*args):
             result = args[0]
             self.assertIn("uname.machine", result)
 
-        self.dbus_request(assertions, facts)
+        self.dbus_request(assertions, self.interface.GetFacts)
 
     def test_missing_method(self):
-        missing = self.proxy.get_dbus_method('MissingMethod', constants.FACTS_DBUS_INTERFACE)
-
         def assertions(*args):
             pass
 
         with self.assertRaises(dbus.exceptions.DBusException):
-            self.dbus_request(assertions, missing)
+            self.dbus_request(assertions, self.interface.MissingMethod)
