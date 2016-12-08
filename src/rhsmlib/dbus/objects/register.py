@@ -18,7 +18,7 @@ import logging
 import dbus.service
 import threading
 
-from rhsmlib.dbus import constants, exceptions, dbus_utils, base_object, server
+from rhsmlib.dbus import constants, exceptions, dbus_utils, base_object, server, util
 
 from subscription_manager import managerlib
 from rhsm import connection
@@ -43,10 +43,12 @@ class RegisterDBusObject(base_object.BaseObject):
         self.server = None
         self.lock = threading.Lock()
 
-    @dbus.service.method(
-        dbus_interface=constants.REGISTER_INTERFACE,
+    @util.dbus_service_method(
+        constants.REGISTER_INTERFACE,
+        in_signature='',
         out_signature='s')
-    def Start(self):
+    @util.dbus_handle_exceptions
+    def Start(self, sender=None):
         with self.lock:
             if self.server:
                 return self.server.address
@@ -59,10 +61,12 @@ class RegisterDBusObject(base_object.BaseObject):
             log.debug('DomainSocketServer created and listening on "%s"', address)
             return address
 
-    @dbus.service.method(
-        dbus_interface=constants.REGISTER_INTERFACE,
+    @util.dbus_service_method(
+        constants.REGISTER_INTERFACE,
+        in_signature='',
         out_signature='b')
-    def Stop(self):
+    @util.dbus_handle_exceptions
+    def Stop(self, sender=None):
         with self.lock:
             if self.server:
                 del self.server

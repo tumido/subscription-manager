@@ -19,14 +19,16 @@ import dbus.connection
 import rhsm.connection
 
 from test.fixture import SubManFixture
-from rhsmlib.dbus import dbus_utils
-from rhsmlib.dbus.objects import DomainSocketRegisterDBusObject
+from test.rhsmlib_test.base import DBusObjectTest
+
+from rhsmlib.dbus import dbus_utils, constants
+from rhsmlib.dbus.objects import DomainSocketRegisterDBusObject, RegisterDBusObject
 
 
-class TestRegisterService(SubManFixture):
+class DomainSocketRegisterDBusObjectTest(SubManFixture):
     def setUp(self):
         self.dbus_connection = mock.Mock(spec=dbus.connection.Connection)
-        super(TestRegisterService, self).setUp()
+        super(DomainSocketRegisterDBusObjectTest, self).setUp()
 
     @mock.patch("subscription_manager.managerlib.persist_consumer_cert")
     @mock.patch("rhsm.connection.UEPConnection")
@@ -166,3 +168,45 @@ class TestRegisterService(SubManFixture):
         mock_persist_consumer.assert_called_once_with(expected_consumer)
         # Be sure we get the right output
         self.assertEquals(output, successful_registration)
+
+
+class RegisterDBusObjectTest(DBusObjectTest):
+    def dbus_objects(self):
+        return [RegisterDBusObject]
+
+    def setUp(self):
+        super(RegisterDBusObjectTest, self).setUp()
+        self.proxy = self.proxy_for(RegisterDBusObject.default_dbus_path)
+
+    def test_open_domain_socket(self):
+        interface = dbus.Interface(self.proxy, constants.REGISTER_INTERFACE)
+
+        dbus_method_args = []
+
+        def assertions(*args):
+            result = args[0]
+            self.assertRegexpMatches(result, r'/var/run/dbus.*')
+
+        self.dbus_request(assertions, interface.Start, dbus_method_args)
+
+    def test_same_socket_on_subsequent_opens(self):
+        interface = dbus.Interface(self.proxy, constants.REGISTER_INTERFACE)
+        dbus_method_args = []
+
+        def assertions(*args):
+            # Assign the result as an attribute to this function.
+            # See http://stackoverflow.com/a/27910553/6124862
+            assertions.result = args[0]
+            self.assertRegexpMatches(assertions.result, r'/var/run/dbus.*')
+
+        self.dbus_request(assertions, interface.Start, dbus_method_args)
+
+        # Reset the handler_complete_event so we'll block for the second
+        # dbus_request
+        self.handler_complete_event.clear()
+
+        def assertions2(*args):
+            result2 = args[0]
+            self.assertEqual(assertions.result, result2)
+
+        self.dbus_request(assertions2, interface.Start, dbus_method_args)
