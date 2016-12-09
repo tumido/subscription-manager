@@ -118,28 +118,29 @@ class DomainSocketServer(object):
     to open another server on a domain socket, gets socket information back, and then connects and sends
     the register command (with the credentials) to the server on the domain socket."""
     @staticmethod
-    def connection_added(service_class, object_list, server, conn):
+    def connection_added(domain_socket_server, service_class, object_list, conn):
         object_list.append(service_class(conn=conn))
-        with server.lock:
-            server.connection_count += 1
-        print("New connection")
+        with domain_socket_server.lock:
+            domain_socket_server.connection_count += 1
+        log.info("New connection: %s", conn)
 
     @staticmethod
-    def connection_removed(server, conn):
-        with server.lock:
-            server.connection_count -= 1
-            if server.connection_count == 0:
-                log.debug('No connections remain, disconnecting')
-                server.shutdown()
+    def connection_removed(domain_socket_server, conn):
+        log.debug("Closed connection: %s", conn)
+        with domain_socket_server.lock:
+            domain_socket_server.connection_count -= 1
+            if domain_socket_server.connection_count == 0:
+                log.debug('No connections remain')
+                # TODO If there are no connections remaining we probably want to
+                # start a timer or something to call domain_socket_server.shutdown()
+                # after 60 seconds so we don't just keep holding onto the socket needlessly
             else:
                 log.debug('Server still has connections')
 
-        print("Connection closed")
-
     @property
     def address(self):
-        if self.server:
-            return self.server.address
+        if self._server:
+            return self._server.address
         else:
             return None
 
@@ -158,16 +159,26 @@ class DomainSocketServer(object):
         with self.lock:
             self.connection_count = 0
 
+    def shutdown(self):
+        map(lambda x: x.remove_from_connection(), self.objects)
+        self._server.disconnect()
+
+        # Allow self.objects and self._server to get GCed
+        self.objects = None
+        self._server = None
+
     def run(self):
         try:
-            self.server = dbus.server.Server("unix:tmpdir=/var/run")
+            self._server = dbus.server.Server("unix:tmpdir=/var/run")
 
             for clazz in self.object_classes:
-                self.server.on_connection_added.append(
-                    partial(DomainSocketServer.connection_added, clazz, self.objects)
+                self._server.on_connection_added.append(
+                    partial(DomainSocketServer.connection_added, self, clazz, self.objects)
                 )
 
-            self.server.on_connection_removed.append(DomainSocketServer.connection_removed)
+            self._server.on_connection_removed.append(
+                partial(DomainSocketServer.connection_removed, self)
+            )
 
             return self.address
         except Exception as e:

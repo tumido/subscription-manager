@@ -69,7 +69,8 @@ class RegisterDBusObject(base_object.BaseObject):
     def Stop(self, sender=None):
         with self.lock:
             if self.server:
-                del self.server
+                self.server.shutdown()
+                self.server = None
                 log.debug("Stopped DomainSocketServer")
                 return True
             else:

@@ -12,9 +12,13 @@
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation.
 #
+import os
+
+import errno
 import mock
 import json
 import dbus.connection
+import socket
 
 import rhsm.connection
 
@@ -177,20 +181,18 @@ class RegisterDBusObjectTest(DBusObjectTest):
     def setUp(self):
         super(RegisterDBusObjectTest, self).setUp()
         self.proxy = self.proxy_for(RegisterDBusObject.default_dbus_path)
+        self.interface = dbus.Interface(self.proxy, constants.REGISTER_INTERFACE)
 
     def test_open_domain_socket(self):
-        interface = dbus.Interface(self.proxy, constants.REGISTER_INTERFACE)
-
         dbus_method_args = []
 
         def assertions(*args):
             result = args[0]
             self.assertRegexpMatches(result, r'/var/run/dbus.*')
 
-        self.dbus_request(assertions, interface.Start, dbus_method_args)
+        self.dbus_request(assertions, self.interface.Start, dbus_method_args)
 
     def test_same_socket_on_subsequent_opens(self):
-        interface = dbus.Interface(self.proxy, constants.REGISTER_INTERFACE)
         dbus_method_args = []
 
         def assertions(*args):
@@ -199,7 +201,7 @@ class RegisterDBusObjectTest(DBusObjectTest):
             assertions.result = args[0]
             self.assertRegexpMatches(assertions.result, r'/var/run/dbus.*')
 
-        self.dbus_request(assertions, interface.Start, dbus_method_args)
+        self.dbus_request(assertions, self.interface.Start, dbus_method_args)
 
         # Reset the handler_complete_event so we'll block for the second
         # dbus_request
@@ -209,4 +211,37 @@ class RegisterDBusObjectTest(DBusObjectTest):
             result2 = args[0]
             self.assertEqual(assertions.result, result2)
 
-        self.dbus_request(assertions2, interface.Start, dbus_method_args)
+        self.dbus_request(assertions2, self.interface.Start, dbus_method_args)
+
+    def test_cannot_close_what_is_not_opened(self):
+        with self.assertRaises(dbus.exceptions.DBusException):
+            self.dbus_request(None, self.interface.Stop, [])
+
+    def test_closes_domain_socket(self):
+        def get_address(*args):
+            address = args[0]
+            _prefix, _equal, address = address.partition('=')
+            get_address.address, _equal, _suffix = address.partition(',')
+
+        self.dbus_request(get_address, self.interface.Start, [])
+        self.handler_complete_event.clear()
+
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            # The socket returned for connection is an abstract socket so we have
+            # to begin the name with a NUL byte to get into that namespace.  See
+            # http://blog.eduardofleury.com/archives/2007/09/13
+            sock.connect('\0' + get_address.address)
+        finally:
+            sock.close()
+
+        self.dbus_request(None, self.interface.Stop, [])
+        self.handler_complete_event.wait()
+
+        with self.assertRaises(socket.error) as serr:
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            try:
+                sock.connect('\0' + get_address.address)
+            finally:
+                sock.close()
+            self.assertEqual(serr.errno, errno.ECONNREFUSED)
