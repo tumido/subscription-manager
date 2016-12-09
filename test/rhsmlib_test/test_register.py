@@ -12,7 +12,6 @@
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation.
 #
-import os
 
 import errno
 import mock
@@ -21,7 +20,9 @@ import dbus.connection
 import socket
 
 import rhsm.connection
+import subscription_manager.injection as inj
 
+from test import stubs
 from test.fixture import SubManFixture
 from test.rhsmlib_test.base import DBusObjectTest
 
@@ -38,13 +39,16 @@ class DomainSocketRegisterDBusObjectTest(SubManFixture):
     @mock.patch("rhsm.connection.UEPConnection")
     def test_register(self, stub_uep, mock_persist_consumer):
         successful_registration = {
-            "headers": {'content-type': 'application/json',
+            "headers": {
+                'content-type': 'application/json',
                 'date': 'Thu, 02 Jun 2016 15:16:51 GMT',
                 'server': 'Apache-Coyote/1.1',
                 'transfer-encoding': 'chunked',
                 'x-candlepin-request-uuid': '01566658-137b-478c-84c0-38540daa8602',
-                'x-version': '2.0.13-1'},
-            "content": '{"hypervisorId": null,'
+                'x-version': '2.0.13-1'
+            },
+            "content":
+                '{"hypervisorId": null,'
                 '"serviceLevel": "",'
                 '"autoheal": true,'
                 '"idCert": "FAKE_KEY",'
@@ -64,7 +68,6 @@ class DomainSocketRegisterDBusObjectTest(SubManFixture):
                 '"contentTags": null, "dev": false}',
             "status": "200"
         }
-
         self._inject_mock_invalid_consumer()
 
         expected_consumer = json.loads(successful_registration['content'],
@@ -120,13 +123,16 @@ class DomainSocketRegisterDBusObjectTest(SubManFixture):
     @mock.patch("rhsm.connection.UEPConnection")
     def test_register_with_activation_keys(self, stub_uep, mock_persist_consumer):
         successful_registration = {
-            "headers": {'content-type': 'application/json',
+            "headers": {
+                'content-type': 'application/json',
                 'date': 'Thu, 02 Jun 2016 15:16:51 GMT',
                 'server': 'Apache-Coyote/1.1',
                 'transfer-encoding': 'chunked',
                 'x-candlepin-request-uuid': '01566658-137b-478c-84c0-38540daa8602',
-                'x-version': '2.0.13-1'},
-            "content": '{"hypervisorId": null,'
+                'x-version': '2.0.13-1'
+            },
+            "content":
+                '{"hypervisorId": null,'
                 '"serviceLevel": "",'
                 '"autoheal": true,'
                 '"idCert": "FAKE_KEY",'
@@ -146,7 +152,6 @@ class DomainSocketRegisterDBusObjectTest(SubManFixture):
                 '"contentTags": null, "dev": false}',
             "status": "200"
         }
-
         self._inject_mock_invalid_consumer()
 
         expected_consumer = json.loads(successful_registration['content'],
@@ -245,3 +250,82 @@ class RegisterDBusObjectTest(DBusObjectTest):
             finally:
                 sock.close()
             self.assertEqual(serr.errno, errno.ECONNREFUSED)
+
+    def _inject_mock_invalid_consumer(self, uuid=None):
+        """For chaining injected consumer identity to one that fails is_valid()
+
+        Returns the injected identity if it need to be examined.
+        """
+        invalid_identity = mock.NonCallableMock(name='InvalidIdentityMock')
+        invalid_identity.is_valid = mock.Mock(return_value=False)
+        invalid_identity.uuid = uuid or "INVALIDCONSUMERUUID"
+        invalid_identity.cert_dir_path = "/not/a/real/path/to/pki/consumer/"
+        inj.provide(inj.IDENTITY, invalid_identity)
+        return invalid_identity
+
+    @mock.patch("subscription_manager.managerlib.persist_consumer_cert")
+    @mock.patch("rhsm.connection.UEPConnection")
+    def test_can_register_over_domain_socket(self, stub_uep, mock_persist_consumer):
+        def get_address(*args):
+            get_address.address = args[0]
+
+        self.dbus_request(get_address, self.interface.Start, [])
+        self.handler_complete_event.clear()
+
+        socket_conn = dbus.connection.Connection(get_address.address)
+        socket_proxy = socket_conn.get_object(constants.BUS_NAME, constants.REGISTER_DBUS_PATH)
+        socket_interface = dbus.Interface(socket_proxy, constants.REGISTER_INTERFACE)
+
+        def assertions(*args):
+            # Be sure we are persisting the consumer cert
+            mock_persist_consumer.assert_called_once_with(expected_consumer)
+
+        self._inject_mock_invalid_consumer()
+        inj.provide(inj.INSTALLED_PRODUCTS_MANAGER, stubs.StubInstalledProductsManager())
+
+        successful_registration = {
+            "headers": {
+                'content-type': 'application/json',
+                'date': 'Thu, 02 Jun 2016 15:16:51 GMT',
+                'server': 'Apache-Coyote/1.1',
+                'transfer-encoding': 'chunked',
+                'x-candlepin-request-uuid': '01566658-137b-478c-84c0-38540daa8602',
+                'x-version': '2.0.13-1'
+            },
+            "content":
+                '{"hypervisorId": null,'
+                '"serviceLevel": "",'
+                '"autoheal": true,'
+                '"idCert": "FAKE_KEY",'
+                '"owner": {"href": "/owners/admin", "displayName": "Admin Owner",'
+                '"id": "ff808081550d997c01550d9adaf40003", "key": "admin"},'
+                '"href": "/consumers/c1b8648c-6f0a-4aa5-b34e-b9e62c0e4364",'
+                '"facts": {}, "id": "ff808081550d997c015511b0406d1065",'
+                '"uuid": "c1b8648c-6f0a-4aa5-b34e-b9e62c0e4364",'
+                '"guestIds": null, "capabilities": null,'
+                '"environment": null, "installedProducts": null,'
+                '"canActivate": false, "type": {"manifest": false,'
+                '"id": "1000", "label": "system"}, "annotations": null,'
+                '"username": "admin", "updated": "2016-06-02T15:16:51+0000",'
+                '"lastCheckin": null, "entitlementCount": 0, "releaseVer":'
+                '{"releaseVer": null}, "entitlementStatus": "valid", "name":'
+                '"test.example.com", "created": "2016-06-02T15:16:51+0000",'
+                '"contentTags": null, "dev": false}',
+            "status": "200"
+        }
+
+        expected_consumer = json.loads(
+            successful_registration['content'],
+            object_hook=dbus_utils._decode_dict
+        )
+        del expected_consumer['idCert']
+
+        stub_uep.return_value.registerConsumer = mock.Mock(return_value=successful_registration)
+
+        register_opts = ['admin', 'admin', 'admin', {
+            'host': 'localhost',
+            'port': '8443',
+            'handler': '/candlepin'
+        }]
+
+        self.dbus_request(assertions, socket_interface.Register, register_opts)
