@@ -81,13 +81,13 @@ class DomainSocketRegisterDBusObject(base_object.BaseObject):
     interface_name = constants.REGISTER_INTERFACE
     default_dbus_path = constants.REGISTER_DBUS_PATH
 
-    def __init__(self, conn=None, object_path=None):
+    def __init__(self, conn=None, object_path=None, bus_name=None):
         # On our DomainSocket DBus server since a private connection is not a "bus", we have to treat
         # it slightly differently. In particular there are no names, no discovery and so on.
         super(DomainSocketRegisterDBusObject, self).__init__(
             conn=conn,
             object_path=object_path,
-            bus_name=None
+            bus_name=bus_name
         )
         self.installed_mgr = inj.require(inj.INSTALLED_PRODUCTS_MANAGER)
 
