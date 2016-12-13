@@ -18,7 +18,7 @@ import logging
 import dbus.service
 import threading
 
-from rhsmlib.dbus import constants, exceptions, dbus_utils, base_object, server, util
+from rhsmlib.dbus import constants, exceptions, dbus_utils, base_object, server, util, facts
 
 from subscription_manager import managerlib
 from rhsm import connection
@@ -120,16 +120,18 @@ class DomainSocketRegisterDBusObject(base_object.BaseObject):
 
     def _register(self, org, activation_keys, options):
         options = dbus_utils.dbus_to_python(options)
-
-        # TODO: Read from config if needed
         options = self.validate_options(options)
 
-        # TODO: Facts collection, We'll need facts exposed as a service like
+        environment = options.get('environment')
+        facts_client = facts.FactsClient()
+
         cp = self.build_uep(options)
         registration_output = cp.registerConsumer(
             name=options['name'],
-            keys=activation_keys,
+            facts=facts_client.GetFacts(),
             owner=org,
+            environment=environment,
+            keys=activation_keys,
             installed_products=self.installed_mgr.format_for_server(),
             content_tags=self.installed_mgr.tags
         )

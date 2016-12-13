@@ -149,6 +149,10 @@ class RegisterDBusObjectTest(DBusObjectTest):
 
     def setUp(self):
         inj.provide(inj.INSTALLED_PRODUCTS_MANAGER, stubs.StubInstalledProductsManager())
+        facts_host_patcher = mock.patch('rhsmlib.dbus.facts.FactsClient', auto_spec=True)
+        self.addCleanup(facts_host_patcher.stop)
+        self.mock_facts_host = facts_host_patcher.start()
+        self.mock_facts_host.return_value.GetFacts.return_value = {}
 
         super(RegisterDBusObjectTest, self).setUp()
         self.proxy = self.proxy_for(RegisterDBusObject.default_dbus_path)
