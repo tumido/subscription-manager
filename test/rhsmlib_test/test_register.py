@@ -239,8 +239,8 @@ class RegisterDBusObjectTest(DBusObjectTest):
         self.handler_complete_event.clear()
 
         socket_conn = dbus.connection.Connection(get_address.address)
-        socket_proxy = socket_conn.get_object(constants.BUS_NAME, constants.REGISTER_DBUS_PATH)
-        socket_interface = dbus.Interface(socket_proxy, constants.REGISTER_INTERFACE)
+        socket_proxy = socket_conn.get_object(constants.BUS_NAME, constants.PRIVATE_REGISTER_DBUS_PATH)
+        socket_interface = dbus.Interface(socket_proxy, constants.PRIVATE_REGISTER_INTERFACE)
 
         expected_consumer = json.loads(CONTENT_JSON, object_hook=dbus_utils._decode_dict)
         del expected_consumer['idCert']

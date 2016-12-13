@@ -78,8 +78,8 @@ class RegisterDBusObject(base_object.BaseObject):
 
 
 class DomainSocketRegisterDBusObject(base_object.BaseObject):
-    interface_name = constants.REGISTER_INTERFACE
-    default_dbus_path = constants.REGISTER_DBUS_PATH
+    interface_name = constants.PRIVATE_REGISTER_INTERFACE
+    default_dbus_path = constants.PRIVATE_REGISTER_DBUS_PATH
 
     def __init__(self, conn=None, object_path=None, bus_name=None):
         # On our DomainSocket DBus server since a private connection is not a "bus", we have to treat
@@ -92,7 +92,7 @@ class DomainSocketRegisterDBusObject(base_object.BaseObject):
         self.installed_mgr = inj.require(inj.INSTALLED_PRODUCTS_MANAGER)
 
     @dbus.service.method(
-        dbus_interface=constants.REGISTER_INTERFACE,
+        dbus_interface=constants.PRIVATE_REGISTER_INTERFACE,
         in_signature='sssa{sv}',
         out_signature='a{sv}'
     )
@@ -111,7 +111,7 @@ class DomainSocketRegisterDBusObject(base_object.BaseObject):
         result = self._register(org, None, options)
         return dbus_utils.dict_to_variant_dict(result)
 
-    @dbus.service.method(dbus_interface=constants.REGISTER_INTERFACE,
+    @dbus.service.method(dbus_interface=constants.PRIVATE_REGISTER_INTERFACE,
         in_signature='sa(s)a{ss}',
         out_signature='a{sv}')
     def RegisterWithActivationKeys(self, org, activation_keys, options):
