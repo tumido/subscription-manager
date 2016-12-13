@@ -143,7 +143,7 @@ class DomainSocketRegisterDBusObject(base_object.BaseObject):
         if 'idCert' in consumer:
             del consumer['idCert']
 
-        registration_output['consumer'] = json.dumps(consumer)
+        registration_output['content'] = json.dumps(consumer)
         return registration_output
 
     def build_uep(self, options):
