@@ -89,13 +89,14 @@ class DomainSocketRegisterDBusObject(base_object.BaseObject):
             object_path=object_path,
             bus_name=None
         )
+        self.installed_mgr = inj.require(inj.INSTALLED_PRODUCTS_MANAGER)
 
     @dbus.service.method(
         dbus_interface=constants.REGISTER_INTERFACE,
         in_signature='sssa{sv}',
         out_signature='a{sv}'
     )
-    def Register(self, username, password, org, options):
+    def Register(self, org, username, password, options):
         """
         This method registers the system using basic auth
         (username and password for a given org).
@@ -104,62 +105,46 @@ class DomainSocketRegisterDBusObject(base_object.BaseObject):
 
         Options is a dict of strings that modify the outcome of this method.
         """
-        # TODO: Read from config if needed
-        options = DomainSocketRegisterDBusObject.validate_register_options(options)
-        # We have to convert dictionaries from the dbus objects to their
-        # python equivalents. Seems like the dbus dictionaries don't work
-        # in quite the same way as regular python ones.
-        options = dbus_utils.dbus_to_python(options)
-
-        # TODO: Facts collection, We'll need facts exposed as a service like
-        #       the config to achieve this.
-        installed_mgr = inj.require(inj.INSTALLED_PRODUCTS_MANAGER)
-
         options['username'] = username
         options['password'] = password
-        cp = DomainSocketRegisterDBusObject.get_uep_from_options(options)
-        registration_output = cp.registerConsumer(
-            name=options['name'],
-            owner=org,
-            installed_products=installed_mgr.format_for_server(),
-            content_tags=installed_mgr.tags
-        )
-        installed_mgr.write_cache()
-        registration_output['content'] = DomainSocketRegisterDBusObject.persist_and_sanitize_consumer(
-            registration_output['content']
-        )
-        return dbus_utils.dict_to_variant_dict(registration_output)
+
+        result = self._register(org, None, options)
+        return dbus_utils.dict_to_variant_dict(result)
 
     @dbus.service.method(dbus_interface=constants.REGISTER_INTERFACE,
         in_signature='sa(s)a{ss}',
         out_signature='a{sv}')
     def RegisterWithActivationKeys(self, org, activation_keys, options):
-        """ This method registers a system with the given options, using
-            an activation key."""
-        # NOTE: We could probably manage doing this in one method with the use
-        #       of variants in the in_signature (but I'd imagine that might be
-        #       slightly more difficult to unit test)
-        options = DomainSocketRegisterDBusObject.validate_register_options(options)
+        result = self._register(org, activation_keys, options)
+        return dbus_utils.dict_to_variant_dict(result)
 
+    def _register(self, org, activation_keys, options):
         options = dbus_utils.dbus_to_python(options)
 
-        cp = DomainSocketRegisterDBusObject.get_uep_from_options(options)
-        installed_mgr = inj.require(inj.INSTALLED_PRODUCTS_MANAGER)
+        # TODO: Read from config if needed
+        options = self.validate_options(options)
 
+        # TODO: Facts collection, We'll need facts exposed as a service like
+        cp = self.build_uep(options)
         registration_output = cp.registerConsumer(
             name=options['name'],
             keys=activation_keys,
             owner=org,
-            installed_products=installed_mgr.format_for_server(),
-            content_tags=installed_mgr.tags
+            installed_products=self.installed_mgr.format_for_server(),
+            content_tags=self.installed_mgr.tags
         )
+        self.installed_mgr.write_cache()
 
-        installed_mgr.write_cache()
-        registration_output['content'] = DomainSocketRegisterDBusObject.persist_and_sanitize_consumer(registration_output['content'])
-        return dbus_utils.dict_to_variant_dict(registration_output)
+        consumer = json.loads(registration_output['content'], object_hook=dbus_utils._decode_dict)
+        managerlib.persist_consumer_cert(consumer)
 
-    @staticmethod
-    def get_uep_from_options(options):
+        if 'idCert' in consumer:
+            del consumer['idCert']
+
+        registration_output['consumer'] = json.dumps(consumer)
+        return registration_output
+
+    def build_uep(self, options):
         return connection.UEPConnection(
             username=options.get('username', None),
             password=options.get('password', None),
@@ -174,51 +159,41 @@ class DomainSocketRegisterDBusObject(base_object.BaseObject):
             restlib_class=connection.BaseRestLib
         )
 
-    @staticmethod
-    def persist_and_sanitize_consumer(consumer_json):
-        """ Persists consumer and removes unnecessary keys """
-        consumer = json.loads(consumer_json,
-            object_hook=dbus_utils._decode_dict)
-        managerlib.persist_consumer_cert(consumer)
-
-        del consumer['idCert']
-
-        return json.dumps(consumer)
-
-    @staticmethod
-    def is_registered():
+    def is_registered(self):
         return inj.require(inj.IDENTITY).is_valid()
 
-    @staticmethod
-    def validate_register_options(options):
+    def validate_options(self, options):
         # TODO: Rewrite the error messages to be more dbus specific
-        # From managercli.RegisterCommand._validate_options
         error_msg = None
         autoattach = options.get('autosubscribe') or options.get('autoattach')
-        if DomainSocketRegisterDBusObject.is_registered() and not options.get('force'):
+        if self.is_registered() and not options['force']:
             error_msg = _("This system is already registered. Add force to options to override.")
-        elif (options.get('consumername') == ''):
+        elif options.get('consumername') == '':
             error_msg = _("Error: system name can not be empty.")
-        elif (options.get('username') and options.get('activation_keys')):
-            error_msg = _("Error: Activation keys do not require user credentials.")
-        elif (options.get('consumerid') and options.get('activation_keys')):
-            error_msg = _("Error: Activation keys can not be used with previously registered IDs.")
-        elif (options.get('environment') and options.get('activation_keys')):
-            error_msg = _("Error: Activation keys do not allow environments to be specified.")
-        elif (autoattach and options.get('activation_keys')):
-            error_msg = _("Error: Activation keys cannot be used with --auto-attach.")
-        # 746259: Don't allow the user to pass in an empty string as an activation key
-        elif (options.get('activation_keys') and '' in options.get('activation_keys')):
-            error_msg = _("Error: Must specify an activation key")
-        elif (options.get('service_level') and not autoattach):
+        elif 'service_level' in options and not autoattach:
             error_msg = _("Error: Must use --auto-attach with --servicelevel.")
-        elif (options.get('activation_keys') and not options.get('org')):
-            error_msg = _("Error: Must provide --org with activation keys.")
-        elif (options.get('force') and options.get('consumerid')):
+        elif 'consumerid' in options and 'force' in options:
             error_msg = _("Error: Can not force registration while attempting to recover registration with consumerid. Please use --force without --consumerid to re-register or use the clean command and try again without --force.")
+
+        if 'activation_keys' in options:
+            # 746259: Don't allow the user to pass in an empty string as an activation key
+            if '' == options['activation_keys']:
+                error_msg = _("Error: Must specify an activation key")
+            elif 'username' in options:
+                error_msg = _("Error: Activation keys do not require user credentials.")
+            elif 'consumerid' in options:
+                error_msg = _("Error: Activation keys can not be used with previously registered IDs.")
+            elif 'environment' in options:
+                error_msg = _("Error: Activation keys do not allow environments to be specified.")
+            elif 'org' not in options:
+                error_msg = _("Error: Must provide --org with activation keys.")
+            elif autoattach:
+                error_msg = _("Error: Activation keys cannot be used with --auto-attach.")
 
         if error_msg:
             raise exceptions.Failed(msg=error_msg)
-        if not 'name' in options or not options['name']:
+
+        if 'name' not in options or not options['name']:
             options['name'] = socket.gethostname()
+
         return options
