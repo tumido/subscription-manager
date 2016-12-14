@@ -65,16 +65,16 @@ class RHSMSpoke(FirstbootOnlySpokeMixIn, NormalSpoke):
 
         init_dep_injection()
 
-        facts = inj.require(inj.FACTS)
-
         backend = managergui.Backend()
         self.info = registergui.RegisterInfo()
         self.info.connect('notify::register-status', self._on_register_status_change)
         self._status = self.info.get_property('register-status')
 
-        self.register_widget = registergui.RegisterWidget(backend, facts,
-                                                          reg_info=self.info,
-                                                          parent_window=self.main_window)
+        self.register_widget = registergui.RegisterWidget(
+            backend,
+            reg_info=self.info,
+            parent_window=self.main_window
+        )
 
         self.register_box = self.builder.get_object("register_box")
         self.button_box = self.builder.get_object('navigation_button_box')

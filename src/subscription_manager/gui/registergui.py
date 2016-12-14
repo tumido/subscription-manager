@@ -264,8 +264,7 @@ class RegisterWidget(widgets.SubmanBaseWidget):
     register_button_label = ga_GObject.property(type=str, default=_('Register'))
     # TODO: a prop equivalent to initial-setups 'completed' and 'status' props
 
-    def __init__(self, backend, reg_info=None,
-                 parent_window=None):
+    def __init__(self, backend, reg_info=None, parent_window=None):
         super(RegisterWidget, self).__init__()
 
         self.backend = backend

@@ -74,7 +74,7 @@ class moduleClass(module.Module, object):
         reg_info = registergui.RegisterInfo()
         self.backend = managergui.Backend()
         self.plugin_manager = inj.require(inj.PLUGIN_MANAGER)
-        self.register_widget = registergui.FirstbootWidget(self.backend, Facts(), reg_info)
+        self.register_widget = registergui.FirstbootWidget(self.backend, reg_info)
         self.register_widget.connect("notify::screen-ready", self._on_screen_ready_change)
 
         # Will be False if we are on an older RHEL version where
