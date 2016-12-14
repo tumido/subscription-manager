@@ -168,9 +168,9 @@ class DomainSocketRegisterDBusObject(base_object.BaseObject):
         # TODO: Rewrite the error messages to be more dbus specific
         error_msg = None
         autoattach = options.get('autosubscribe') or options.get('autoattach')
-        if self.is_registered() and not options['force']:
+        if self.is_registered() and not options.get('force', False):
             error_msg = _("This system is already registered. Add force to options to override.")
-        elif options.get('consumername') == '':
+        elif options.get('name') == '':
             error_msg = _("Error: system name can not be empty.")
         elif 'service_level' in options and not autoattach:
             error_msg = _("Error: Must use --auto-attach with --servicelevel.")
@@ -195,7 +195,7 @@ class DomainSocketRegisterDBusObject(base_object.BaseObject):
         if error_msg:
             raise exceptions.Failed(msg=error_msg)
 
-        if 'name' not in options or not options['name']:
+        if 'name' not in options:
             options['name'] = socket.gethostname()
 
         return options
