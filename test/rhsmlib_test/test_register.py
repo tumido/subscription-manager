@@ -62,10 +62,10 @@ SUCCESSFUL_REGISTRATION = {
 }
 
 
-class DomainSocketRegisterDBusObjectTest(SubManFixture):
+class DomainSocketRegisterDBusObjectUnitTest(SubManFixture):
     def setUp(self):
         self.dbus_connection = mock.Mock(spec=dbus.connection.Connection)
-        super(DomainSocketRegisterDBusObjectTest, self).setUp()
+        super(DomainSocketRegisterDBusObjectUnitTest, self).setUp()
 
     @mock.patch("subscription_manager.managerlib.persist_consumer_cert")
     @mock.patch("rhsm.connection.UEPConnection")
@@ -143,7 +143,7 @@ class DomainSocketRegisterDBusObjectTest(SubManFixture):
         self.assertEquals(output, SUCCESSFUL_REGISTRATION)
 
 
-class RegisterDBusObjectTest(DBusObjectTest):
+class DomainSocketRegisterDBusObjectFunctionalTest(DBusObjectTest):
     def dbus_objects(self):
         return [RegisterDBusObject]
 
@@ -154,7 +154,7 @@ class RegisterDBusObjectTest(DBusObjectTest):
         self.mock_facts_host = facts_host_patcher.start()
         self.mock_facts_host.return_value.GetFacts.return_value = {}
 
-        super(RegisterDBusObjectTest, self).setUp()
+        super(DomainSocketRegisterDBusObjectFunctionalTest, self).setUp()
         self.proxy = self.proxy_for(RegisterDBusObject.default_dbus_path)
         self.interface = dbus.Interface(self.proxy, constants.REGISTER_INTERFACE)
 
