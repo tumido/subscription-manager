@@ -104,6 +104,8 @@ class DomainSocketRegisterDBusObject(base_object.BaseObject):
         used.
 
         Options is a dict of strings that modify the outcome of this method.
+
+        Note this method is registration ONLY.  Auto-attach is a separate process.
         """
         options['username'] = username
         options['password'] = password
@@ -115,6 +117,9 @@ class DomainSocketRegisterDBusObject(base_object.BaseObject):
         in_signature='sa(s)a{ss}',
         out_signature='a{sv}')
     def RegisterWithActivationKeys(self, org, activation_keys, options):
+        """
+        Note this method is registration ONLY.  Auto-attach is a separate process.
+        """
         result = self._register(org, activation_keys, options)
         return dbus_utils.dict_to_variant_dict(result)
 
@@ -167,13 +172,10 @@ class DomainSocketRegisterDBusObject(base_object.BaseObject):
     def validate_options(self, options):
         # TODO: Rewrite the error messages to be more dbus specific
         error_msg = None
-        autoattach = options.get('autosubscribe') or options.get('autoattach')
         if self.is_registered() and not options.get('force', False):
             error_msg = _("This system is already registered. Add force to options to override.")
         elif options.get('name') == '':
             error_msg = _("Error: system name can not be empty.")
-        elif 'service_level' in options and not autoattach:
-            error_msg = _("Error: Must use --auto-attach with --servicelevel.")
         elif 'consumerid' in options and 'force' in options:
             error_msg = _("Error: Can not force registration while attempting to recover registration with consumerid. Please use --force without --consumerid to re-register or use the clean command and try again without --force.")
 
@@ -189,8 +191,6 @@ class DomainSocketRegisterDBusObject(base_object.BaseObject):
                 error_msg = _("Error: Activation keys do not allow environments to be specified.")
             elif 'org' not in options:
                 error_msg = _("Error: Must provide --org with activation keys.")
-            elif autoattach:
-                error_msg = _("Error: Activation keys cannot be used with --auto-attach.")
 
         if error_msg:
             raise exceptions.Failed(msg=error_msg)
