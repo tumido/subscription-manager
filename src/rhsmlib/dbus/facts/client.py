@@ -13,11 +13,7 @@
 #
 
 import logging
-import dbus.mainloop.glib
-
-from subscription_manager import ga_loader
-ga_loader.init_ga()
-from subscription_manager.ga import GLib
+import dbus
 
 from rhsmlib.dbus.facts import constants as facts_constants
 

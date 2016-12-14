@@ -31,7 +31,6 @@ init_dep_injection()
 
 from subscription_manager import injection as inj
 
-from subscription_manager.facts import Facts
 from subscription_manager.hwprobe import Hardware
 from subscription_manager.gui import managergui
 from subscription_manager.gui import registergui
