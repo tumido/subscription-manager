@@ -23,6 +23,7 @@ import sys
 import dbus
 import dbus.lowlevel
 import dbus.bus
+import dbus.mainloop.glib
 import functools
 import logging
 import threading
@@ -30,6 +31,8 @@ import Queue
 
 from rhsmlib.dbus import constants, server
 
+# Set DBus mainloop early in test run (test import time!)
+dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
 logger = logging.getLogger(__name__)
 
 

@@ -13,6 +13,7 @@
 import sys
 import optparse
 import dbus
+import dbus.mainloop.glib
 import rhsmlib
 import logging
 
@@ -40,6 +41,9 @@ def parse_argv(argv, default_dbus_name):
 
 
 def main(argv=sys.argv, object_classes=None, default_bus_name=None):
+    # Set default mainloop
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+
     if not default_bus_name:
         default_bus_name = rhsmlib.dbus.constants.BUS_NAME
 

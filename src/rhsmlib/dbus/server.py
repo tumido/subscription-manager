@@ -25,9 +25,6 @@ from subscription_manager.ga import GLib
 
 from functools import partial
 
-# Set the main loop at import time so this is done early in the test run
-dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-
 log = logging.getLogger(__name__)
 
 
