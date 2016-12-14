@@ -2,6 +2,7 @@
 import gettext
 import sys
 import logging
+import dbus.mainloop.glib
 
 _ = lambda x: gettext.ldgettext("rhsm", x)
 
@@ -9,7 +10,7 @@ from subscription_manager import ga_loader
 ga_loader.init_ga()
 
 from subscription_manager.ga import Gtk as ga_Gtk
-from subscription_manager.ga import gtk_compat
+from subscription_manager.ga import gtk_compat, GLib
 
 gtk_compat.threads_init()
 
@@ -60,6 +61,10 @@ class moduleClass(module.Module, object):
         Create a new firstboot Module for the 'register' screen.
         """
         super(moduleClass, self).__init__()
+
+        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+        GLib.threads_init()
+        dbus.mainloop.glib.threads_init()
 
         self.mode = constants.MODE_REGULAR
         self.title = _("Subscription Management Registration")

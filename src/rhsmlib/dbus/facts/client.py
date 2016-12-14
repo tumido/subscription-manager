@@ -38,13 +38,6 @@ class FactsClient(object):
     interface_name = facts_constants.FACTS_DBUS_INTERFACE
 
     def __init__(self, bus=None, bus_name=None, object_path=None, interface_name=None):
-        # use default mainloop for dbus
-        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-
-        # Configure mainloop for threading.  Future proofing here.
-        GLib.threads_init()
-        dbus.mainloop.glib.threads_init()
-
         self.bus = bus or dbus.SystemBus()
 
         if bus_name:
