@@ -84,42 +84,18 @@ class FactsActionCommand(object):
         self.report = FactsActionReport()
         self.facts_client = facts.FactsClient()
 
-    def _on_facts_changed(self, changed_properties, invalidated_properties):
-        if 'facts' in changed_properties:
-            self.report.fact_updates = changed_properties['facts']
-
-            # CacheManager.update_check calls self.has_changed,
-            # is the self.facts.has_changed above redundant?
-
-            # We have a signal that will tell us facts changed, and which
-            # facts changed and how, but currently the server expects the full
-            # list on change, so get it via properties.
-            # FIXME:
-            # Eventually, the dbus signal handler for facts changed should be
-            # another dbus service that knows how to update to candlepin.
-            fact_data = self.facts_client.GetFacts()
-            self.sync_facts_to_server(fact_data)
-            log.info("Facts have been updated.")
-        else:
-            log.debug("Facts have not changed, skipping upload.")
-
     def collect_facts(self):
         return self.facts_client.GetFacts()
 
     def sync_facts_to_server(self, fact_updates):
         consumer_identity = inj.require(inj.IDENTITY)
         if not consumer_identity.is_valid():
-            # FIXME: more info
             return self.report
 
         cp_provider = inj.require(inj.CP_PROVIDER)
         uep = cp_provider.get_consumer_auth_cp()
 
         consumer_api = candlepin_api.CandlepinConsumer(uep, consumer_identity.uuid)
-        # rest_api = rhsmlib.candlepin_api.consumer.Consumer(uep,uuid, success_callback, error_callback)
-        # CandlepinConsumer is a CandlepinObject
-        # CandlepinObject
-        # CandlepinConsumer.get, .put, .update, .?
         res = consumer_api.call(uep.updateConsumer, fact_updates)
         log.debug("sync_facts_to_server candlepin api res=%s", res)
 
@@ -129,19 +105,8 @@ class FactsActionCommand(object):
         self.update()
         return self.report
 
-    # The normal case will assume the facts prop changed signal will trigger a
-    # facts update if it's needed.
     def update(self):
-        log.debug('factslib.update does not do anything yet')
-        pass
-
-    def update_force(self):
-        """This will collect the facts from the dbus service and push them to the server.
-
-        But it will also trigger a PropertiesChanged dbus signal if they are different.
-        NOTE: This doesn't force a collection of new facts, that is up to the facts
-        service to decide. This will always upload whatever the service provides however,
-        even if it's version cached by the facts service."""
+        """This will collect the facts from the dbus service and push them to the server."""
         collected_facts = self.collect_facts()
-
+        self.report.fact_updates = collected_facts
         self.sync_facts_to_server(collected_facts)

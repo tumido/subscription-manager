@@ -1883,48 +1883,11 @@ class FactsCommand(CliCommand):
                 print "%s: %s" % (key, value)
 
         if self.options.update:
-            #identity = inj.require(inj.IDENTITY)
-            # A proxy to the dbus service
-            facts_dbus_client = facts.FactsClient()
             facts_action_command = FactsActionCommand()
-            facts_action_command.update_force()
-
-            # tell service to check if the facts need to be synced to server
-            # service will check the 'last_synced' info against a 'last_collected' attribute
-            # if last_collected is newer, it will set a 'needs_sync' property (and emit change,
-            # and possibly a new signal).
-            # But the 'check_if_needs_sync' method will also return a boolean (and possibly more)
-            #
-            # So the client can call facts_dbus_client.check_if_needs_sync()
-            #  It could either block on the call, or use callbacks to get a callback when
-            # we know if we should sync or not.
-            #
-            # If we do need to sync, then sync. If succesful, then tell the service when
-            # we synced so it updates it's 'last_synced'. client could also specify an identify
-            # for the set of facts it synced which the service could provide via
-            # com.redhat.Subscriptions1.Facts facts_id property.
-
-            # Running client code (rhsmd? gui?) could also listen for signals from the
-            # the service indicating there are new facts (possibly PropertiesChanged, or
-            # a 'FactsChanged' signal). Client code will likely have to responsible for
-            # doing any locking it needs (to avoid two concurrent facts updates for example).
-            #
-            #
-            # FIXME/TODO: add ConsumerFacts.update
-
-            #raise Exception('Consumer facts updating not implemented yet (facts command)')
-
-            #try:
-            #    facts.update_check(self.cp, identity.uuid, force=True)
-            #except connection.RestlibException, re:
-            #    log.exception(re)
-            #    system_exit(os.EX_SOFTWARE, re.msg)
-            #log.info("Succesfully updated the system facts.")
-            #print _("Successfully updated the system facts.")
+            facts_action_command.update()
 
 
 class ImportCertCommand(CliCommand):
-
     def __init__(self):
         shortdesc = _("Import certificates which were provided outside of the tool")
         super(ImportCertCommand, self).__init__("import", shortdesc, False)
@@ -2280,7 +2243,6 @@ class ConfigCommand(CliCommand):
                 for (name, value) in source_list:
                     indicator1 = ''
                     indicator2 = ''
-                    # ?????
                     if value == section.get_default(name):
                         indicator1 = '['
                         indicator2 = ']'

@@ -20,22 +20,10 @@ from subscription_manager.injection import PLUGIN_MANAGER, require
 from subscription_manager.cache import CacheManager
 from rhsm import ourjson as json
 
+from rhsmlib.dbus.facts import FactsClient
+
 _ = gettext.gettext
-
 log = logging.getLogger(__name__)
-
-# Hardcoded value for the version of certificates this version of the client
-# prefers:
-CERT_VERSION = "3.2"
-
-
-# FIXME: likely need to split this into a 'client' object that mostly wraps
-#        the dbus facts proxy (with the service handling read caching).
-#        And a... syncer? Consumer model proxy? cache manager? Something that
-#        will be resposible for updating candlepin with the latest collected facts.
-
-class NewFacts(object):
-    pass
 
 
 class Facts(CacheManager):
@@ -78,31 +66,21 @@ class Facts(CacheManager):
 
         cached_facts = self._read_cache() or {}
         # In order to accurately check for changes, we must refresh local data
-        self.facts = self.get_facts(True)
+        self.facts = self.get_facts()
 
         for key in (set(self.facts) | set(cached_facts)) - set(self.graylist):
             if self.facts.get(key) != cached_facts.get(key):
                 return True
         return False
 
-    def get_facts(self, refresh=False):
-        if ((len(self.facts) == 0) or refresh):
-            facts = {}
-            facts.update(self._load_hw_facts())
-
-            # Set the preferred entitlement certificate version:
-            facts.update({"system.certificate_version": CERT_VERSION})
-
-            self.plugin_manager.run('post_facts_collection', facts=facts)
-            self.facts = facts
+    def get_facts(self):
+        facts_dbus_client = FactsClient()
+        self.facts = facts_dbus_client.GetFacts()
+        self.plugin_manager.run('post_facts_collection', facts=self.facts)
         return self.facts
 
     def to_dict(self):
         return self.get_facts()
-
-    def _load_hw_facts(self):
-        import hwprobe
-        return hwprobe.Hardware().get_all()
 
     def _sync_with_server(self, uep, consumer_uuid):
         log.debug("Updating facts on server")
