@@ -264,7 +264,7 @@ def list_pools(uep, consumer_uuid, list_all=False, active_on=None, filter_string
     rule checks server side will have the most up to date info about the
     consumer possible.
     """
-    # FIXME: for testing, replace with dbus client
+
     # client tells service 'look for facts again'
     # if service finds new facts:
     #     -emit a signal?
@@ -281,7 +281,6 @@ def list_pools(uep, consumer_uuid, list_all=False, active_on=None, filter_string
     # subman gets signal that props changed, and that been_synced is now true
     # since it's been synced, then subman continues
     require(FACTS).update_check(uep, consumer_uuid)
-    #facts.update_check(uep, consumer_uuid)
 
     profile_mgr = cache.ProfileManager()
     profile_mgr.update_check(uep, consumer_uuid)

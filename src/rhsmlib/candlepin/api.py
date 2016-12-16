@@ -78,7 +78,6 @@ class Candlepin(object):
             log.exception(ex)
             self.last_error = ex
             log.error("Consumer certificate is invalid")
-            # FIXME: we can get the consumer identity here, and point to the uuid/cert
             raise CandlepinApiSSLError('SSL related error (consumer identity cert is invalid?): %s' % ex)
         except rhsm.connection.RestlibException as ex:
             # Indicates we may be talking to a very old candlepin server

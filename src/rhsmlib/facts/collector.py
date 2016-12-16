@@ -56,10 +56,9 @@ def get_arch(prefix=None):
 # An empty FactsCollector should just return an empty dict on get_all()
 
 
-# FIXME: ditch most of these optional args
 class FactsCollector(object):
     def __init__(self, arch=None, prefix=None, testing=None,
-                 hardware_methods=None, collected_hw_info=None, collectors=None):
+                 hardware_methods=None, collected_hw_info=None):
         """Base class for facts collecting classes.
 
         self._collected_hw_info will reference the passed collected_hw_info
@@ -78,7 +77,6 @@ class FactsCollector(object):
         self.arch = arch or get_arch(prefix=self.prefix)
 
         self.hardware_methods = hardware_methods or []
-        self.collectors = collectors or iter([])
 
     def collect(self):
         """Return a FactsCollection iterable."""

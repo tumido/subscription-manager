@@ -94,7 +94,6 @@ class HostCollector(collector.FactsCollector):
         # Now, munging, kluges, special cases, etc
         # NOTE: we are passing the facts we've already collected into
         # cleanup_collector.
-        # FIXME: remove having to pass these args around
         cleanup_collector = cleanup.CleanupCollector(
             prefix=self.prefix,
             testing=self.testing,

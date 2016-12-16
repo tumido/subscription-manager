@@ -128,9 +128,6 @@ class DomainSocketServer(object):
             domain_socket_server.connection_count -= 1
             if domain_socket_server.connection_count == 0:
                 log.debug('No connections remain')
-                # TODO If there are no connections remaining we probably want to
-                # start a timer or something to call domain_socket_server.shutdown()
-                # after 60 seconds so we don't just keep holding onto the socket needlessly
             else:
                 log.debug('Server still has connections')
 
