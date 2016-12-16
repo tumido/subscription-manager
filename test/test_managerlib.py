@@ -296,7 +296,7 @@ class MergePoolsTests(SubManFixture):
         self.assertEquals(5, merged_pools.consumed)
 
 
-class PoolFilterTests(unittest.TestCase):
+class PoolFilterTests(SubManFixture):
 
     def test_uninstalled_filter_direct_match(self):
         product1 = 'product1'
