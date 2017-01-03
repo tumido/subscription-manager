@@ -40,8 +40,8 @@ class TestFactlib(fixture.SubManFixture):
         self.consumer_uuid_passed_to_server = None
 
         def track_facts_update(consumer_uuid, facts):
-           self.facts_passed_to_server = facts
-           self.consumer_uuid_passed_to_server = consumer_uuid
+            self.facts_passed_to_server = facts
+            self.consumer_uuid_passed_to_server = consumer_uuid
 
         stub_uep = stubs.StubUEP()
         stub_uep.updateConsumer = track_facts_update
