@@ -596,7 +596,10 @@ class StubCPProvider(object):
         proxy_hostname_arg=None,
         proxy_port_arg=None,
         proxy_user_arg=None,
-        proxy_password_arg=None):
+        proxy_password_arg=None,
+        no_proxy_arg=None,
+        correlation_id=None,
+        restlib_class=None):
         pass
 
     def set_content_connection_info(self, cdn_hostname=None, cdn_port=None):
